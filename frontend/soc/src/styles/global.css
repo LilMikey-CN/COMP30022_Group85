@@ -34,10 +34,42 @@ body {
   transition: box-shadow 0.3s ease;
 }
 
+/* Summary Card Styles */
+.summary-card .ant-card-body {
+  padding: 20px;
+}
+
+/* Care Items List */
+.ant-list-item {
+  border: none !important;
+}
+
+.ant-list-split .ant-list-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Card Headers */
+.ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 20px;
+}
+
+.ant-card-head-title {
+  padding: 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
 /* Button Hover Effects */
 .ant-btn-primary:hover {
   background-color: #5a7a9a !important;
   border-color: #5a7a9a !important;
+}
+
+/* Empty State */
+.ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
 }
 
 /* Scrollbar Styles */
@@ -67,5 +99,10 @@ body {
 
   .ant-layout {
     margin-left: 0 !important;
+  }
+
+  .ant-col-md-8 {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 }

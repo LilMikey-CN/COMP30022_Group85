@@ -1,13 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Avatar, Typography, Space } from 'antd';
-import { FileSearchOutlined } from '@ant-design/icons';
+import { VideoCameraOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
 const PatientCard = ({ patient }) => {
+  const navigate = useNavigate();
+
   const handleViewSchedule = () => {
-    // Handle view care schedule action
-    console.log(`Viewing schedule for patient: ${patient.id}`);
+    navigate(`/patient/${patient.id}`);
   };
 
   return (
@@ -53,7 +55,7 @@ const PatientCard = ({ patient }) => {
         {/* Action Button */}
         <Button
           type="primary"
-          icon={<FileSearchOutlined />}
+          icon={<VideoCameraOutlined />}
           block
           onClick={handleViewSchedule}
           style={{

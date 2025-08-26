@@ -1,8 +1,13 @@
 import Dashboard from '../pages/Dashboard';
-// Import other pages as you create them
-// import PatientDetails from '../pages/PatientDetails';
-// import Schedule from '../pages/Schedule';
-// import Settings from '../pages/Settings';
+import PatientLayout from '../components/Layout/PatientLayout';
+import PatientHome from '../pages/PatientHome';
+import {
+  PatientCalendar,
+  PatientList,
+  PatientBudget,
+  PatientInfo,
+  PatientSettings
+} from '../pages/PatientPlaceholders';
 
 // Route configuration
 export const routes = [
@@ -17,22 +22,43 @@ export const routes = [
     redirect: '/',
     name: 'Patients'
   },
-  // Add more routes as needed
-  // {
-  //   path: '/patients/:id',
-  //   element: PatientDetails,
-  //   name: 'Patient Details'
-  // },
-  // {
-  //   path: '/schedule',
-  //   element: Schedule,
-  //   name: 'Schedule'
-  // },
-  // {
-  //   path: '/settings',
-  //   element: Settings,
-  //   name: 'Settings'
-  // }
+  {
+    path: '/patient/:patientId',
+    element: PatientLayout,
+    name: 'Patient',
+    children: [
+      {
+        path: '',
+        element: PatientHome,
+        name: 'Patient Home'
+      },
+      {
+        path: 'calendar',
+        element: PatientCalendar,
+        name: 'Patient Calendar'
+      },
+      {
+        path: 'list',
+        element: PatientList,
+        name: 'Patient List'
+      },
+      {
+        path: 'budget',
+        element: PatientBudget,
+        name: 'Patient Budget'
+      },
+      {
+        path: 'info',
+        element: PatientInfo,
+        name: 'Patient Info'
+      },
+      {
+        path: 'settings',
+        element: PatientSettings,
+        name: 'Patient Settings'
+      }
+    ]
+  }
 ];
 
 // Navigation menu configuration
