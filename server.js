@@ -1,80 +1,136 @@
-const express = require('express')
-const admin = require('firebase-admin')
-const bodyParser = require('body-parser')
+const express = require("express");
+const admin = require("firebase-admin");
 
+// Initialize Express
 const app = express();
-
 const port = 3000;
 
-const serviceAccount = require('./firebaseAdminConfig.json')
+// initialize firebase admin
+const serviceAccount = require("./firebaseAdminConfig.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
+// Parse incoming requests with JSON payload
 app.use(express.json());
 
-// initialize firebase admin
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-})
+const db = admin.firestore();
 
-app.post('/create', async (req, res) => {
-    try{
-        const db = admin.firestore(); // <-- You need this line here
-        const data = req.body; 
-        const docRef = await db.collection('CareItem').add(data);
-        res.status(201).send({ message: 'Document added successfully', id: docRef.id });
-    } catch (error) {
-         console.error('Error adding document: ', error);
-        res.status(500).send({ message: 'Error adding document', error: error.message });
+// Welcome message
+app.get("/", (req, res) => {
+  res.send("Hello from the server!");
+});
+
+// Read all clients
+app.get("/clients", async (req, res) => {
+  try {
+    const snapshot = await db.collection("Client").get();
+    const clients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(clients);
+  } catch (error) {
+    console.error("Error fetching clients: ", error);
+    res
+      .status(500)
+      .send({ message: "Error fetching clients", error: error.message });
+  }
+});
+
+// Create care item for client
+app.post("/clients/:clientID/CareItem", async (req, res) => {
+  try {
+    const { clientID } = req.params;
+
+    // Check client exists
+    const clientRef = db.collection("Client").doc(clientID);
+    const clientDoc = await clientRef.get();
+    if (!clientDoc.exists) {
+      return res.status(404).send({ message: "Client not found" });
     }
-})
 
-app.post('/update', async(req, res) => {
-    try {
-        const db = admin.firestore();
-        const { id, ...data } = req.body;
+    const careTaskData = { ...req.body, clientID };
+    const docRef = await db.collection("CareItem").add(careTaskData);
+    res
+      .status(201)
+      .send({ message: "Document added successfully", id: docRef.id });
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error adding document", error: error.message });
+  }
+});
 
-        const docRef = db.collection('CareItem').doc(id);
+// Read all care items for client
+app.get("/clients/:clientID/CareItem", async (req, res) => {
+  try {
+    const { clientID } = req.params;
+    const snapshot = await db
+      .collection("CareItem")
+      .where("clientID", "==", clientID)
+      .get();
+    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    res.json(data);
+  } catch (error) {
+    console.error("Error getting documents: ", error);
+    res
+      .status(500)
+      .send({ message: "Error getting documents", error: error.message });
+  }
+});
 
-        await docRef.update(data);
-        
-        res.status(200).send({ message: 'Document updated successfully' });
+// Update care item
+app.put("/clients/:clientID/CareItem/:careItemId", async (req, res) => {
+  try {
+    const { clientID: clientID, careItemId } = req.params;
+    const data = req.body;
 
-    } catch (error) {
-        console.error('Error updating document: ', error);
-        res.status(500).send({ message: 'Error updating document', error: error.message });
+    const docRef = db.collection("CareItem").doc(careItemId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).send({ message: "Document not found" });
     }
-})
 
-app.get('/CareItem', async (req, res) => {
-    const db = admin.firestore();
-
-    try {
-        const snapshot = await db.collection('CareItem').get()
-        const data = snapshot.docs.map(doc => ({id: doc.id, ...doc.data() }))
-
-        res.json(data)
-    } catch (error) {
-        res.status(500).send(error)
+    if (doc.data().clientID !== clientID) {
+      return res.status(403).send({ message: "Permission denied" });
     }
-})
 
-app.delete('/delete/:id', async (req, res) => {
-    try{
-        const db = admin.firestore();
-        const docId = req.params.id; // Get the ID from the URL parameter
+    await docRef.update(data);
+    res.status(200).send({ message: "Document updated successfully" });
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error updating document", error: error.message });
+  }
+});
 
-        const docRef = db.collection('CareItem').doc(docId);
+// Delete a care item for client
+app.delete("/clients/:clientID/CareItem/:careItemId", async (req, res) => {
+  try {
+    const { clientID, careItemId } = req.params;
+    const docRef = db.collection("CareItem").doc(careItemId);
+    const doc = await docRef.get();
 
-        // This will throw an error if the document does not exist,
-        // which will be caught by the catch block below.
-        await docRef.delete();
-
-        res.status(200).send({ message: 'Document deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting document: ', error);
-        res.status(500).send({ message: 'Error deleting document', error: error.message });
+    if (!doc.exists) {
+      return res.status(404).send({ message: "Document not found" });
     }
-})
 
+    if (doc.data().clientID !== clientID) {
+      return res.status(403).send({ message: "Permission denied" });
+    }
+
+    await docRef.delete();
+    res.status(200).send({ message: "Document deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error deleting document", error: error.message });
+  }
+});
+
+// Start server
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`)
-}) 
+  console.log(`Server is running on http://localhost:${port}`);
+});
