@@ -1,9 +1,9 @@
 import Dashboard from '../pages/Dashboard';
 import PatientLayout from '../components/Layout/PatientLayout';
 import PatientHome from '../pages/PatientHome';
+import CareItemsListPage from '../pages/CareItemsListPage';
 import {
   PatientCalendar,
-  PatientList,
   PatientBudget,
   PatientInfo,
   PatientSettings
@@ -39,8 +39,8 @@ export const routes = [
       },
       {
         path: 'list',
-        element: PatientList,
-        name: 'Patient List'
+        element: CareItemsListPage,
+        name: 'Care Items List'
       },
       {
         path: 'budget',
