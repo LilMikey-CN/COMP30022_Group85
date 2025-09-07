@@ -5,9 +5,9 @@ import Sidebar from './components/Layout/Sidebar';
 import PatientLayout from './components/Layout/PatientLayout';
 import Dashboard from './pages/Dashboard';
 import PatientHome from './pages/PatientHome';
+import CareItemsListPage from './pages/CareItemsListPage';
 import {
   PatientCalendar,
-  PatientList,
   PatientBudget,
   PatientInfo,
   PatientSettings
@@ -42,7 +42,7 @@ const App = () => {
         <Route path="/patient/:patientId" element={<PatientLayout />}>
           <Route index element={<PatientHome />} />
           <Route path="calendar" element={<PatientCalendar />} />
-          <Route path="list" element={<PatientList />} />
+          <Route path="list" element={<CareItemsListPage />} />
           <Route path="budget" element={<PatientBudget />} />
           <Route path="info" element={<PatientInfo />} />
           <Route path="settings" element={<PatientSettings />} />

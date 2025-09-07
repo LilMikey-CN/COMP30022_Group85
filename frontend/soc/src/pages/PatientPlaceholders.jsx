@@ -53,13 +53,12 @@ export const PatientCalendar = () => (
   />
 );
 
-// List Page
-export const PatientList = () => (
-  <PlaceholderPage
-    title="Care Items List"
-    description="Complete list of all care items and tasks"
-  />
-);
+// List Page - Care Items List
+export const PatientList = () => {
+  const { patientId } = useParams();
+  
+  return null; // This will be replaced by the actual CareItemsListPage
+};
 
 // Budget Page
 export const PatientBudget = () => (
