@@ -41,6 +41,61 @@ app.post("/clients/create", async (req, res) => {
   }
 });
 
+// Give user permission to view client
+app.post("/clients/:clientID/permission", async (req, res) => {
+  try {
+    const { clientID } = req.params;
+
+    // Check client exists
+    const clientRef = db.collection("Client").doc(clientID);
+    const clientDoc = await clientRef.get();
+    if (!clientDoc.exists) {
+      return res.status(404).send({ message: "Client not found" });
+    }
+
+    const userData = { ...req.body };
+    const docRef = await db.collection("Client").doc(clientID).collection("PermittedUsers").add(userData);
+    res
+      .status(201)
+      .send({ message: "Document added successfully", id: docRef.id });
+  } catch (error) {
+    console.error("Error adding document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error adding document", error: error.message });
+  }
+});
+
+// Remove client from organisation
+// Remove permissions from all users of organisation
+app.delete("/clients/:clientID/leave/:organisationID", async (req, res) => {
+  try {
+    const { clientID, organisationID } = req.params;
+    const snapshot = await db
+      .collection("Client")
+      .doc(clientID)
+      .collection("PermittedUsers")
+      .where("Organisation", "==", organisationID)
+      .get();
+   
+    for (const doc of snapshot.docs) {
+    
+      if (!doc.exists) {
+        return res.status(404).send({ message: "No users of this organisation permmitted for this client" });
+      }
+
+      await doc.ref.delete();
+    }
+
+    res.status(200).send({ message: "Document deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error deleting document", error: error.message });
+  }
+});
+
 // Read all clients
 app.get("/clients", async (req, res) => {
   try {
