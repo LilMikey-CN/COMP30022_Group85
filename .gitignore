@@ -1,2 +1,8 @@
 node_modules/
 firebaseAdminConfig.json
+
+# Environment variables
+.env
+
+# macOS specific
+.DS_Store
