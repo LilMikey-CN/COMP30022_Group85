@@ -7,6 +7,7 @@
 [![NodeJS](https://img.shields.io/badge/Node%20js-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![ExpressJS](https://img.shields.io/badge/Express%20js-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![Firebase](https://img.shields.io/badge/firebase-ffca28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
+
 (Brief description of the project and its purpose. TBD.)
 
 ## Quick Start
