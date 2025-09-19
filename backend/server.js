@@ -70,7 +70,7 @@ app.delete("/user/delete", async (req, res) => {
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).send({ message: "Document not found" });
+      return res.status(404).send({ message: "User not found" });
     }
 
     const doc = snapshot.docs[0];
@@ -115,17 +115,19 @@ app.get("/user/read", async (req, res) => {
       .get();
 
     if (snapshot.empty) {
-      return res.status(404).send({ message: "Document not found" });
+      return res.status(404).send({ message: "User not found" });
     }
 
     const doc = snapshot.docs[0];
 
-    res.json(doc.data());
+    res
+      .status(200)
+      .json(doc.data());
   } catch (error) {
     console.error("Error getting document: ", error);
     res
       .status(500)
-      .send({ message: "Error getting document", error: error.message });
+      .send({ message: "Error fetching user", error: error.message });
   }
 });
 
@@ -250,7 +252,9 @@ app.get("/clients/:clientID", async (req, res) => {
     const docRef = db.collection("Client").doc(clientID);
     const doc = await docRef.get();
 
-    res.json(doc.data());
+    res
+      .status(200)
+      .json(doc.data());
   } catch (error) {
     console.error("Error getting document: ", error);
     res
@@ -357,7 +361,9 @@ app.get("/clients/:clientID/CareItem", async (req, res) => {
       .where("clientID", "==", clientID)
       .get();
     const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    res.json(data);
+    res
+      .status(200)
+      .json(data);
   } catch (error) {
     console.error("Error getting documents: ", error);
     res
