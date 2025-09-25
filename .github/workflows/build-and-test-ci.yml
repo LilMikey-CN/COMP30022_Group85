@@ -1,0 +1,74 @@
+name: Test and Build on PR Update
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js for Frontend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './frontend/soc/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+        working-directory: ./frontend/soc
+
+      - name: Lint Frontend
+        run: npm run lint
+        working-directory: ./frontend/soc
+
+      - name: Build Frontend
+        run: npm run build
+        working-directory: ./frontend/soc
+
+  test-and-build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js for Backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './backend/package-lock.json'
+
+      - name: Install Backend Dependencies
+        run: npm ci
+        working-directory: ./backend
+
+      - name: Start Backend Server (Background)
+        run: npm start &
+        working-directory: ./backend
+
+  test-and-build-object-storage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js for Object Storage
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './object-storage/package-lock.json'
+
+      - name: Install Object Storage Dependencies
+        run: npm ci
+        working-directory: ./object-storage
+
+      - name: Run Object Storage Tests
+        run: npm test
+        working-directory: ./object-storage
+        env:
+          CI: true
