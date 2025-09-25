@@ -4,6 +4,7 @@ import { Layout } from 'antd';
 import Sidebar from './components/Layout/Sidebar';
 import PatientLayout from './components/Layout/PatientLayout';
 import Dashboard from './pages/Dashboard';
+import LandingPage from './pages/LandingPage';
 import PatientHome from './pages/PatientHome';
 import CareItemsListPage from './pages/CareItemsListPage';
 import Budget from './pages/Budget';
@@ -20,6 +21,9 @@ const App = () => {
   return (
     <Router>
       <Routes>
+        {/* Landing page route */}
+        <Route path="/landing" element={<LandingPage />} />
+
         {/* Main dashboard with sidebar */}
         <Route
           path="/"
