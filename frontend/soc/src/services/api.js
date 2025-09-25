@@ -7,6 +7,7 @@
 import { patientsData } from '../data/mockData';
 
 // Base API configuration
+
 // eslint-disable-next-line no-undef
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
@@ -119,8 +120,10 @@ export const patientService = {
    * Delete patient
    * @param {string} patientId - Patient ID
    * @returns {Promise<Object>} Deletion result
-   */
+  /**
+
   // eslint-disable-next-line no-unused-vars
+
   async deletePatient(patientId) {
     // TODO: Replace with actual API call
     // return await apiCall(`/patients/${patientId}`, {
@@ -134,6 +137,7 @@ export const patientService = {
       }, 300);
     });
   }
+  **/
 };
 
 // Schedule Services

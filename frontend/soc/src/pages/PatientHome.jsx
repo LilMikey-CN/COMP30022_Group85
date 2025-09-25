@@ -3,7 +3,7 @@ import { Typography, Card, Row, Col } from 'antd';
 import { useParams } from 'react-router-dom';
 import SummaryCard from '../components/SummaryCard';
 import CareItemsList from '../components/CareItemsList';
-import { patientsData } from '../data/mockData';
+//import { patientsData } from '../data/mockData';
 import { careScheduleData } from '../data/careScheduleData';
 
 const { Title, Text } = Typography;
@@ -12,8 +12,8 @@ const PatientHome = () => {
   const { patientId } = useParams();
 
   // Get patient data (in real app, this would be an API call)
-  // eslint-disable-next-line no-unused-vars
-  const patient = patientsData.find(p => p.id === patientId) || patientsData[0];
+
+  //const patient = patientsData.find(p => p.id === patientId) || patientsData[0];
   const scheduleData = careScheduleData[patientId] || careScheduleData.default;
 
   return (
