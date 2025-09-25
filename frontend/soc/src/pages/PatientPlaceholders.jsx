@@ -60,13 +60,7 @@ export const PatientList = () => {
   return null; // This will be replaced by the actual CareItemsListPage
 };
 
-// Budget Page
-export const PatientBudget = () => (
-  <PlaceholderPage
-    title="Budget Management"
-    description="Track and manage patient care budget"
-  />
-);
+// Budget Page - Replaced by actual Budget component
 
 // Patient Info Page
 export const PatientInfo = () => (
