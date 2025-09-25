@@ -34,7 +34,6 @@ const apiCall = async (endpoint, options = {}) => {
     throw error;
   }
 };
-**/
 
 // Patient Services
 export const patientService = {
