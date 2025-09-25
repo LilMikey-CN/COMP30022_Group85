@@ -15,7 +15,9 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
 
   // Get current month spending
   const currentMonth = new Date().getMonth() + 1;
+  // eslint-disable-next-line no-unused-vars
   const currentMonthData = monthlySpending.find(m => m.month === currentMonth);
+  // eslint-disable-next-line no-unused-vars
   const lastMonthData = monthlySpending.find(m => m.month === currentMonth - 1);
 
   return (

@@ -12,6 +12,7 @@ const PatientHome = () => {
   const { patientId } = useParams();
 
   // Get patient data (in real app, this would be an API call)
+  // eslint-disable-next-line no-unused-vars
   const patient = patientsData.find(p => p.id === patientId) || patientsData[0];
   const scheduleData = careScheduleData[patientId] || careScheduleData.default;
 

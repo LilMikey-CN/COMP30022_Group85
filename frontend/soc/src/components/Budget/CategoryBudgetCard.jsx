@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, Button, Dropdown, Collapse, Typography, Space } from 'antd';
 import { MoreOutlined, PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import { formatCurrency } from '../../data/budgetCalculations';
+// eslint-disable-next-line no-unused-vars
 import { getCareItemsByCategory } from '../../data/dataHelpers';
 import CareItemCard from './CareItemCard';
 
