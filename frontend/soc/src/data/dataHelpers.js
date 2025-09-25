@@ -306,11 +306,12 @@ export const sortCareItems = (items, sortBy, direction = 'asc') => {
         aValue = a.frequency;
         bValue = b.frequency;
         break;
-      case 'priority':
+      case 'priority': {
         const priorityOrder = { high: 3, medium: 2, low: 1 };
         aValue = priorityOrder[a.priority.toLowerCase()];
         bValue = priorityOrder[b.priority.toLowerCase()];
         break;
+      }
       case 'dueDate':
         aValue = new Date(a.nextDueDate);
         bValue = new Date(b.nextDueDate);

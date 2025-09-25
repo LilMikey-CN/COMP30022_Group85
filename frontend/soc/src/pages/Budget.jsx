@@ -26,6 +26,7 @@ const BudgetContent = () => {
 
   // TanStack Query hooks
   const { data: budgetAnalytics, isLoading: analyticsLoading, error: analyticsError } = useBudgetAnalytics(patientId);
+  // eslint-disable-next-line no-unused-vars
   const { data: categories = [], isLoading: categoriesLoading } = useCategories(patientId);
   const deleteCategoryMutation = useDeleteCategory(patientId);
   const deleteSubcategoryMutation = useDeleteSubcategory(patientId);

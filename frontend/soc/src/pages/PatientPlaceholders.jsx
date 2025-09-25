@@ -55,8 +55,9 @@ export const PatientCalendar = () => (
 
 // List Page - Care Items List
 export const PatientList = () => {
+  // eslint-disable-next-line no-unused-vars
   const { patientId } = useParams();
-  
+
   return null; // This will be replaced by the actual CareItemsListPage
 };
 
