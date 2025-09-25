@@ -55,8 +55,8 @@ export const PatientCalendar = () => (
 
 // List Page - Care Items List
 export const PatientList = () => {
-  const { patientId } = useParams();
-  
+  // const { patientId } = useParams();
+
   return null; // This will be replaced by the actual CareItemsListPage
 };
 

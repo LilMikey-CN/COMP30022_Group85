@@ -7,9 +7,10 @@
 import { patientsData } from '../data/mockData';
 
 // Base API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 // Helper function for API calls
+/**
 const apiCall = async (endpoint, options = {}) => {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -31,6 +32,7 @@ const apiCall = async (endpoint, options = {}) => {
     throw error;
   }
 };
+**/
 
 // Patient Services
 export const patientService = {
@@ -118,6 +120,7 @@ export const patientService = {
    * @param {string} patientId - Patient ID
    * @returns {Promise<Object>} Deletion result
    */
+  /**
   async deletePatient(patientId) {
     // TODO: Replace with actual API call
     // return await apiCall(`/patients/${patientId}`, {
@@ -131,6 +134,7 @@ export const patientService = {
       }, 300);
     });
   }
+  **/
 };
 
 // Schedule Services
