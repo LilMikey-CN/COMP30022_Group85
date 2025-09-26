@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget UI - Complete Modal System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f6fa;
+            padding: 20px;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        /* Budget Summary */
+        .budget-summary {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .summary-cards {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            flex: 1;
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .summary-amount {
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .budget-amount { color: #5e72e4; }
+        .remaining-amount { color: #2dce89; }
+        .spent-amount { color: #f5365c; }
+
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #5e72e4;
+            border-radius: 4px;
+            width: 0.375%;
+            transition: width 0.3s ease;
+        }
+
+        /* Category Section */
+        .categories-section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .add-category-btn {
+            background: #5e72e4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .add-category-btn:hover {
+            background: #4c63d2;
+        }
+
+        /* Category Cards */
+        .category-card {
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+            position: relative;
+        }
+
+        .category-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 12px;
+        }
+
+        .category-stats {
+            display: flex;
+            gap: 32px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .budget-value { color: #2c3e50; }
+        .remaining-value { color: #2dce89; }
+        .spent-value { color: #f5365c; }
+
+        /* Menu Button */
+        .menu-button {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            position: relative;
+        }
+
+        .menu-button:hover {
+            background: #f1f3f5;
+        }
+
+        .menu-dots {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .dot {
+            width: 4px;
+            height: 4px;
+            background: #7f8c8d;
+            border-radius: 50%;
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: none;
+            min-width: 180px;
+        }
+
+        .menu-button.active + .dropdown-menu {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .menu-item:hover {
+            background: #f8f9fa;
+        }
+
+        .menu-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .menu-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .menu-item.delete {
+            color: #f5365c;
+        }
+
+        .menu-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        /* Subcategories */
+        .subcategories {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .subcategories-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .subcategories-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .add-sub-btn {
+            font-size: 12px;
+            color: #5e72e4;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .category-card:hover .add-sub-btn {
+            opacity: 1;
+        }
+
+        .add-sub-btn:hover {
+            text-decoration: underline;
+        }
+
+        .subcategory-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+
+        .subcategory-item:hover {
+            background: #f1f3f5;
+        }
+
+        .subcategory-content {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .subcategory-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2c3e50;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .subcategory-right-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .subcategory-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            padding-right: 10px;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .subcategory-stats span {
+            color: #7f8c8d;
+        }
+
+        .subcategory-stats .value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Always visible subcategory actions */
+        .subcategory-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .action-btn {
+            padding: 4px 8px;
+            font-size: 11px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.7;
+        }
+
+        .action-btn:hover {
+            opacity: 1;
+        }
+
+        .edit-btn {
+            background: #e3f2fd;
+            color: #2196f3;
+        }
+
+        .edit-btn:hover {
+            background: #bbdefb;
+            opacity: 1;
+        }
+
+        .delete-btn {
+            background: #ffebee;
+            color: #f44336;
+        }
+
+        .delete-btn:hover {
+            background: #ffcdd2;
+            opacity: 1;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            padding: 24px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #7f8c8d;
+            transition: background 0.2s;
+        }
+
+        .close-btn:hover {
+            background: #f1f3f5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #5e72e4;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: white;
+            cursor: pointer;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #5e72e4;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 6px;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-prefix {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .input-with-prefix {
+            padding-left: 28px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .cancel-btn {
+            background: #f1f3f5;
+            color: #2c3e50;
+        }
+
+        .cancel-btn:hover {
+            background: #e9ecef;
+        }
+
+        .save-btn {
+            background: #5e72e4;
+            color: white;
+        }
+
+        .save-btn:hover {
+            background: #4c63d2;
+        }
+
+        .delete-text-btn {
+            background: transparent;
+            color: #f5365c;
+            border: 1px solid #f5365c;
+        }
+
+        .delete-text-btn:hover {
+            background: #ffebee;
+        }
+
+        /* Delete Confirmation Modal */
+        .confirm-modal {
+            max-width: 400px;
+        }
+
+        .confirm-icon {
+            width: 48px;
+            height: 48px;
+            background: #ffebee;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 24px;
+        }
+
+        .confirm-message {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .confirm-submessage {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: #f0f7ff;
+            border: 1px solid #d0e5ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-icon {
+            color: #2196f3;
+            font-size: 16px;
+        }
+
+        .info-text {
+            font-size: 13px;
+            color: #1976d2;
+            line-height: 1.5;
+        }
+
+        /* Toggle Switch */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #cbd5e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #5e72e4;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(20px);
+        }
+
+        /* Demo Modal Switcher */
+        .demo-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+        }
+
+        .demo-title {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .demo-btn {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border: 1px solid #e9ecef;
+            background: white;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .demo-btn:hover {
+            background: #f8f9fa;
+            border-color: #5e72e4;
+        }
+
+        .demo-btn:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Budget</h1>
+            <p>Track costs and spending for your scheduled items</p>
+        </div>
+
+        <!-- Budget Summary -->
+        <div class="budget-summary">
+            <h2 class="summary-title">Total Budget Summary</h2>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-label">Budget</div>
+                    <div class="summary-amount budget-amount">$8,000.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Remaining</div>
+                    <div class="summary-amount remaining-amount">$7,970.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Spent</div>
+                    <div class="summary-amount spent-amount">$30.00</div>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Categories Section -->
+        <div class="categories-section">
+            <div class="section-header">
+                <h2 class="section-title">Category Budgets</h2>
+                <button class="add-category-btn" onclick="openModal('addCategoryModal')">
+                    <span>+</span> Add Category
+                </button>
+            </div>
+
+            <!-- Clothing Category -->
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-info">
+                        <div class="category-name">Clothing</div>
+                        <div class="category-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Budget</span>
+                                <span class="stat-value budget-value">$1,000.00</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Remaining</span>
+                                <span class="stat-value remaining-value">$980.00</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Spent</span>
+                                <span class="stat-value spent-value">$20.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="menu-button" onclick="toggleMenu(this)">
+                        <div class="menu-dots">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                    </button>
+                    <div class="dropdown-menu">
+                        <div class="menu-item" onclick="openModal('editCategoryModal')">
+                            <span class="menu-icon">✏️</span>
+                            Edit Category
+                        </div>
+                        <div class="menu-item" onclick="openModal('addSubcategoryModal')">
+                            <span class="menu-icon">➕</span>
+                            Add Subcategory
+                        </div>
+                        <div class="menu-item delete" onclick="openModal('deleteCategoryModal')">
+                            <span class="menu-icon">🗑️</span>
+                            Delete Category
+                        </div>
+                    </div>
+                </div>
+
+                <div class="subcategories">
+                    <div class="subcategories-header">
+                        <span class="subcategories-label">Subcategories</span>
+                        <a href="#" class="add-sub-btn" onclick="openModal('addSubcategoryModal'); return false;">
+                            <span>+</span> Add subcategory
+                        </a>
+                    </div>
+                    <div class="subcategory-item">
+                        <div class="subcategory-content">
+                            <span class="subcategory-name">Shirts</span>
+                            <div class="subcategory-right-section">
+                                <div class="subcategory-stats">
+                                    <span>Budget: <span class="value">$100.00</span></span>
+                                    <span>Remaining: <span class="value">$80.00</span></span>
+                                    <span>Spent: <span class="value">$20.00</span></span>
+                                </div>
+                                <div class="subcategory-actions">
+                                    <button class="action-btn edit-btn" onclick="openModal('editSubcategoryModal')">Edit</button>
+                                    <button class="action-btn delete-btn" onclick="openModal('deleteSubcategoryModal')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subcategory-item">
+                        <div class="subcategory-content">
+                            <span class="subcategory-name">Socks</span>
+                            <div class="subcategory-right-section">
+                                <div class="subcategory-stats">
+                                    <span>Budget: <span class="value">$50.00</span></span>
+                                    <span>Remaining: <span class="value">$50.00</span></span>
+                                    <span>Spent: <span class="value">$0.00</span></span>
+                                </div>
+                                <div class="subcategory-actions">
+                                    <button class="action-btn edit-btn" onclick="openModal('editSubcategoryModal')">Edit</button>
+                                    <button class="action-btn delete-btn" onclick="openModal('deleteSubcategoryModal')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subcategory-item">
+                        <div class="subcategory-content">
+                            <span class="subcategory-name">Pants</span>
+                            <div class="subcategory-right-section">
+                                <div class="subcategory-stats">
+                                    <span>Budget: <span class="value">$100.00</span></span>
+                                    <span>Remaining: <span class="value">$100.00</span></span>
+                                    <span>Spent: <span class="value">$0.00</span></span>
+                                </div>
+                                <div class="subcategory-actions">
+                                    <button class="action-btn edit-btn" onclick="openModal('editSubcategoryModal')">Edit</button>
+                                    <button class="action-btn delete-btn" onclick="openModal('deleteSubcategoryModal')">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entertainment Category -->
+            <div class="category-card">
+                <div class="category-header">
+                    <div class="category-info">
+                        <div class="category-name">Entertainment</div>
+                        <div class="category-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Budget</span>
+                                <span class="stat-value budget-value">$500.00</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Remaining</span>
+                                <span class="stat-value remaining-value">$490.00</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Spent</span>
+                                <span class="stat-value spent-value">$10.00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="menu-button" onclick="toggleMenu(this)">
+                        <div class="menu-dots">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                    </button>
+                    <div class="dropdown-menu">
+                        <div class="menu-item" onclick="openModal('editCategoryModal')">
+                            <span class="menu-icon">✏️</span>
+                            Edit Category
+                        </div>
+                        <div class="menu-item" onclick="openModal('addSubcategoryModal')">
+                            <span class="menu-icon">➕</span>
+                            Add Subcategory
+                        </div>
+                        <div class="menu-item delete" onclick="openModal('deleteCategoryModal')">
+                            <span class="menu-icon">🗑️</span>
+                            Delete Category
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Controls -->
+    <div class="demo-controls">
+        <div class="demo-title">View Modal Demos</div>
+        <button class="demo-btn" onclick="openModal('addCategoryModal')">📁 Add Category</button>
+        <button class="demo-btn" onclick="openModal('editCategoryModal')">✏️ Edit Category</button>
+        <button class="demo-btn" onclick="openModal('addSubcategoryModal')">➕ Add Subcategory</button>
+        <button class="demo-btn" onclick="openModal('editSubcategoryModal')">📝 Edit Subcategory</button>
+        <button class="demo-btn" onclick="openModal('deleteCategoryModal')">🗑️ Delete Category</button>
+        <button class="demo-btn" onclick="openModal('deleteSubcategoryModal')">❌ Delete Subcategory</button>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div class="modal-overlay" id="addCategoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Add New Category</h3>
+                <button class="close-btn" onclick="closeModal('addCategoryModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Category Name</label>
+                <input type="text" class="form-input" placeholder="e.g., Transportation, Food, Healthcare">
+                <div class="help-text">Choose a descriptive name for your budget category</div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Budget Amount</label>
+                <div class="input-group">
+                    <span class="input-prefix">$</span>
+                    <input type="text" class="form-input input-with-prefix" placeholder="0.00">
+                </div>
+                <div class="help-text">Set the total budget for this category</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Category Color (Optional)</label>
+                <div style="display: flex; gap: 8px;">
+                    <button style="width: 40px; height: 40px; background: #5e72e4; border: none; border-radius: 8px; cursor: pointer;"></button>
+                    <button style="width: 40px; height: 40px; background: #2dce89; border: none; border-radius: 8px; cursor: pointer;"></button>
+                    <button style="width: 40px; height: 40px; background: #f5365c; border: none; border-radius: 8px; cursor: pointer;"></button>
+                    <button style="width: 40px; height: 40px; background: #fb6340; border: none; border-radius: 8px; cursor: pointer;"></button>
+                    <button style="width: 40px; height: 40px; background: #11cdef; border: none; border-radius: 8px; cursor: pointer;"></button>
+                    <button style="width: 40px; height: 40px; background: #8898aa; border: none; border-radius: 8px; cursor: pointer;"></button>
+                </div>
+            </div>
+
+            <div class="toggle-group">
+                <span class="toggle-label">Create subcategories immediately</span>
+                <div class="toggle-switch" onclick="toggleSwitch(this)">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn cancel-btn" onclick="closeModal('addCategoryModal')">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveAndClose('addCategoryModal')">Create Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div class="modal-overlay" id="editCategoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Category</h3>
+                <button class="close-btn" onclick="closeModal('editCategoryModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Category Name</label>
+                <input type="text" class="form-input" value="Clothing">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Budget Amount</label>
+                <div class="input-group">
+                    <span class="input-prefix">$</span>
+                    <input type="text" class="form-input input-with-prefix" value="1,000.00">
+                </div>
+                <div class="help-text">Remaining budget will be recalculated automatically</div>
+            </div>
+
+            <div class="info-box">
+                <span class="info-icon">ℹ️</span>
+                <div class="info-text">
+                    This category has 3 subcategories. Changes to the budget will affect the overall remaining amount but won't change individual subcategory budgets.
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn delete-text-btn" onclick="closeModal('editCategoryModal'); openModal('deleteCategoryModal')">Delete Category</button>
+                <button class="modal-btn cancel-btn" onclick="closeModal('editCategoryModal')">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveAndClose('editCategoryModal')">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Subcategory Modal -->
+    <div class="modal-overlay" id="addSubcategoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Add Subcategory</h3>
+                <button class="close-btn" onclick="closeModal('addSubcategoryModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Parent Category</label>
+                <select class="form-select">
+                    <option value="clothing" selected>Clothing</option>
+                    <option value="entertainment">Entertainment</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Subcategory Name</label>
+                <input type="text" class="form-input" placeholder="e.g., Jackets, Shoes, Accessories">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Budget Amount</label>
+                <div class="input-group">
+                    <span class="input-prefix">$</span>
+                    <input type="text" class="form-input input-with-prefix" placeholder="0.00">
+                </div>
+                <div class="help-text">Available from parent: $750.00</div>
+            </div>
+
+            <div class="info-box">
+                <span class="info-icon">💡</span>
+                <div class="info-text">
+                    Tip: Subcategory budgets help you track specific spending within a category. You don't have to allocate the entire category budget to subcategories.
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn cancel-btn" onclick="closeModal('addSubcategoryModal')">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveAndClose('addSubcategoryModal')">Add Subcategory</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Subcategory Modal -->
+    <div class="modal-overlay" id="editSubcategoryModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Edit Subcategory</h3>
+                <button class="close-btn" onclick="closeModal('editSubcategoryModal')">×</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Parent Category</label>
+                <select class="form-select">
+                    <option value="clothing" selected>Clothing</option>
+                    <option value="entertainment">Entertainment</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Subcategory Name</label>
+                <input type="text" class="form-input" value="Shirts">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Budget Amount</label>
+                <div class="input-group">
+                    <span class="input-prefix">$</span>
+                    <input type="text" class="form-input input-with-prefix" value="100.00">
+                </div>
+                <div class="help-text">Current spending: $20.00 | Remaining: $80.00</div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn delete-text-btn" onclick="closeModal('editSubcategoryModal'); openModal('deleteSubcategoryModal')">Delete Subcategory</button>
+                <button class="modal-btn cancel-btn" onclick="closeModal('editSubcategoryModal')">Cancel</button>
+                <button class="modal-btn save-btn" onclick="saveAndClose('editSubcategoryModal')">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Category Confirmation Modal -->
+    <div class="modal-overlay" id="deleteCategoryModal">
+        <div class="modal confirm-modal">
+            <div class="confirm-icon">🗑️</div>
+            <h3 class="modal-title" style="text-align: center; margin-bottom: 12px;">Delete Category?</h3>
+            <div class="confirm-message">Are you sure you want to delete "Clothing"?</div>
+            <div class="confirm-submessage">This will permanently remove the category and all 3 subcategories. This action cannot be undone.</div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn cancel-btn" onclick="closeModal('deleteCategoryModal')">Keep Category</button>
+                <button class="modal-btn delete-text-btn" onclick="deleteAndClose('deleteCategoryModal')">Delete Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Subcategory Confirmation Modal -->
+    <div class="modal-overlay" id="deleteSubcategoryModal">
+        <div class="modal confirm-modal">
+            <div class="confirm-icon">❌</div>
+            <h3 class="modal-title" style="text-align: center; margin-bottom: 12px;">Delete Subcategory?</h3>
+            <div class="confirm-message">Are you sure you want to delete "Shirts"?</div>
+            <div class="confirm-submessage">The budget will be returned to the parent category. This action cannot be undone.</div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn cancel-btn" onclick="closeModal('deleteSubcategoryModal')">Keep Subcategory</button>
+                <button class="modal-btn delete-text-btn" onclick="deleteAndClose('deleteSubcategoryModal')">Delete Subcategory</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu(button) {
+            // Close all other menus
+            document.querySelectorAll('.menu-button').forEach(btn => {
+                if (btn !== button) {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Toggle current menu
+            button.classList.toggle('active');
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-button') && !e.target.closest('.dropdown-menu')) {
+                document.querySelectorAll('.menu-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+            }
+        });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+            // Close any open dropdown menus
+            document.querySelectorAll('.menu-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function saveAndClose(modalId) {
+            // Here you would normally save the data
+            alert('Changes saved successfully!');
+            closeModal(modalId);
+        }
+
+        function deleteAndClose(modalId) {
+            alert('Item deleted successfully!');
+            closeModal(modalId);
+        }
+
+        function toggleSwitch(switchElement) {
+            switchElement.classList.toggle('active');
+        }
+
+        // Close modal when clicking overlay
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
