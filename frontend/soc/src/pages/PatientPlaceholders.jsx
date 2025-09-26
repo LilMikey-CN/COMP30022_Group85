@@ -64,7 +64,7 @@ export const PatientList = () => {
 
 // Budget Page - Replaced by actual Budget component
 
-// Patient Info Page
+// Patient Info Page - now replaced by ClientProfile
 export const PatientInfo = () => (
   <PlaceholderPage
     title="Patient Information"

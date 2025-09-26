@@ -3,9 +3,9 @@ import PatientLayout from '../components/Layout/PatientLayout';
 import PatientHome from '../pages/PatientHome';
 import CareItemsListPage from '../pages/CareItemsListPage';
 import Budget from '../pages/Budget';
+import ClientProfile from '../pages/ClientProfile';
 import {
   PatientCalendar,
-  PatientInfo,
   PatientSettings
 } from '../pages/PatientPlaceholders';
 
@@ -49,8 +49,8 @@ export const routes = [
       },
       {
         path: 'info',
-        element: PatientInfo,
-        name: 'Patient Info'
+        element: ClientProfile,
+        name: 'Client Profile'
       },
       {
         path: 'settings',

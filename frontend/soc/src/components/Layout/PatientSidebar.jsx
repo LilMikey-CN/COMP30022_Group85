@@ -53,7 +53,7 @@ const PatientSidebar = ({ patient }) => {
       key: 'info',
       path: `/patient/${patientId}/info`,
       icon: <UserOutlined />,
-      label: 'Patient Info'
+      label: 'Client Profile'
     },
     {
       key: 'settings',

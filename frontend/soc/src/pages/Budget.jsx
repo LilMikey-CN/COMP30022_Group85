@@ -178,6 +178,17 @@ const BudgetContent = () => {
 
       {/* Category Budgets */}
       <Card
+        className="budget-page-card"
+        style={{
+          backgroundColor: '#fafbfc',
+          border: '1px solid #f0f0f0',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        }}
+        headStyle={{
+          backgroundColor: '#fafbfc',
+          borderBottom: '1px solid #e1e8ed'
+        }}
+        bodyStyle={{ backgroundColor: '#fafbfc' }}
         title={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '20px', fontWeight: 600, color: '#2c3e50' }}>

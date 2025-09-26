@@ -10,9 +10,9 @@ import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
 import CareItemsListPage from './pages/CareItemsListPage';
 import Budget from './pages/Budget';
+import ClientProfile from './pages/ClientProfile';
 import {
   PatientCalendar,
-  PatientInfo,
   PatientSettings
 } from './pages/PatientPlaceholders';
 import './styles/global.css';
@@ -54,7 +54,7 @@ const App = () => {
           <Route path="calendar" element={<PatientCalendar />} />
           <Route path="list" element={<CareItemsListPage />} />
           <Route path="budget" element={<Budget />} />
-          <Route path="info" element={<PatientInfo />} />
+          <Route path="info" element={<ClientProfile />} />
           <Route path="settings" element={<PatientSettings />} />
         </Route>
       </Routes>
