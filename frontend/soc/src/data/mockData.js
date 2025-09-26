@@ -175,6 +175,49 @@ export const careItemsData = [
   }
 ];
 
+// Client profile mock data
+export const clientProfileData = {
+  personalDetails: {
+    fullName: 'Mary Poppins',
+    dateOfBirth: '01/04/1965',
+    sex: 'Female',
+    age: 60
+  },
+  contactDetails: {
+    mobileNumber: '0488 888 888',
+    emailAddress: 'spoonful.of.sugar@gmail.com',
+    postalAddress: '17 Cherry Tree Lane, London'
+  },
+  emergencyContacts: [
+    {
+      name: 'Bert Alfred',
+      relationship: 'Friend',
+      mobileNumber: '0400 000 000',
+      emailAddress: 'chim.chim.cheree@gmail.com'
+    },
+    {
+      name: 'Jane Banks',
+      relationship: 'Niece',
+      mobileNumber: '0499 999 999',
+      emailAddress: 'im.just.a.kid@gmail.com'
+    }
+  ],
+  notes: 'Prefers morning walks',
+  healthCareInformation: {
+    medicalConditions: 'N/A',
+    allergies: 'Raw nuts, shellfish',
+    medications: 'N/A',
+    accessibilityNeeds: 'Poor vision'
+  },
+  latestVitals: {
+    date: '02/07/2025',
+    heartRate: 72,
+    bloodPressure: '120/80',
+    oxygenSaturation: 98,
+    temperature: 36
+  }
+};
+
 // add more mock data here as needed
 export const userInfo = {
   name: 'Admin User',
