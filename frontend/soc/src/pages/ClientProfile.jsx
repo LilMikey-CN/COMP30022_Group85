@@ -15,6 +15,7 @@ import {
 const { Title, Text } = Typography;
 
 const ClientProfile = () => {
+  // eslint-disable-next-line no-unused-vars
   const { patientId } = useParams();
 
   // In a real app, this would be an API call

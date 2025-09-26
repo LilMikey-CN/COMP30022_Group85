@@ -55,6 +55,7 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
           duration: 3,
           style: { marginTop: '10vh' }
         });
+        // eslint-disable-next-line no-unused-vars
         const contactsToSave = contacts.map(({ key, id, ...contact }) => contact);
         onSave(contactsToSave);
       } else {
@@ -64,6 +65,7 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
           style: { marginTop: '10vh' }
         });
       }
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       message.error({
         content: 'Failed to update emergency contacts. Network connection error.',
@@ -118,6 +120,7 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
           style: { marginTop: '10vh' }
         });
       }
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       message.error({
         content: 'Failed to delete emergency contact. Network connection error.',
