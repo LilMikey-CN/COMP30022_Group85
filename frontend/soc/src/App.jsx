@@ -5,6 +5,8 @@ import Sidebar from './components/Layout/Sidebar';
 import PatientLayout from './components/Layout/PatientLayout';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
 import CareItemsListPage from './pages/CareItemsListPage';
 import Budget from './pages/Budget';
@@ -23,6 +25,10 @@ const App = () => {
       <Routes>
         {/* Landing page route */}
         <Route path="/landing" element={<LandingPage />} />
+
+        {/* Authentication routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
         {/* Main dashboard with sidebar */}
         <Route
