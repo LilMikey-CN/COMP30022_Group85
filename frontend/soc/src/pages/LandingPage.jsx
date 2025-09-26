@@ -10,11 +10,13 @@ import {
   PieChartOutlined,
   SafetyOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import heroImage from '../../assets/hero-care-family.jpg';
 
 const { Title, Paragraph, Text } = Typography;
 
 const LandingPage = () => {
+  const navigate = useNavigate();
   const features = [
     {
       icon: <ScheduleOutlined style={{ fontSize: '48px', color: '#1890ff' }} />,
@@ -46,8 +48,8 @@ const LandingPage = () => {
     },
     {
       icon: <CalendarOutlined style={{ fontSize: '32px', color: '#52c41a' }} />,
-      title: "Better Organization",
-      description: "Transform overwhelming care routines into manageable, organized schedules that work for your family."
+      title: "Better Organisation",
+      description: "Transform overwhelming care routines into manageable, organised schedules that work for your family."
     },
     {
       icon: <PieChartOutlined style={{ fontSize: '32px', color: '#faad14' }} />,
@@ -119,12 +121,13 @@ const LandingPage = () => {
                 lineHeight: '1.4'
               }}
             >
-              Help your loved ones with special needs by organizing care tasks and tracking expenses—all in one friendly, easy-to-use place.
+              Help your loved ones with special needs by organising care tasks and tracking expenses—all in one friendly, easy-to-use place.
             </Title>
             <Space size="large" style={{ flexDirection: 'column' }}>
               <Button
                 type="primary"
                 size="large"
+                onClick={() => navigate('/login')}
                 style={{
                   background: 'linear-gradient(135deg, #ff4d4f, #ff7875)',
                   border: 'none',
@@ -145,7 +148,7 @@ const LandingPage = () => {
                   e.target.style.boxShadow = '0 4px 20px rgba(255, 77, 79, 0.4)';
                 }}
               >
-                Start Organizing Care
+                Start Organising Care
               </Button>
             </Space>
           </div>
@@ -276,12 +279,13 @@ const LandingPage = () => {
               color: '#4a4a4a',
               marginBottom: '32px'
             }}>
-              Start organizing your loved one's care today. No complicated setup—just simple tools that work for your family.
+              Start organising your loved one's care today. No complicated setup—just simple tools that work for your family.
             </Paragraph>
 
             <Button
               type="primary"
               size="large"
+              onClick={() => navigate('/login')}
               style={{
                 background: 'linear-gradient(135deg, #ff4d4f, #ff7875)',
                 border: 'none',
