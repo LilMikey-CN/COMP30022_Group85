@@ -21,12 +21,12 @@ import './styles/global.css';
 
 const { Content } = Layout;
 
-// Component to redirect authenticated users to their patient home
+// Component to redirect authenticated users to their home
 const HomeRedirect = () => {
   const { user } = useAuthStore();
 
   if (user?.uid) {
-    return <Navigate to={`/patient/${user.uid}`} replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -79,18 +79,48 @@ const App = () => {
         {/* Redirect legacy routes */}
         <Route path="/patients" element={<Navigate to="/" replace />} />
 
-        {/* Patient routes with patient sidebar */}
-        <Route path="/patient/:patientId" element={
+        {/* Main application routes with sidebar */}
+        <Route path="/home" element={
           <ProtectedRoute>
             <PatientLayout />
           </ProtectedRoute>
         }>
           <Route index element={<PatientHome />} />
-          <Route path="calendar" element={<PatientCalendar />} />
-          <Route path="list" element={<CareItemsListPage />} />
-          <Route path="budget" element={<Budget />} />
-          <Route path="info" element={<ClientProfile />} />
-          <Route path="settings" element={<PatientSettings />} />
+        </Route>
+        <Route path="/calendar" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<PatientCalendar />} />
+        </Route>
+        <Route path="/list" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<CareItemsListPage />} />
+        </Route>
+        <Route path="/budget" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Budget />} />
+        </Route>
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<ClientProfile />} />
+        </Route>
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<PatientSettings />} />
         </Route>
       </Routes>
     </Router>

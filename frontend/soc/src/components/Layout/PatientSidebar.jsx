@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Button, Typography, Avatar, Space, message } from 'antd';
 import useAuthStore from '../../store/authStore';
 import {
@@ -18,12 +18,11 @@ const { Sider } = Layout;
 const { Text } = Typography;
 
 /**
- * Patient-specific navigation sidebar
+ * Main application navigation sidebar
  * **/
 const PatientSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { patientId } = useParams();
   const { logout, user } = useAuthStore();
 
   // Get user display information
@@ -50,37 +49,37 @@ const PatientSidebar = () => {
   const menuItems = [
     {
       key: 'home',
-      path: `/patient/${patientId}`,
+      path: '/home',
       icon: <HomeOutlined />,
       label: 'Home'
     },
     {
       key: 'calendar',
-      path: `/patient/${patientId}/calendar`,
+      path: '/calendar',
       icon: <CalendarOutlined />,
       label: 'Calendar'
     },
     {
       key: 'list',
-      path: `/patient/${patientId}/list`,
+      path: '/list',
       icon: <UnorderedListOutlined />,
       label: 'List'
     },
     {
       key: 'budget',
-      path: `/patient/${patientId}/budget`,
+      path: '/budget',
       icon: <DollarOutlined />,
       label: 'Budget'
     },
     {
-      key: 'info',
-      path: `/patient/${patientId}/info`,
+      key: 'profile',
+      path: '/profile',
       icon: <UserOutlined />,
       label: 'Client Profile'
     },
     {
       key: 'settings',
-      path: `/patient/${patientId}/settings`,
+      path: '/settings',
       icon: <SettingFilled />,
       label: 'Settings'
     }
