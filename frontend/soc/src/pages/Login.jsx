@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message } from 'antd';
 import { HeartFilled, MailOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 
 const { Content } = Layout;
 const { Title, Text, Link } = Typography;
@@ -9,16 +10,33 @@ const { Title, Text, Link } = Typography;
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isAuthenticated, isLoading } = useAuthStore();
 
-  const onFinish = (values) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate, location.state]);
+
+  const onFinish = async (values) => {
     setLoading(true);
-    console.log('Login values:', values);
-    // TODO: Implement login logic
-    setTimeout(() => {
+    try {
+      const result = await login(values.email, values.password, values.remember);
+      if (result.success) {
+        message.success('Login successful!');
+        const from = location.state?.from?.pathname || '/';
+        navigate(from, { replace: true });
+      } else {
+        message.error(result.error || 'Login failed');
+      }
+    } catch (error) { // eslint-disable-line no-unused-vars
+      message.error('An unexpected error occurred');
+    } finally {
       setLoading(false);
-      // Redirect to dashboard after successful login
-      navigate('/');
-    }, 1000);
+    }
   };
 
   const handleBackToHome = () => {

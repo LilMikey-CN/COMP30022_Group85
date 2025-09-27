@@ -1,25 +1,39 @@
-import React, { useState } from 'react';
-import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, Select } from 'antd';
-import { HeartFilled, MailOutlined, LockOutlined, UserOutlined, ArrowLeftOutlined, TeamOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message } from 'antd';
+import { HeartFilled, MailOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate /* , useLocation */ } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 
 const { Content } = Layout;
 const { Title, Text, Link } = Typography;
-const { Option } = Select;
 
 const Signup = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signup, isAuthenticated, isLoading } = useAuthStore();
 
-  const onFinish = (values) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const onFinish = async (values) => {
     setLoading(true);
-    console.log('Signup values:', values);
-    // TODO: Implement signup logic
-    setTimeout(() => {
+    try {
+      const result = await signup(values.email, values.password);
+      if (result.success) {
+        message.success('Account created successfully!');
+        navigate('/');
+      } else {
+        message.error(result.error || 'Signup failed');
+      }
+    } catch (error) { // eslint-disable-line no-unused-vars
+      message.error('An unexpected error occurred');
+    } finally {
       setLoading(false);
-      // Redirect to dashboard after successful signup
-      navigate('/');
-    }, 1000);
+    }
   };
 
   const handleBackToHome = () => {
@@ -120,11 +134,11 @@ const Signup = () => {
     borderRadius: '8px'
   };
 
-  const selectStyle = {
-    height: '52px',
-    transition: 'all 0.2s ease',
-    borderRadius: '8px'
-  };
+  // const selectStyle = { // eslint-disable-line no-unused-vars
+  //   height: '52px',
+  //   transition: 'all 0.2s ease',
+  //   borderRadius: '8px'
+  // };
 
   const checkboxStyle = {
     color: '#6b7280',
@@ -277,20 +291,6 @@ const Signup = () => {
               autoComplete="off"
               size="large"
             >
-              <Form.Item
-                label={<Text style={labelStyle}>Full Name</Text>}
-                name="fullName"
-                rules={[
-                  { required: true, message: 'Please enter your full name' },
-                  { min: 2, message: 'Name must be at least 2 characters' }
-                ]}
-              >
-                <Input
-                  prefix={<UserOutlined style={{ color: '#9ca3af' }} />}
-                  placeholder="Enter your full name"
-                  style={inputStyle}
-                />
-              </Form.Item>
 
               <Form.Item
                 label={<Text style={labelStyle}>Email Address</Text>}
@@ -307,23 +307,6 @@ const Signup = () => {
                 />
               </Form.Item>
 
-              <Form.Item
-                label={<Text style={labelStyle}>I am a...</Text>}
-                name="userType"
-                rules={[{ required: true, message: 'Please select your role' }]}
-              >
-                <Select
-                  placeholder="Select your role"
-                  style={selectStyle}
-                  suffixIcon={<TeamOutlined style={{ color: '#9ca3af' }} />}
-                >
-                  <Option value="parent">Parent</Option>
-                  <Option value="guardian">Guardian</Option>
-                  <Option value="family_member">Family Member</Option>
-                  <Option value="caregiver">Professional Caregiver</Option>
-                  <Option value="self_advocate">Person with Special Needs</Option>
-                </Select>
-              </Form.Item>
 
               <Form.Item
                 label={<Text style={labelStyle}>Password</Text>}

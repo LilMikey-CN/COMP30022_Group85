@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from 'antd';
 import Sidebar from './components/Layout/Sidebar';
 import PatientLayout from './components/Layout/PatientLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
@@ -15,11 +16,18 @@ import {
   PatientCalendar,
   PatientSettings
 } from './pages/PatientPlaceholders';
+import useAuthStore from './store/authStore';
 import './styles/global.css';
 
 const { Content } = Layout;
 
 const App = () => {
+  const { initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   return (
     <Router>
       <Routes>
@@ -34,14 +42,16 @@ const App = () => {
         <Route
           path="/"
           element={
-            <Layout style={{ minHeight: '100vh' }}>
-              <Sidebar />
-              <Layout style={{ marginLeft: 240, background: '#ffffff' }}>
-                <Content style={{ background: '#ffffff' }}>
-                  <Dashboard />
-                </Content>
+            <ProtectedRoute>
+              <Layout style={{ minHeight: '100vh' }}>
+                <Sidebar />
+                <Layout style={{ marginLeft: 240, background: '#ffffff' }}>
+                  <Content style={{ background: '#ffffff' }}>
+                    <Dashboard />
+                  </Content>
+                </Layout>
               </Layout>
-            </Layout>
+            </ProtectedRoute>
           }
         />
 
@@ -49,7 +59,11 @@ const App = () => {
         <Route path="/patients" element={<Navigate to="/" replace />} />
 
         {/* Patient routes with patient sidebar */}
-        <Route path="/patient/:patientId" element={<PatientLayout />}>
+        <Route path="/patient/:patientId" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
           <Route index element={<PatientHome />} />
           <Route path="calendar" element={<PatientCalendar />} />
           <Route path="list" element={<CareItemsListPage />} />

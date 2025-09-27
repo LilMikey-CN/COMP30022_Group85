@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Layout, Button, Typography } from 'antd';
+import { Layout, Typography } from 'antd';
 import {
   SettingOutlined,
   HomeOutlined,
-  LogoutOutlined,
   CalendarOutlined
 } from '@ant-design/icons';
 import { navigationItems } from '../../config/routes';
+import LogoutButton from './LogoutButton';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -21,11 +21,6 @@ const iconComponents = {
 
 const Sidebar = () => {
   const location = useLocation();
-
-  const handleLogout = () => {
-    // Handle logout logic here
-    console.log('Logging out...');
-  };
 
   return (
     <Sider
@@ -91,11 +86,7 @@ const Sidebar = () => {
         padding: '16px',
         borderTop: '1px solid #e8e8e8'
       }}>
-        <Button
-          type="text"
-          icon={<LogoutOutlined />}
-          block
-          onClick={handleLogout}
+        <LogoutButton
           style={{
             justifyContent: 'flex-start',
             padding: '8px 12px',
@@ -105,15 +96,7 @@ const Sidebar = () => {
             fontWeight: '500',
             borderRadius: '4px'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#5a7a9a';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#6b8cae';
-          }}
-        >
-          Logout
-        </Button>
+        />
       </div>
     </Sider>
   );
