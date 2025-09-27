@@ -1,28 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, Button, Table, Space, Popconfirm, message } from 'antd';
+import { Modal, Input, Button, Table, Popconfirm, message } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 
-const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
-  const [loading, setLoading] = useState(false);
+const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData, loading = false }) => {
   const [contacts, setContacts] = useState([]);
-  const [editingKeys, setEditingKeys] = useState([]);
 
   useEffect(() => {
     if (visible && initialData) {
       const contactsWithKeys = initialData.map((contact, index) => ({
         ...contact,
         key: index,
-        id: index // Add ID for tracking
+        id: index
       }));
       setContacts(contactsWithKeys);
-      // Set all existing contacts as editable
-      setEditingKeys(contactsWithKeys.map(contact => contact.key));
     }
   }, [visible, initialData]);
 
   const handleSave = async () => {
     try {
-      // Validate all contacts
       const isValid = contacts.every(contact =>
         contact.name?.trim() &&
         contact.relationship?.trim() &&
@@ -41,44 +36,20 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
         return;
       }
 
-      setLoading(true);
-
-      // Placeholder for API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simulate API response - you can replace this with actual API call
-      const success = Math.random() > 0.1; // 90% success rate for demo
-
-      if (success) {
-        message.success({
-          content: 'Emergency contacts updated successfully!',
-          duration: 3,
-          style: { marginTop: '10vh' }
-        });
-        // eslint-disable-next-line no-unused-vars
-        const contactsToSave = contacts.map(({ key, id, ...contact }) => contact);
-        onSave(contactsToSave);
-      } else {
-        message.error({
-          content: 'Failed to update emergency contacts. Server error occurred. Please try again.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
-      }
+      // eslint-disable-next-line no-unused-vars
+      const contactsToSave = contacts.map(({ key, id, ...contact }) => contact);
+      onSave(contactsToSave);
     // eslint-disable-next-line no-unused-vars
     } catch (error) {
       message.error({
-        content: 'Failed to update emergency contacts. Network connection error.',
+        content: 'Failed to validate emergency contacts.',
         duration: 4,
         style: { marginTop: '10vh' }
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleCancel = () => {
-    setEditingKeys([]);
     onCancel();
   };
 
@@ -93,51 +64,19 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       emailAddress: ''
     };
     setContacts([...contacts, newContact]);
-    setEditingKeys([...editingKeys, newKey]);
   };
 
-  const handleDelete = async (contactId) => {
-    try {
-      // Placeholder for API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Simulate API response
-      const success = Math.random() > 0.1;
-
-      if (success) {
-        const updatedContacts = contacts.filter(contact => contact.id !== contactId);
-        setContacts(updatedContacts);
-        setEditingKeys(editingKeys.filter(key => key !== contactId));
-        message.success({
-          content: 'Emergency contact deleted successfully!',
-          duration: 3,
-          style: { marginTop: '10vh' }
-        });
-      } else {
-        message.error({
-          content: 'Failed to delete emergency contact. Server error occurred. Please try again.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
-      }
-    // eslint-disable-next-line no-unused-vars
-    } catch (error) {
-      message.error({
-        content: 'Failed to delete emergency contact. Network connection error.',
-        duration: 4,
-        style: { marginTop: '10vh' }
-      });
-    }
-  };
-
-  const handleInputChange = (key, field, value) => {
-    const updatedContacts = contacts.map(contact =>
-      contact.key === key ? { ...contact, [field]: value } : contact
-    );
+  const handleDelete = (contactId) => {
+    const updatedContacts = contacts.filter(contact => contact.id !== contactId);
     setContacts(updatedContacts);
   };
 
-  // Validation functions
+  const handleInputChange = (contactId, field, value) => {
+    setContacts(prev => prev.map(contact =>
+      contact.id === contactId ? { ...contact, [field]: value } : contact
+    ));
+  };
+
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -148,62 +87,6 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
     return phoneRegex.test(phone.replace(/\s/g, ''));
   };
 
-  const EditableCell = ({ value, onChange, placeholder, validator }) => {
-    const [inputValue, setInputValue] = useState(value || '');
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-      setInputValue(value || '');
-    }, [value]);
-
-    const handleChange = (e) => {
-      const newValue = e.target.value;
-      setInputValue(newValue);
-      onChange(newValue);
-
-      // Clear error when user starts typing
-      if (error && newValue.trim()) {
-        setError('');
-      }
-    };
-
-    const handleBlur = () => {
-      if (validator && inputValue.trim() && !validator(inputValue)) {
-        setError('Invalid format');
-      } else if (inputValue.trim()) {
-        setError('');
-      }
-    };
-
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        minHeight: '40px',
-        width: '100%'
-      }}>
-        <Input
-          value={inputValue}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          placeholder={placeholder}
-          size="small"
-          status={error ? 'error' : ''}
-          style={{
-            border: error ? '1px solid #ff4d4f' : undefined,
-            borderRadius: '4px'
-          }}
-        />
-        {error && (
-          <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '2px' }}>
-            {error}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const columns = [
     {
       title: 'Name',
@@ -212,10 +95,11 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       width: '22%',
       align: 'center',
       render: (text, record) => (
-        <EditableCell
-          value={text}
-          onChange={(value) => handleInputChange(record.key, 'name', value)}
+        <Input
+          value={text || ''}
+          onChange={(e) => handleInputChange(record.id, 'name', e.target.value)}
           placeholder="Enter contact name"
+          size="small"
         />
       ),
     },
@@ -226,10 +110,11 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       width: '18%',
       align: 'center',
       render: (text, record) => (
-        <EditableCell
-          value={text}
-          onChange={(value) => handleInputChange(record.key, 'relationship', value)}
+        <Input
+          value={text || ''}
+          onChange={(e) => handleInputChange(record.id, 'relationship', e.target.value)}
           placeholder="Enter relationship"
+          size="small"
         />
       ),
     },
@@ -240,11 +125,11 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       width: '22%',
       align: 'center',
       render: (text, record) => (
-        <EditableCell
-          value={text}
-          onChange={(value) => handleInputChange(record.key, 'mobileNumber', value)}
+        <Input
+          value={text || ''}
+          onChange={(e) => handleInputChange(record.id, 'mobileNumber', e.target.value)}
           placeholder="Enter mobile number"
-          validator={validatePhoneNumber}
+          size="small"
         />
       ),
     },
@@ -255,11 +140,11 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       width: '30%',
       align: 'center',
       render: (text, record) => (
-        <EditableCell
-          value={text}
-          onChange={(value) => handleInputChange(record.key, 'emailAddress', value)}
+        <Input
+          value={text || ''}
+          onChange={(e) => handleInputChange(record.id, 'emailAddress', e.target.value)}
           placeholder="Enter email address"
-          validator={validateEmail}
+          size="small"
         />
       ),
     },
@@ -269,22 +154,20 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       width: '8%',
       align: 'center',
       render: (_, record) => (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40px' }}>
-          <Popconfirm
-            title="Delete Emergency Contact"
-            description="Are you sure you want to delete this emergency contact?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button
-              type="text"
-              icon={<DeleteOutlined />}
-              size="small"
-              danger
-            />
-          </Popconfirm>
-        </div>
+        <Popconfirm
+          title="Delete Emergency Contact"
+          description="Are you sure you want to delete this emergency contact?"
+          onConfirm={() => handleDelete(record.id)}
+          okText="Yes"
+          cancelText="No"
+        >
+          <Button
+            type="text"
+            icon={<DeleteOutlined />}
+            size="small"
+            danger
+          />
+        </Popconfirm>
       ),
     },
   ];
@@ -296,8 +179,10 @@ const EmergencyContactsModal = ({ visible, onCancel, onSave, initialData }) => {
       onOk={handleSave}
       onCancel={handleCancel}
       confirmLoading={loading}
+      okButtonProps={{ disabled: loading }}
+      cancelButtonProps={{ disabled: loading }}
       width={1000}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: 16 }}>
         <Table

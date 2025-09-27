@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 
-const ContactDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
+const ContactDetailsModal = ({ visible, onCancel, onSave, initialData, loading = false }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (visible && initialData) {
@@ -18,29 +17,8 @@ const ContactDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
-
-      // Placeholder for API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simulate API response - you can replace this with actual API call
-      const success = Math.random() > 0.1; // 90% success rate for demo
-
-      if (success) {
-        message.success({
-          content: 'Contact details updated successfully!',
-          duration: 3,
-          style: { marginTop: '10vh' }
-        });
-        onSave(values);
-        form.resetFields();
-      } else {
-        message.error({
-          content: 'Failed to update contact details. Server error occurred. Please try again.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
-      }
+      onSave(values);
+      form.resetFields();
     } catch (error) {
       if (error.errorFields) {
         message.warning({
@@ -48,15 +26,7 @@ const ContactDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
           duration: 3,
           style: { marginTop: '10vh' }
         });
-      } else {
-        message.error({
-          content: 'Failed to update contact details. Network connection error.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -86,8 +56,10 @@ const ContactDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
       onOk={handleSave}
       onCancel={handleCancel}
       confirmLoading={loading}
+      okButtonProps={{ disabled: loading }}
+      cancelButtonProps={{ disabled: loading }}
       width={500}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

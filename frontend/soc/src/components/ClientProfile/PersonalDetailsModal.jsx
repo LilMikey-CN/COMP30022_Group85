@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, DatePicker, message } from 'antd';
+import React, { useEffect } from 'react';
+import { Modal, Form, Input, Select, DatePicker, InputNumber, message } from 'antd';
 import dayjs from 'dayjs';
 
 const { Option } = Select;
 
-const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
+const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData, loading = false }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (visible && initialData) {
@@ -19,10 +18,19 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
     }
   }, [visible, initialData, form]);
 
+  // Handle date of birth change to auto-calculate age
+  const handleDateOfBirthChange = (date) => {
+    if (date) {
+      const age = dayjs().diff(date, 'year');
+      form.setFieldValue('age', age);
+    } else {
+      form.setFieldValue('age', null);
+    }
+  };
+
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
 
       // Format date back to DD/MM/YYYY
       const formattedData = {
@@ -36,27 +44,8 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
         formattedData.age = age;
       }
 
-      // Placeholder for API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simulate API response - you can replace this with actual API call
-      const success = Math.random() > 0.1; // 90% success rate for demo
-
-      if (success) {
-        message.success({
-          content: 'Personal details updated successfully!',
-          duration: 3,
-          style: { marginTop: '10vh' }
-        });
-        onSave(formattedData);
-        form.resetFields();
-      } else {
-        message.error({
-          content: 'Failed to update personal details. Server error occurred. Please try again.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
-      }
+      onSave(formattedData);
+      form.resetFields();
     } catch (error) {
       if (error.errorFields) {
         message.warning({
@@ -64,15 +53,7 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
           duration: 3,
           style: { marginTop: '10vh' }
         });
-      } else {
-        message.error({
-          content: 'Failed to update personal details. Network connection error.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -88,6 +69,8 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
       onOk={handleSave}
       onCancel={handleCancel}
       confirmLoading={loading}
+      okButtonProps={{ disabled: loading }}
+      cancelButtonProps={{ disabled: loading }}
       width={500}
       destroyOnClose
     >
@@ -120,6 +103,7 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
             placeholder="Select date of birth"
             style={{ width: '100%' }}
             disabledDate={(current) => current && current > dayjs()}
+            onChange={handleDateOfBirthChange}
           />
         </Form.Item>
 
@@ -141,18 +125,12 @@ const PersonalDetailsModal = ({ visible, onCancel, onSave, initialData }) => {
         <Form.Item
           name="age"
           label="Age"
-          rules={[
-            { required: true, message: 'Please enter age' },
-            { type: 'number', min: 0, max: 150, message: 'Age must be between 0 and 150' }
-          ]}
         >
-          <Input
-            type="number"
-            placeholder="Enter age"
-            disabled={form.getFieldValue('dateOfBirth')}
-            style={{
-              backgroundColor: form.getFieldValue('dateOfBirth') ? '#f5f5f5' : 'white'
-            }}
+          <InputNumber
+            placeholder="Calculated from date of birth"
+            style={{ width: '100%' }}
+            disabled={true}
+            readOnly={true}
           />
         </Form.Item>
       </Form>
