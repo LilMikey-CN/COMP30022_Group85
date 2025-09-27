@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Typography, Card, Button, Space, App, Modal, message } from 'antd';
 import { PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useParams } from 'react-router-dom';
 import { useBudgetAnalytics, useCategories, useDeleteCategory, useDeleteSubcategory } from '../hooks/useBudgetQuery';
+import useAuthStore from '../store/authStore';
 import BudgetSummaryCard from '../components/Budget/BudgetSummaryCard';
 import CategoryBudgetCard from '../components/Budget/CategoryBudgetCard';
 import BudgetAnalytics from '../components/Budget/BudgetAnalytics';
@@ -12,7 +12,8 @@ import SubcategoryModal from '../components/Budget/SubcategoryModal';
 const { Title, Text } = Typography;
 
 const BudgetContent = () => {
-  const { patientId } = useParams();
+  const { user } = useAuthStore();
+  const userId = user?.uid;
 
   // Modal state
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -25,11 +26,11 @@ const BudgetContent = () => {
   const { modal } = App.useApp();
 
   // TanStack Query hooks
-  const { data: budgetAnalytics, isLoading: analyticsLoading, error: analyticsError } = useBudgetAnalytics(patientId);
+  const { data: budgetAnalytics, isLoading: analyticsLoading, error: analyticsError } = useBudgetAnalytics(userId);
   // eslint-disable-next-line no-unused-vars
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories(patientId);
-  const deleteCategoryMutation = useDeleteCategory(patientId);
-  const deleteSubcategoryMutation = useDeleteSubcategory(patientId);
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories(userId);
+  const deleteCategoryMutation = useDeleteCategory(userId);
+  const deleteSubcategoryMutation = useDeleteSubcategory(userId);
 
   const isLoading = analyticsLoading || categoriesLoading;
 
@@ -228,7 +229,7 @@ const BudgetContent = () => {
         onCancel={closeCategoryModal}
         mode={modalMode}
         category={selectedCategory}
-        patientId={patientId}
+        patientId={userId}
       />
 
       {/* Subcategory Modal */}
@@ -238,7 +239,7 @@ const BudgetContent = () => {
         mode={modalMode}
         category={selectedCategory}
         subcategory={selectedSubcategory}
-        patientId={patientId}
+        patientId={userId}
       />
     </div>
   );
