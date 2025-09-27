@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { Layout, Button, Typography, Avatar, Space } from 'antd';
+import { Layout, Button, Typography, Avatar, Space, message } from 'antd';
+import useAuthStore from '../../store/authStore';
 import {
   SettingOutlined,
   HomeOutlined,
@@ -19,10 +20,32 @@ const { Text } = Typography;
 /**
  * Patient-specific navigation sidebar
  * **/
-const PatientSidebar = ({ patient }) => {
+const PatientSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { patientId } = useParams();
+  const { logout, user } = useAuthStore();
+
+  // Get user display information
+  const getUserDisplayName = () => {
+    if (user?.displayName) {
+      return user.displayName;
+    }
+    if (user?.email) {
+      // Use email prefix if no display name
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
+
+  const getUserInitials = () => {
+    const displayName = getUserDisplayName();
+    const words = displayName.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return displayName.substring(0, 2).toUpperCase();
+  };
 
   const menuItems = [
     {
@@ -63,14 +86,25 @@ const PatientSidebar = ({ patient }) => {
     }
   ];
 
-  const handleLogout = () => {
-    console.log('Logging out...');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      const result = await logout();
+      if (result.success) {
+        message.success('Logged out successfully');
+        navigate('/login');
+      } else {
+        message.error(result.error || 'Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      message.error('An unexpected error occurred during logout');
+    }
   };
 
-  const handleBackToPatients = () => {
-    navigate('/');
-  };
+  // Commented out since back button is commented out - may need later
+  // const handleBackToPatients = () => {
+  //   navigate('/');
+  // };
 
   return (
     <Sider
@@ -99,7 +133,7 @@ const PatientSidebar = ({ patient }) => {
         </Text>
       </div>
 
-      {/* Patient Info */}
+      {/* User Info */}
       <div style={{
         padding: '16px',
         borderBottom: '1px solid #e8e8e8',
@@ -114,20 +148,18 @@ const PatientSidebar = ({ patient }) => {
               fontWeight: '500'
             }}
           >
-            {patient?.initials || 'MP'}
+            {getUserInitials()}
           </Avatar>
           <div>
             <Text strong style={{ display: 'block', fontSize: '14px' }}>
-              {patient?.name || 'Mary Poppins'}
-            </Text>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {patient?.id || 'PT-2025-02'}
+              {getUserDisplayName()}
             </Text>
           </div>
         </Space>
       </div>
 
-      {/* Back to Patients Button */}
+      {/* Back to Patients Button - Commented out for now, may need later */}
+      {/*
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #e8e8e8' }}>
         <Button
           type="text"
@@ -153,6 +185,7 @@ const PatientSidebar = ({ patient }) => {
           Back to Patients
         </Button>
       </div>
+      */}
 
       {/* Menu Items */}
       <div style={{ flex: 1, paddingTop: '8px' }}>

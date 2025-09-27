@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { auth } from '../firebase/config';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
+import { clearAllQueries } from '../utils/queryClient';
 
 const useAuthStore = create((set /* , get */) => ({
   user: null,
@@ -9,7 +10,18 @@ const useAuthStore = create((set /* , get */) => ({
 
   // Initialize auth state listener
   initializeAuth: () => {
+    let previousUserId = null;
+
     onAuthStateChanged(auth, (user) => {
+      const currentUserId = user?.uid || null;
+
+      // Clear cache if user has changed (different user or logged out)
+      if (previousUserId && previousUserId !== currentUserId) {
+        clearAllQueries();
+      }
+
+      previousUserId = currentUserId;
+
       set({
         user: user,
         isAuthenticated: !!user,
@@ -67,6 +79,10 @@ const useAuthStore = create((set /* , get */) => ({
   logout: async () => {
     try {
       await signOut(auth);
+
+      // Clear all cached query data to prevent data leakage between users
+      clearAllQueries();
+
       set({
         user: null,
         isAuthenticated: false,

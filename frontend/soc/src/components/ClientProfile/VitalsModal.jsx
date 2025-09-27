@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, InputNumber, message, Row, Col } from 'antd';
 import dayjs from 'dayjs';
 
-const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
+const VitalsModal = ({ visible, onCancel, onSave, initialData, loading = false }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (visible && initialData) {
@@ -22,7 +21,6 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
 
       // Format the data for saving
       const formattedData = {
@@ -33,27 +31,8 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
         temperature: values.temperature,
       };
 
-      // Placeholder for API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Simulate API response - you can replace this with actual API call
-      const success = Math.random() > 0.1; // 90% success rate for demo
-
-      if (success) {
-        message.success({
-          content: 'Vital signs updated successfully!',
-          duration: 3,
-          style: { marginTop: '10vh' }
-        });
-        onSave(formattedData);
-        form.resetFields();
-      } else {
-        message.error({
-          content: 'Failed to update vital signs. Server error occurred. Please try again.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
-      }
+      onSave(formattedData);
+      form.resetFields();
     } catch (error) {
       if (error.errorFields) {
         message.warning({
@@ -61,15 +40,7 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
           duration: 3,
           style: { marginTop: '10vh' }
         });
-      } else {
-        message.error({
-          content: 'Failed to update vital signs. Network connection error.',
-          duration: 4,
-          style: { marginTop: '10vh' }
-        });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -85,8 +56,10 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
       onOk={handleSave}
       onCancel={handleCancel}
       confirmLoading={loading}
+      okButtonProps={{ disabled: loading }}
+      cancelButtonProps={{ disabled: loading }}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}
@@ -115,8 +88,17 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
               name="heartRate"
               label="Heart Rate (bpm)"
               rules={[
-                { required: true, message: 'Please enter heart rate' },
-                { type: 'number', min: 30, max: 200, message: 'Heart rate must be between 30-200 bpm' }
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined) {
+                      return Promise.reject(new Error('Please enter heart rate'));
+                    }
+                    if (value < 30 || value > 200) {
+                      return Promise.reject(new Error('Heart rate must be between 30-200 bpm'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
             >
               <InputNumber
@@ -133,8 +115,17 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
               name="temperature"
               label="Temperature (°C)"
               rules={[
-                { required: true, message: 'Please enter temperature' },
-                { type: 'number', min: 30, max: 45, message: 'Temperature must be between 30-45°C' }
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined) {
+                      return Promise.reject(new Error('Please enter temperature'));
+                    }
+                    if (value < 30 || value > 45) {
+                      return Promise.reject(new Error('Temperature must be between 30-45°C'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
             >
               <InputNumber
@@ -154,8 +145,17 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
             <Form.Item
               name="bloodPressureSystolic"
               rules={[
-                { required: true, message: 'Required' },
-                { type: 'number', min: 70, max: 250, message: 'Systolic: 70-250' }
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined) {
+                      return Promise.reject(new Error('Required'));
+                    }
+                    if (value < 70 || value > 250) {
+                      return Promise.reject(new Error('Systolic: 70-250'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
               style={{ display: 'inline-block', width: '45%' }}
             >
@@ -181,8 +181,17 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
             <Form.Item
               name="bloodPressureDiastolic"
               rules={[
-                { required: true, message: 'Required' },
-                { type: 'number', min: 40, max: 150, message: 'Diastolic: 40-150' }
+                {
+                  validator: (_, value) => {
+                    if (value === null || value === undefined) {
+                      return Promise.reject(new Error('Required'));
+                    }
+                    if (value < 40 || value > 150) {
+                      return Promise.reject(new Error('Diastolic: 40-150'));
+                    }
+                    return Promise.resolve();
+                  }
+                }
               ]}
               style={{ display: 'inline-block', width: '45%' }}
             >
@@ -200,8 +209,17 @@ const VitalsModal = ({ visible, onCancel, onSave, initialData }) => {
           name="oxygenSaturation"
           label="Oxygen Saturation (%)"
           rules={[
-            { required: true, message: 'Please enter oxygen saturation' },
-            { type: 'number', min: 70, max: 100, message: 'Oxygen saturation must be between 70-100%' }
+            {
+              validator: (_, value) => {
+                if (value === null || value === undefined) {
+                  return Promise.reject(new Error('Please enter oxygen saturation'));
+                }
+                if (value < 70 || value > 100) {
+                  return Promise.reject(new Error('Oxygen saturation must be between 70-100%'));
+                }
+                return Promise.resolve();
+              }
+            }
           ]}
         >
           <InputNumber

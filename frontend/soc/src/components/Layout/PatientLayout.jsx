@@ -17,7 +17,7 @@ const PatientLayout = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <PatientSidebar patient={patient} />
+      <PatientSidebar />
       <Layout style={{ marginLeft: 240, background: '#ffffff' }}>
         <Content style={{ background: '#ffffff' }}>
           <Outlet context={{ patient }} />

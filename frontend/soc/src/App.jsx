@@ -21,6 +21,17 @@ import './styles/global.css';
 
 const { Content } = Layout;
 
+// Component to redirect authenticated users to their patient home
+const HomeRedirect = () => {
+  const { user } = useAuthStore();
+
+  if (user?.uid) {
+    return <Navigate to={`/patient/${user.uid}`} replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+};
+
 const App = () => {
   const { initializeAuth } = useAuthStore();
 
@@ -38,9 +49,19 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* Main dashboard with sidebar */}
+        {/* Root route - redirect to user's patient home */}
         <Route
           path="/"
+          element={
+            <ProtectedRoute>
+              <HomeRedirect />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Development-only dashboard route (not accessible through UI) */}
+        <Route
+          path="/dev/dashboard"
           element={
             <ProtectedRoute>
               <Layout style={{ minHeight: '100vh' }}>
@@ -55,7 +76,7 @@ const App = () => {
           }
         />
 
-        {/* Redirect /patients to root */}
+        {/* Redirect legacy routes */}
         <Route path="/patients" element={<Navigate to="/" replace />} />
 
         {/* Patient routes with patient sidebar */}

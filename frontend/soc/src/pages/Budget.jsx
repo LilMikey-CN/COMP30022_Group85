@@ -12,7 +12,7 @@ import SubcategoryModal from '../components/Budget/SubcategoryModal';
 const { Title, Text } = Typography;
 
 const BudgetContent = () => {
-  const { patientId = 'PT-2025-02-001' } = useParams();
+  const { patientId } = useParams();
 
   // Modal state
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);

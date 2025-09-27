@@ -8,8 +8,7 @@ import {
 } from '../data/integratedMockDatabase.js';
 import { generateBudgetAnalytics } from '../data/budgetCalculations.js';
 
-// Default patient ID for single patient scenario
-const DEFAULT_PATIENT_ID = 'PT-2025-02-001';
+// No longer using default patient ID - all APIs now require explicit patientId
 
 // In-memory data store (simulates backend database)
 let mockData = {
@@ -28,7 +27,11 @@ const generateId = (prefix = 'id') => `${prefix}-${Date.now()}-${Math.random().t
 // BUDGET ANALYTICS API
 // ================================
 
-export const fetchBudgetAnalytics = async (patientId = DEFAULT_PATIENT_ID) => {
+export const fetchBudgetAnalytics = async (patientId) => {
+  if (!patientId) {
+    throw new Error('Patient ID is required');
+  }
+
   await simulateDelay(200);
 
   // In a real API, you would filter data by patientId
@@ -47,7 +50,11 @@ export const fetchBudgetAnalytics = async (patientId = DEFAULT_PATIENT_ID) => {
 // CATEGORY MANAGEMENT API
 // ================================
 
-export const fetchCategories = async (patientId = DEFAULT_PATIENT_ID) => {
+export const fetchCategories = async (patientId) => {
+  if (!patientId) {
+    throw new Error('Patient ID is required');
+  }
+
   await simulateDelay(150);
 
   // In a real API, you would filter categories by patientId
@@ -246,7 +253,7 @@ export const deleteSubcategory = async (categoryId, subcategoryId) => {
 // CARE ITEMS API (for future use)
 // ================================
 
-export const fetchCareItems = async (patientId = DEFAULT_PATIENT_ID) => {
+export const fetchCareItems = async (patientId) => {
   await simulateDelay(200);
 
   // In a real API, you would filter care items by patientId
