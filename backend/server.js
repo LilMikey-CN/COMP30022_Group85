@@ -24,6 +24,166 @@ app.get("/", (req, res) => {
   res.send("Hello from the server!");
 });
 
+// Verify User
+app.get("/user/verify", async (req, res) => {
+
+  const token = req.headers.authorization?.split('Bearer ')[1];
+
+  if (!token) {
+    return res
+      .status(401)
+      .send("Missing auth token");
+  }
+  try {
+    const verifiedToken = await admin.auth().verifyIdToken(token);
+    req.user = verifiedToken;
+    res
+      .status(200)
+      .send(`Verified user: ${req.user.email}`);
+      
+  } catch (error) {
+    console.error("Token verification failed: ", error);
+    res
+      .status(401)
+      .send('Unauthorised');
+  }
+});
+
+// Create User
+app.post("/user/create", async (req, res) => {
+  try {
+    const { email, password, name, phoneNumber, role } = req.body;
+    
+    // Add user to Auth Service
+    await admin.auth().createUser({
+      email: email,
+      password: password,
+    });
+    
+    // Add user to DB
+    const userData = { email, name, phoneNumber, role };
+    const docRef = await db.collection("User").add(userData);
+
+    res
+      .status(201)
+      .send({ message: "User added successfully" });
+  }
+  catch (error) {
+    console.error("Error adding user: ", error);
+    res
+      .status(500)
+      .send({ message: "Error adding user", error: error.message });
+  }
+});
+
+// Delete User
+app.delete("/user/delete", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Delete user in Auth Service
+    admin.auth().getUserByEmail(email)
+      .then(user => {
+        return admin.auth().deleteUser(user.uid);
+      })
+    
+    // Delete user in DB
+    const snapshot = await db
+      .collection("User")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const doc = snapshot.docs[0];
+    await doc.ref.delete();
+
+    res
+      .status(201)
+      .send({ message: "User deleted successfully", id: email });
+    
+
+  } catch (error) {
+    console.error("Error deleting user: ", error);
+    res
+      .status(500)
+      .send({ message: "Error deleting user", error: error.message });
+  }
+});
+
+// Read all users
+app.get("/user/readall", async (req, res) => {
+  try {
+    const snapshot = await db.collection("User").get();
+    const clients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(clients);
+  } catch (error) {
+    console.error("Error fetching users: ", error);
+    res
+      .status(500)
+      .send({ message: "Error fetching users", error: error.message });
+  }
+});
+
+// Read single user
+app.get("/user/read", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const snapshot = await db
+      .collection("User")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const doc = snapshot.docs[0];
+
+    res
+      .status(200)
+      .json(doc.data());
+  } catch (error) {
+    console.error("Error getting document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error fetching user", error: error.message });
+  }
+});
+
+// Update user
+app.put("/user/update", async (req, res) => {
+  try {
+    const { email, name, phoneNumber, role } = req.body;
+    const data = { name, phoneNumber, role };
+
+    const snapshot = await db
+      .collection("User")
+      .where("email", "==", email)
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      return res.status(404).send({ message: "Document not found" });
+    }
+    
+    const doc = snapshot.docs[0];
+
+    await doc.ref.update(data);
+    res.status(200).send({ message: "Document updated successfully" });
+  } catch (error) {
+    console.error("Error updating document: ", error);
+    res
+      .status(500)
+      .send({ message: "Error updating document", error: error.message });
+  }
+});
+
 // Create new client
 app.post("/clients/create", async (req, res) => {
   try {
@@ -117,7 +277,9 @@ app.get("/clients/:clientID", async (req, res) => {
     const docRef = db.collection("Client").doc(clientID);
     const doc = await docRef.get();
 
-    res.json(doc.data());
+    res
+      .status(200)
+      .json(doc.data());
   } catch (error) {
     console.error("Error getting document: ", error);
     res
@@ -224,7 +386,9 @@ app.get("/clients/:clientID/CareItem", async (req, res) => {
       .where("clientID", "==", clientID)
       .get();
     const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    res.json(data);
+    res
+      .status(200)
+      .json(data);
   } catch (error) {
     console.error("Error getting documents: ", error);
     res
