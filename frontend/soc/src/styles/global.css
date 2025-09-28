@@ -91,6 +91,151 @@ body {
   background: #555;
 }
 
+/* Client Profile Message Styles */
+.client-profile-message {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 500;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.client-profile-message .ant-message-notice-content {
+  padding: 12px 16px;
+}
+
+/* Enhanced message animations */
+.ant-message .ant-message-notice {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success message styling */
+.ant-message-success .ant-message-notice-content {
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+}
+
+/* Error message styling */
+.ant-message-error .ant-message-notice-content {
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #cf1322;
+}
+
+/* Warning message styling */
+.ant-message-warning .ant-message-notice-content {
+  background-color: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #d46b08;
+}
+
+/* Client Profile Edit Icon Styling */
+.client-profile-edit-icon {
+  color: #8c8c8c !important;
+  cursor: pointer;
+  font-size: 16px !important;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.client-profile-edit-icon:hover {
+  color: #1890ff !important;
+  background-color: #f0f8ff;
+  transform: scale(1.1);
+}
+
+.client-profile-edit-icon:active {
+  color: #096dd9 !important;
+  background-color: #e6f7ff;
+  transform: scale(1.05);
+}
+
+/* Client Profile Card Styling */
+.ant-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Client Profile Info Card Styling */
+.client-profile-info-card .ant-card-head {
+  border-bottom: 1px solid #e1e8ed !important;
+  background-color: #fafbfc !important;
+  position: relative;
+}
+
+.client-profile-info-card .ant-card-body {
+  background-color: #fafbfc !important;
+}
+
+/* Ensure the border shows up - subtle approach */
+.client-profile-info-card .ant-card-head::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e1e8ed !important;
+  display: block !important;
+  z-index: 1;
+}
+
+/* Fallback for all cards - subtle gray */
+.ant-card .ant-card-head {
+  border-bottom: 1px solid #e1e8ed !important;
+  background-color: #fafbfc !important;
+}
+
+.ant-card .ant-card-body {
+  background-color: #fafbfc !important;
+}
+
+/* Emergency Contact Modal Table Styling */
+.emergency-contact-editable-row {
+  background-color: #fafafa;
+}
+
+.emergency-contact-editable-row:hover {
+  background-color: #f0f0f0;
+}
+
+.emergency-contact-editable-row td {
+  vertical-align: middle !important;
+  padding: 12px 16px !important;
+  height: 56px !important;
+}
+
+/* Ensure all table cells in emergency contact modal are properly aligned */
+.ant-modal .ant-table-tbody > tr > td {
+  vertical-align: middle;
+  padding: 12px 16px;
+}
+
+/* Fix input alignment within emergency contact table cells */
+.emergency-contact-editable-row .ant-input {
+  margin: 0 !important;
+}
+
+.emergency-contact-editable-row .ant-input-status-error {
+  border-color: #ff4d4f !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .ant-layout-sider {
@@ -104,5 +249,10 @@ body {
   .ant-col-md-8 {
     flex: 0 0 100%;
     max-width: 100%;
+  }
+
+  /* Adjust message positioning on mobile */
+  .client-profile-message {
+    margin-top: 8vh !important;
   }
 }

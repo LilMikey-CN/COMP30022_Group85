@@ -55,20 +55,16 @@ export const PatientCalendar = () => (
 
 // List Page - Care Items List
 export const PatientList = () => {
+
+  // eslint-disable-next-line no-unused-vars
   const { patientId } = useParams();
-  
+
   return null; // This will be replaced by the actual CareItemsListPage
 };
 
-// Budget Page
-export const PatientBudget = () => (
-  <PlaceholderPage
-    title="Budget Management"
-    description="Track and manage patient care budget"
-  />
-);
+// Budget Page - Replaced by actual Budget component
 
-// Patient Info Page
+// Patient Info Page - now replaced by ClientProfile
 export const PatientInfo = () => (
   <PlaceholderPage
     title="Patient Information"
