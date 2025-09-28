@@ -24,17 +24,42 @@ app.get("/", (req, res) => {
   res.send("Hello from the server!");
 });
 
+// Verify User
+app.get("/user/verify", async (req, res) => {
+
+  const token = req.headers.authorization?.split('Bearer ')[1];
+
+  if (!token) {
+    return res
+      .status(401)
+      .send("Missing auth token");
+  }
+  try {
+    const verifiedToken = await admin.auth().verifyIdToken(token);
+    req.user = verifiedToken;
+    res
+      .status(200)
+      .send(`Verified user: ${req.user.email}`);
+      
+  } catch (error) {
+    console.error("Token verification failed: ", error);
+    res
+      .status(401)
+      .send('Unauthorised');
+  }
+});
+
 // Create User
 app.post("/user/create", async (req, res) => {
   try {
     const { email, password, name, phoneNumber, role } = req.body;
     
     // Add user to Auth Service
-    admin.auth().createUser({
+    await admin.auth().createUser({
       email: email,
       password: password,
     });
-
+    
     // Add user to DB
     const userData = { email, name, phoneNumber, role };
     const docRef = await db.collection("User").add(userData);
