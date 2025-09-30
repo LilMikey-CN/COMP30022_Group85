@@ -7,6 +7,274 @@ const app = express();
 app.use(express.json());
 app.use('/api/users', usersRouter);
 
+describe('Users API - User Profile Endpoints', () => {
+  describe('GET /api/users/profile', () => {
+    it('should get current user profile', async () => {
+      const mockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          emailVerified: true,
+          avatar_url: 'https://example.com/avatar.jpg',
+          mobile_phone: '0412345678',
+          contact_address: '123 Main St, Melbourne VIC 3000',
+          created_at: { toDate: () => new Date('2023-01-01') },
+          updated_at: { toDate: () => new Date('2023-01-02') }
+        })
+      };
+
+      mockDoc.get.mockResolvedValue(mockUserDoc);
+
+      const response = await request(app)
+        .get('/api/users/profile')
+        .expect(200);
+
+      expect(response.body.message).toBe('User profile retrieved successfully');
+      expect(response.body.data.uid).toBe('test-uid');
+      expect(response.body.data.email).toBe('test@example.com');
+      expect(response.body.data.displayName).toBe('Test User');
+      expect(response.body.data.avatar_url).toBe('https://example.com/avatar.jpg');
+      expect(response.body.data.mobile_phone).toBe('0412345678');
+      expect(response.body.data.contact_address).toBe('123 Main St, Melbourne VIC 3000');
+    });
+
+    it('should return 404 when user profile does not exist', async () => {
+      const mockUserDoc = {
+        exists: false
+      };
+
+      mockDoc.get.mockResolvedValue(mockUserDoc);
+
+      const response = await request(app)
+        .get('/api/users/profile')
+        .expect(404);
+
+      expect(response.body.error).toBe('User profile not found');
+      expect(response.body.message).toBe('No profile has been set up for this user');
+    });
+
+    it('should handle database errors', async () => {
+      mockDoc.get.mockRejectedValue(new Error('Database error'));
+
+      const response = await request(app)
+        .get('/api/users/profile')
+        .expect(500);
+
+      expect(response.body.error).toBe('Failed to fetch user profile');
+    });
+  });
+
+  describe('PATCH /api/users/profile', () => {
+    it('should update user profile fields', async () => {
+      const mockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'Old Name',
+          emailVerified: true,
+          avatar_url: 'https://old.com/avatar.jpg',
+          mobile_phone: '0411111111',
+          contact_address: 'Old Address',
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-01')
+        })
+      };
+
+      const updatedMockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'New Name',
+          emailVerified: true,
+          avatar_url: 'https://new.com/avatar.jpg',
+          mobile_phone: '0422222222',
+          contact_address: 'New Address',
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-02')
+        })
+      };
+
+      mockDoc.get.mockResolvedValueOnce(mockUserDoc).mockResolvedValueOnce(updatedMockUserDoc);
+      mockDoc.update.mockResolvedValue();
+
+      const updateData = {
+        displayName: 'New Name',
+        avatar_url: 'https://new.com/avatar.jpg',
+        mobile_phone: '0422222222',
+        contact_address: 'New Address'
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(200);
+
+      expect(response.body.message).toBe('User profile updated successfully');
+      expect(response.body.data.displayName).toBe('New Name');
+      expect(response.body.data.avatar_url).toBe('https://new.com/avatar.jpg');
+      expect(response.body.data.mobile_phone).toBe('0422222222');
+      expect(response.body.data.contact_address).toBe('New Address');
+    });
+
+    it('should update partial user profile fields', async () => {
+      const mockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          emailVerified: true,
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-01')
+        })
+      };
+
+      const updatedMockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'Updated Name',
+          emailVerified: true,
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-02')
+        })
+      };
+
+      mockDoc.get.mockResolvedValueOnce(mockUserDoc).mockResolvedValueOnce(updatedMockUserDoc);
+      mockDoc.update.mockResolvedValue();
+
+      const updateData = {
+        displayName: 'Updated Name'
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(200);
+
+      expect(response.body.message).toBe('User profile updated successfully');
+      expect(response.body.data.displayName).toBe('Updated Name');
+    });
+
+    it('should create user document if it does not exist', async () => {
+      const mockUserDoc = {
+        exists: false
+      };
+
+      const newMockUserDoc = {
+        exists: true,
+        data: () => ({
+          uid: 'test-uid',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          emailVerified: false,
+          avatar_url: 'https://example.com/avatar.jpg',
+          mobile_phone: '0412345678',
+          contact_address: '123 Main St',
+          created_at: new Date('2023-01-01'),
+          updated_at: new Date('2023-01-01')
+        })
+      };
+
+      mockDoc.get.mockResolvedValueOnce(mockUserDoc).mockResolvedValueOnce(newMockUserDoc);
+      mockDoc.set.mockResolvedValue();
+      mockAuth.getUser.mockResolvedValue({
+        email: 'test@example.com',
+        displayName: 'Test User',
+        emailVerified: false,
+        metadata: { creationTime: '2023-01-01T00:00:00Z' }
+      });
+
+      const updateData = {
+        avatar_url: 'https://example.com/avatar.jpg',
+        mobile_phone: '0412345678',
+        contact_address: '123 Main St'
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(200);
+
+      expect(response.body.message).toBe('User profile updated successfully');
+      expect(response.body.data.avatar_url).toBe('https://example.com/avatar.jpg');
+      expect(mockDoc.set).toHaveBeenCalled();
+    });
+
+    it('should reject empty displayName', async () => {
+      const updateData = {
+        displayName: ''
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(400);
+
+      expect(response.body.error).toBe('displayName must be a non-empty string');
+    });
+
+    it('should reject empty avatar_url', async () => {
+      const updateData = {
+        avatar_url: ''
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(400);
+
+      expect(response.body.error).toBe('avatar_url must be a non-empty string');
+    });
+
+    it('should reject non-string mobile_phone', async () => {
+      const updateData = {
+        mobile_phone: 123456
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(400);
+
+      expect(response.body.error).toBe('mobile_phone must be a string');
+    });
+
+    it('should reject non-string contact_address', async () => {
+      const updateData = {
+        contact_address: 12345
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(400);
+
+      expect(response.body.error).toBe('contact_address must be a string');
+    });
+
+    it('should handle database errors', async () => {
+      mockDoc.get.mockRejectedValue(new Error('Database error'));
+
+      const updateData = {
+        displayName: 'New Name'
+      };
+
+      const response = await request(app)
+        .patch('/api/users/profile')
+        .send(updateData)
+        .expect(500);
+
+      expect(response.body.error).toBe('Failed to update user profile');
+    });
+  });
+});
+
 describe('Users API - Client Profile Endpoints', () => {
   describe('PUT /api/users/client-profile', () => {
     it('should create a new client profile for user', async () => {

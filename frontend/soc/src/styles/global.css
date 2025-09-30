@@ -140,8 +140,8 @@ body {
   color: #d46b08;
 }
 
-/* Client Profile Edit Icon Styling */
-.client-profile-edit-icon {
+/* Edit Icon Styling */
+.edit-icon {
   color: #8c8c8c !important;
   cursor: pointer;
   font-size: 16px !important;
@@ -150,13 +150,13 @@ body {
   transition: all 0.2s ease;
 }
 
-.client-profile-edit-icon:hover {
+.edit-icon:hover {
   color: #1890ff !important;
   background-color: #f0f8ff;
   transform: scale(1.1);
 }
 
-.client-profile-edit-icon:active {
+.edit-icon:active {
   color: #096dd9 !important;
   background-color: #e6f7ff;
   transform: scale(1.05);

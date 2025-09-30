@@ -4,9 +4,9 @@ import PatientHome from '../pages/PatientHome';
 import CareItemsListPage from '../pages/CareItemsListPage';
 import Budget from '../pages/Budget';
 import ClientProfile from '../pages/ClientProfile';
+import Settings from '../pages/Settings';
 import {
-  PatientCalendar,
-  PatientSettings
+  PatientCalendar
 } from '../pages/PatientPlaceholders';
 
 // Route configuration
@@ -54,8 +54,8 @@ export const routes = [
       },
       {
         path: 'settings',
-        element: PatientSettings,
-        name: 'Patient Settings'
+        element: Settings,
+        name: 'Settings'
       }
     ]
   }
