@@ -43,7 +43,6 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
               <span>Year-End Projection</span>
             </div>
           }
-          style={{ height: '100%' }}
         >
           <div style={{ textAlign: 'center' }}>
             <div style={{ marginBottom: '16px' }}>
