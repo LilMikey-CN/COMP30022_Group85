@@ -1,13 +1,18 @@
 const express = require('express');
 const { db, auth } = require('../config/firebase');
 const { verifyToken } = require('../middleware/auth');
-const { validateClientProfileData } = require('../utils/validation');
+const { validateClientProfileData, validateUserProfileData } = require('../utils/validation');
 const {
   prepareClientProfileData,
   updateClientProfileData,
   formatClientProfileResponse,
   filterUsersBySearch
 } = require('../utils/clientProfile');
+const {
+  formatUserProfileResponse,
+  prepareUserProfileData,
+  initializeUserDocument
+} = require('../utils/userProfile');
 
 const router = express.Router();
 
@@ -26,6 +31,88 @@ router.use(verifyToken);
 router.get('/test', (req, res) => {
   res.json({ message: 'Users route is working with auth!', user: req.user });
 });
+
+// USER PROFILE ROUTES
+
+// READ - Get current user's profile
+router.get('/profile', async (req, res) => {
+  try {
+    const userId = req.user.uid;
+
+    const userDoc = await db.collection('users').doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        error: 'User profile not found',
+        message: 'No profile has been set up for this user'
+      });
+    }
+
+    const userData = userDoc.data();
+    const response = {
+      message: 'User profile retrieved successfully',
+      data: formatUserProfileResponse(userData)
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
+});
+
+// UPDATE - Update current user's profile
+router.patch('/profile', async (req, res) => {
+  try {
+    const userId = req.user.uid;
+
+    // Validate input data
+    const validation = validateUserProfileData(req.body);
+    if (!validation.isValid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
+    // Prepare user profile data for update
+    const profileUpdateData = prepareUserProfileData(req.body);
+
+    // Get Firebase Auth user data (if available)
+    let userRecord = null;
+    try {
+      userRecord = await auth.getUser(userId);
+    } catch (error) {
+      console.log('Could not fetch user record from Firebase Auth, using token data');
+    }
+
+    const userDocRef = db.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
+
+    if (userDoc.exists) {
+      // Update existing user document
+      await userDocRef.update(profileUpdateData);
+    } else {
+      // Create new user document with profile data
+      const userDocData = {
+        ...initializeUserDocument(userId, userRecord, req.user),
+        ...profileUpdateData
+      };
+      await userDocRef.set(userDocData);
+    }
+
+    // Fetch the updated document to return
+    const updatedUserDoc = await userDocRef.get();
+    const updatedUserData = updatedUserDoc.data();
+
+    res.json({
+      message: 'User profile updated successfully',
+      data: formatUserProfileResponse(updatedUserData)
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update user profile' });
+  }
+});
+
+// CLIENT PROFILE ROUTES
 
 // CREATE/UPDATE - Set client profile for current user's client
 router.put('/client-profile', async (req, res) => {
@@ -51,12 +138,7 @@ router.put('/client-profile', async (req, res) => {
 
     // Prepare user document data
     const userDocData = {
-      uid: userId,
-      email: userRecord?.email || req.user.email || null,
-      displayName: userRecord?.displayName || req.user.name || 'Test Guardian User',
-      emailVerified: userRecord?.emailVerified || false,
-      created_at: userRecord?.metadata ? new Date(userRecord.metadata.creationTime) : new Date(),
-      updated_at: new Date(),
+      ...initializeUserDocument(userId, userRecord, req.user),
       client_profile: clientProfileData
     };
 
