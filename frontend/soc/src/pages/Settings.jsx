@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Typography, Card, Row, Col, Spin, Alert, Button, Avatar, Modal } from 'antd';
+import { Typography, Card, Row, Col, Spin, Alert, Button, Avatar } from 'antd';
 import { UserOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useUserProfile, useUpdateUserProfile } from '../hooks/useUserProfile';
 import { handleError, ERROR_TYPES } from '../utils/errorHandler.jsx';
 import AccountSettingsModal from '../components/Settings/AccountSettingsModal';
+import AvatarUploadModal from '../components/Settings/AvatarUploadModal';
 
 const { Title, Text } = Typography;
 
@@ -50,6 +51,20 @@ const Settings = () => {
     }
   };
 
+  // Save handler for avatar upload
+  const handleAvatarUploadSuccess = async (avatarUrl) => {
+    try {
+      await updateUserProfile.mutateAsync({ avatar_url: avatarUrl });
+    } catch (error) {
+      handleError(error, ERROR_TYPES.MODAL, {
+        title: 'Avatar Update Failed',
+        context: 'Failed to update avatar',
+        showDetails: true,
+      });
+      throw error; // Re-throw to let the modal handle the error
+    }
+  };
+
   const InfoCard = ({ title, children, style = {}, onEdit, isLoading = false }) => (
     <Card
       className="settings-info-card"
@@ -60,7 +75,7 @@ const Settings = () => {
           </Text>
           {onEdit && (
             <EditOutlined
-              className="settings-edit-icon"
+              className="edit-icon"
               style={{
                 color: isLoading ? '#d9d9d9' : '#8c8c8c',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -175,7 +190,7 @@ const Settings = () => {
                 type="primary"
                 onClick={openAvatarModal}
                 disabled={updateUserProfile.isPending}
-                style={{ width: '100%' }}
+                style={{ width: '140px' }}
               >
                 Update Avatar
               </Button>
@@ -229,21 +244,13 @@ const Settings = () => {
         loading={updateUserProfile.isPending}
       />
 
-      {/* Avatar Upload Modal - Placeholder */}
-      <Modal
-        title="Update Avatar"
-        open={avatarModalVisible}
+      {/* Avatar Upload Modal */}
+      <AvatarUploadModal
+        visible={avatarModalVisible}
         onCancel={closeAvatarModal}
-        footer={[
-          <Button key="close" onClick={closeAvatarModal}>
-            Close
-          </Button>
-        ]}
-      >
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          <Text>Avatar upload coming soon</Text>
-        </div>
-      </Modal>
+        currentAvatarUrl={userData?.avatar_url}
+        onSuccess={handleAvatarUploadSuccess}
+      />
     </div>
   );
 };

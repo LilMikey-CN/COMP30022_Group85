@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Button, Typography, Avatar, Space, message } from 'antd';
 import useAuthStore from '../../store/authStore';
+import { useUserProfile } from '../../hooks/useUserProfile';
 import {
   SettingOutlined,
   HomeOutlined,
@@ -24,14 +25,20 @@ const PatientSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuthStore();
+  const { data: userData } = useUserProfile();
 
   // Get user display information
   const getUserDisplayName = () => {
+    // First priority: user profile displayName
+    if (userData?.displayName) {
+      return userData.displayName;
+    }
+    // Second priority: auth user displayName
     if (user?.displayName) {
       return user.displayName;
     }
+    // Third priority: email prefix
     if (user?.email) {
-      // Use email prefix if no display name
       return user.email.split('@')[0];
     }
     return 'User';
@@ -141,13 +148,15 @@ const PatientSidebar = () => {
         <Space>
           <Avatar
             size={40}
+            icon={!userData?.avatar_url ? <UserOutlined /> : undefined}
+            src={userData?.avatar_url}
             style={{
-              backgroundColor: '#b8b8b8',
+              backgroundColor: userData?.avatar_url ? 'transparent' : '#b8b8b8',
               fontSize: '16px',
               fontWeight: '500'
             }}
           >
-            {getUserInitials()}
+            {!userData?.avatar_url && getUserInitials()}
           </Avatar>
           <div>
             <Text strong style={{ display: 'block', fontSize: '14px' }}>

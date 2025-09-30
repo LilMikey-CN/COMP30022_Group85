@@ -79,7 +79,8 @@ export const CLIENT_PROFILE_MESSAGES = {
     EMERGENCY_CONTACT_DELETED: 'Emergency contact deleted successfully!',
     NOTES: 'Notes updated successfully!',
     HEALTH_CARE_INFO: 'Health & care information updated successfully!',
-    VITALS: 'Vital signs updated successfully!'
+    VITALS: 'Vital signs updated successfully!',
+    AVATAR: 'Avatar updated successfully!'
   },
   ERROR: {
     PERSONAL_DETAILS: 'Failed to update personal details. Server error occurred. Please try again.',
@@ -90,7 +91,9 @@ export const CLIENT_PROFILE_MESSAGES = {
     HEALTH_CARE_INFO: 'Failed to update health & care information. Server error occurred. Please try again.',
     VITALS: 'Failed to update vital signs. Server error occurred. Please try again.',
     NETWORK: 'Network connection error. Please check your internet connection and try again.',
-    VALIDATION: 'Please check all required fields before saving.'
+    VALIDATION: 'Please check all required fields before saving.',
+    AVATAR_UPLOAD: 'Failed to upload avatar. Please try again later.',
+    AVATAR_UPDATE: 'Failed to update avatar. Server error occurred. Please try again.'
   },
   LOADING: {
     SAVING: 'Saving changes...',
