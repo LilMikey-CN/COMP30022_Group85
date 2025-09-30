@@ -39,13 +39,28 @@ router.get('/profile', async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDocRef = db.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
 
     if (!userDoc.exists) {
-      return res.status(404).json({
-        error: 'User profile not found',
-        message: 'No profile has been set up for this user'
-      });
+      // Get Firebase Auth user data (if available)
+      let userRecord = null;
+      try {
+        userRecord = await auth.getUser(userId);
+      } catch (error) {
+        console.log('Could not fetch user record from Firebase Auth, using token data');
+      }
+
+      // Create new user document with default values
+      const userDocData = initializeUserDocument(userId, userRecord, req.user);
+      await userDocRef.set(userDocData);
+
+      const response = {
+        message: 'User profile retrieved successfully',
+        data: formatUserProfileResponse(userDocData)
+      };
+
+      return res.json(response);
     }
 
     const userData = userDoc.data();
