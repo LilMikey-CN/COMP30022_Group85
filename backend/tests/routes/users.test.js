@@ -40,19 +40,25 @@ describe('Users API - User Profile Endpoints', () => {
       expect(response.body.data.contact_address).toBe('123 Main St, Melbourne VIC 3000');
     });
 
-    it('should return 404 when user profile does not exist', async () => {
+    it('should auto-create user profile when it does not exist', async () => {
       const mockUserDoc = {
         exists: false
       };
 
       mockDoc.get.mockResolvedValue(mockUserDoc);
+      mockDoc.set.mockResolvedValue();
 
       const response = await request(app)
         .get('/api/users/profile')
-        .expect(404);
+        .expect(200);
 
-      expect(response.body.error).toBe('User profile not found');
-      expect(response.body.message).toBe('No profile has been set up for this user');
+      expect(response.body.message).toBe('User profile retrieved successfully');
+      expect(response.body.data.uid).toBe('test-uid');
+      expect(response.body.data.email).toBe('test@example.com');
+      expect(response.body.data.avatar_url).toBeNull();
+      expect(response.body.data.mobile_phone).toBeNull();
+      expect(response.body.data.contact_address).toBeNull();
+      expect(mockDoc.set).toHaveBeenCalled();
     });
 
     it('should handle database errors', async () => {
