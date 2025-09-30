@@ -12,9 +12,9 @@ import PatientHome from './pages/PatientHome';
 import CareItemsListPage from './pages/CareItemsListPage';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
+import Settings from './pages/Settings';
 import {
-  PatientCalendar,
-  PatientSettings
+  PatientCalendar
 } from './pages/PatientPlaceholders';
 import useAuthStore from './store/authStore';
 import './styles/global.css';
@@ -120,7 +120,7 @@ const App = () => {
             <PatientLayout />
           </ProtectedRoute>
         }>
-          <Route index element={<PatientSettings />} />
+          <Route index element={<Settings />} />
         </Route>
       </Routes>
     </Router>
