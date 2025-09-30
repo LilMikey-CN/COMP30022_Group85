@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Modal, Upload, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { showSuccessMessage, showErrorMessage, CLIENT_PROFILE_MESSAGES } from '../../utils/messageConfig';
+import { showErrorMessage, CLIENT_PROFILE_MESSAGES } from '../../utils/messageConfig';
 
 const OBJECT_STORAGE_BASE_URL = import.meta.env.VITE_OBJECT_STORAGE_BASE_URL;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 
-const AvatarUploadModal = ({ visible, onCancel, currentAvatarUrl, onSuccess }) => {
+const AvatarUploadModal = ({ visible, onCancel, onSuccess }) => {
   const [fileList, setFileList] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
