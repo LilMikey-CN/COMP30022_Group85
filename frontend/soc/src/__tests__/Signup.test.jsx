@@ -34,17 +34,15 @@ vi.mock('../store/authStore', () => ({
     }),
 }))
 
+const renderWithRouter = (ui) => render(<MemoryRouter>{ui}</MemoryRouter>)
+
 describe('Signup Component', () => {
   beforeEach(() => {
       vi.clearAllMocks()
   })
 
   test('user can type into email field', () => {
-    render(
-      <MemoryRouter>
-        <Signup />
-      </MemoryRouter>
-    )
+    renderWithRouter(<Signup />)
 
     const emailInput = screen.getByPlaceholderText(/enter your email address/i)
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } })
@@ -52,11 +50,7 @@ describe('Signup Component', () => {
   })
 
   test('user can type into password field', () => {
-    render(
-      <MemoryRouter>
-        <Signup />
-      </MemoryRouter>
-    )
+    renderWithRouter(<Signup />)
 
     const passwordInput = screen.getByPlaceholderText(/create a secure password/i)
     fireEvent.change(passwordInput, { target: { value: 'mypassword123' } })
@@ -64,11 +58,7 @@ describe('Signup Component', () => {
   })
 
   test('user can type into confirm password field', () => {
-    render(
-      <MemoryRouter>
-        <Signup />
-      </MemoryRouter>
-    )
+    renderWithRouter(<Signup />)
 
     const confirmPasswordInput = screen.getByPlaceholderText(/confirm your password/i)
     fireEvent.change(confirmPasswordInput, { target: { value: 'mypassword123' } })
@@ -78,11 +68,7 @@ describe('Signup Component', () => {
   test('when "Create My Account" is pressed, signup is called and user is redirected', async () => {
     mockSignup.mockResolvedValue({ success: true })
 
-    render(
-      <MemoryRouter>
-        <Signup />
-      </MemoryRouter>
-    )
+    renderWithRouter(<Signup />)
 
     // Fill out the form
     fireEvent.change(screen.getByPlaceholderText(/enter your email address/i), {
@@ -105,6 +91,8 @@ describe('Signup Component', () => {
     await waitFor(() => {
       expect(mockSignup).toHaveBeenCalledWith('user@test.com', 'password123')
       expect(mockNavigate).toHaveBeenCalledWith('/')
+      expect(screen.getByRole('checkbox')).toBeChecked()
+      expect(message.success).toHaveBeenCalledWith('Account created successfully!')
     })
   })
 
@@ -114,11 +102,7 @@ describe('Signup Component', () => {
       error: 'auth/email-already-in-use',
     })
 
-    render(
-      <MemoryRouter>
-        <Signup />
-      </MemoryRouter>
-    )
+    renderWithRouter(<Signup />)
 
     fireEvent.change(screen.getByPlaceholderText(/enter your email address/i), {
       target: { value: 'existing@example.com' },
@@ -136,7 +120,10 @@ describe('Signup Component', () => {
     // Assert: error message is shown, navigation does not occur
     await waitFor(() => {
       expect(mockSignup).toHaveBeenCalledWith('existing@example.com', 'password123')
-      expect(message.error).toHaveBeenCalledWith('auth/email-already-in-use')
+      expect(message.error).toHaveBeenCalledWith('auth/email-already-in-use') // FIX
+    //   expect(message.error).toHaveBeenCalledWith(
+    //     'This email is already registered. Please use a different email or try logging in.'
+    //   )      
       expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
