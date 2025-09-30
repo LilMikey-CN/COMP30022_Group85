@@ -58,6 +58,9 @@ function initializeUserDocument(userId, userRecord = null, tokenUser = null) {
     email: userRecord?.email || tokenUser?.email || null,
     displayName: userRecord?.displayName || tokenUser?.name || 'Test Guardian User',
     emailVerified: userRecord?.emailVerified || false,
+    avatar_url: null,
+    mobile_phone: null,
+    contact_address: null,
     created_at: userRecord?.metadata ? new Date(userRecord.metadata.creationTime) : new Date(),
     updated_at: new Date()
   };
