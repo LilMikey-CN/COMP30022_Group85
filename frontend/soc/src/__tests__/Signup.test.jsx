@@ -2,32 +2,42 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import Signup from '../pages/Signup'
+import { message } from 'antd'
+
+// Mock message from Ant Design
+vi.mock('antd', async () => {
+    const actual = await vi.importActual('antd')
+    return {
+        ...actual,
+        message: { success: vi.fn(), error: vi.fn() },
+    }
+})
 
 // Mock react-router-dom's useNavigate
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom')
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  }
+    const actual = await vi.importActual('react-router-dom')
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+    }
 })
 
 // Mock auth store
 const mockSignup = vi.fn()
 vi.mock('../store/authStore', () => ({
-  __esModule: true,
-  default: () => ({
-    signup: mockSignup,
-    isAuthenticated: false,
-    isLoading: false,
-  }),
+    __esModule: true,
+    default: () => ({
+        signup: mockSignup,
+        isAuthenticated: false,
+        isLoading: false,
+    }),
 }))
 
 describe('Signup Component', () => {
-    beforeEach(() => {
-        vi.clearAllMocks()
-    })
+  beforeEach(() => {
+      vi.clearAllMocks()
+  })
 
   test('user can type into email field', () => {
     render(
@@ -66,7 +76,6 @@ describe('Signup Component', () => {
   })
 
   test('when "Create My Account" is pressed, signup is called and user is redirected', async () => {
-    // Arrange: make signup resolve successfully
     mockSignup.mockResolvedValue({ success: true })
 
     render(
@@ -75,7 +84,7 @@ describe('Signup Component', () => {
       </MemoryRouter>
     )
 
-    // Act: fill out the form
+    // Fill out the form
     fireEvent.change(screen.getByPlaceholderText(/enter your email address/i), {
       target: { value: 'user@test.com' },
     })
@@ -86,17 +95,49 @@ describe('Signup Component', () => {
       target: { value: 'password123' },
     })
 
-    // tick the checkbox if you have Terms & Conditions
+    // Tick checkbox Terms and Conditions
     const checkbox = screen.getByRole('checkbox')
     fireEvent.click(checkbox)
 
-    // click submit
     fireEvent.click(screen.getByRole('button', { name: /create my account/i }))
 
     // Assert: signup was called, then navigated to home
     await waitFor(() => {
       expect(mockSignup).toHaveBeenCalledWith('user@test.com', 'password123')
       expect(mockNavigate).toHaveBeenCalledWith('/')
+    })
+  })
+
+  test('signup failure shows error message and does not navigate', async () => {
+    mockSignup.mockResolvedValue({
+      success: false,
+      error: 'auth/email-already-in-use',
+    })
+
+    render(
+      <MemoryRouter>
+        <Signup />
+      </MemoryRouter>
+    )
+
+    fireEvent.change(screen.getByPlaceholderText(/enter your email address/i), {
+      target: { value: 'existing@example.com' },
+    })
+    fireEvent.change(screen.getByPlaceholderText(/create a secure password/i), {
+      target: { value: 'password123' },
+    })
+    fireEvent.change(screen.getByPlaceholderText(/confirm your password/i), {
+      target: { value: 'password123' },
+    })
+    fireEvent.click(screen.getByRole('checkbox'))
+
+    fireEvent.click(screen.getByRole('button', { name: /create my account/i }))
+
+    // Assert: error message is shown, navigation does not occur
+    await waitFor(() => {
+      expect(mockSignup).toHaveBeenCalledWith('existing@example.com', 'password123')
+      expect(message.error).toHaveBeenCalledWith('auth/email-already-in-use')
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
 })
