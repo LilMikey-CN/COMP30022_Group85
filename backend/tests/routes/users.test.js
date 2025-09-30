@@ -456,7 +456,7 @@ describe('Users API - Client Profile Endpoints', () => {
       expect(response.body.client_profile.is_active).toBe(true);
     });
 
-    it('should return 404 when user has no client profile (not yet created)', async () => {
+    it('should auto-create client profile when user has no client profile', async () => {
       const mockUserDoc = {
         exists: true,
         data: () => ({
@@ -467,27 +467,36 @@ describe('Users API - Client Profile Endpoints', () => {
       };
 
       mockDoc.get.mockResolvedValue(mockUserDoc);
+      mockDoc.update.mockResolvedValue();
 
       const response = await request(app)
         .get('/api/users/client-profile')
-        .expect(404);
+        .expect(200);
 
-      expect(response.body.error).toBe('Client profile not found');
-      expect(response.body.message).toBe('No client profile has been set up for this user');
+      expect(response.body.user_id).toBe('test-uid');
+      expect(response.body.client_profile).toBeDefined();
+      expect(response.body.client_profile.full_name).toBeNull();
+      expect(response.body.client_profile.is_active).toBe(true);
+      expect(mockDoc.update).toHaveBeenCalled();
     });
 
-    it('should return 404 when user document does not exist (not yet created)', async () => {
+    it('should auto-create user document and client profile when user document does not exist', async () => {
       const mockUserDoc = {
         exists: false
       };
 
       mockDoc.get.mockResolvedValue(mockUserDoc);
+      mockDoc.set.mockResolvedValue();
 
       const response = await request(app)
         .get('/api/users/client-profile')
-        .expect(404);
+        .expect(200);
 
-      expect(response.body.error).toBe('Client profile not found');
+      expect(response.body.user_id).toBe('test-uid');
+      expect(response.body.client_profile).toBeDefined();
+      expect(response.body.client_profile.full_name).toBeNull();
+      expect(response.body.client_profile.is_active).toBe(true);
+      expect(mockDoc.set).toHaveBeenCalled();
     });
 
     it('should handle database errors', async () => {
