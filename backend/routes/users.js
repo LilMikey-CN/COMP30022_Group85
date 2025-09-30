@@ -6,6 +6,7 @@ const {
   prepareClientProfileData,
   updateClientProfileData,
   formatClientProfileResponse,
+  initializeClientProfile,
   filterUsersBySearch
 } = require('../utils/clientProfile');
 const {
@@ -195,21 +196,54 @@ router.get('/client-profile', async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDocRef = db.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
 
-    if (!userDoc.exists || !userDoc.data().client_profile) {
-      return res.status(404).json({
-        error: 'Client profile not found',
-        message: 'No client profile has been set up for this user'
-      });
+    if (!userDoc.exists) {
+      // Get Firebase Auth user data (if available)
+      let userRecord = null;
+      try {
+        userRecord = await auth.getUser(userId);
+      } catch (error) {
+        console.log('Could not fetch user record from Firebase Auth, using token data');
+      }
+
+      // Create new user document with empty client profile
+      const userDocData = {
+        ...initializeUserDocument(userId, userRecord, req.user),
+        client_profile: initializeClientProfile()
+      };
+      await userDocRef.set(userDocData);
+
+      const response = {
+        user_id: userId,
+        client_profile: formatClientProfileResponse(userDocData.client_profile)
+      };
+
+      return res.json(response);
     }
 
     const userData = userDoc.data();
-    const clientProfile = userData.client_profile;
+
+    // If user document exists but client_profile is missing, create it
+    if (!userData.client_profile) {
+      const clientProfile = initializeClientProfile();
+      await userDocRef.update({
+        client_profile: clientProfile,
+        updated_at: new Date()
+      });
+
+      const response = {
+        user_id: userId,
+        client_profile: formatClientProfileResponse(clientProfile)
+      };
+
+      return res.json(response);
+    }
 
     const response = {
       user_id: userId,
-      client_profile: formatClientProfileResponse(clientProfile)
+      client_profile: formatClientProfileResponse(userData.client_profile)
     };
 
     res.json(response);

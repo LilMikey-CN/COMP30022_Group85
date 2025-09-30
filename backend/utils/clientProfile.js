@@ -157,6 +157,32 @@ function updateClientProfileData(existingProfile, updateData) {
 }
 
 /**
+ * Initialize empty client profile with default values
+ * @returns {Object} Initial client profile data
+ */
+function initializeClientProfile() {
+  return {
+    full_name: null,
+    date_of_birth: null,
+    sex: null,
+    age: null,
+    mobile_number: null,
+    email_address: null,
+    postal_address: null,
+    emergency_contacts: null,
+    notes: null,
+    medical_conditions: null,
+    allergies: null,
+    medications: null,
+    accessibility_needs: null,
+    latest_vitals: null,
+    is_active: true,
+    created_at: new Date(),
+    updated_at: new Date()
+  };
+}
+
+/**
  * Filter users by search criteria
  * @param {Array} users - Array of users with client profiles
  * @param {string} searchTerm - Search term to filter by
@@ -183,5 +209,6 @@ module.exports = {
   formatClientProfileResponse,
   prepareClientProfileData,
   updateClientProfileData,
+  initializeClientProfile,
   filterUsersBySearch
 };
