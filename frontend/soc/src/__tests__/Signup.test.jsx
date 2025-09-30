@@ -65,7 +65,7 @@ describe('Signup Component', () => {
     expect(confirmPasswordInput.value).toBe('mypassword123')
   })
 
-  test('when "Create My Account" is pressed, signup is called and user is redirected', async () => {
+  test('clicking "Create My Account" calls signup and redirects user', async () => {
     mockSignup.mockResolvedValue({ success: true })
 
     renderWithRouter(<Signup />)
@@ -124,6 +124,45 @@ describe('Signup Component', () => {
     //   expect(message.error).toHaveBeenCalledWith(
     //     'This email is already registered. Please use a different email or try logging in.'
     //   )      
+      expect(mockNavigate).not.toHaveBeenCalled()
+    })
+  })
+
+  test('error message if passwords do not match', async () => {
+    renderWithRouter(<Signup />)
+  
+    fireEvent.change(screen.getByPlaceholderText(/create a secure password/i), {
+      target: { value: 'password123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm your password/i), {
+      target: { value: 'differentpass' },
+    });
+  
+    fireEvent.click(screen.getByRole('button', { name: /create my account/i }));
+  
+    // Wait to render validation message
+    expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+  });
+  
+  test('error message if Terms and Conditions are not accepted', async () => {
+    renderWithRouter(<Signup />)
+  
+    fireEvent.change(screen.getByPlaceholderText(/enter your email address/i), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/create a secure password/i), {
+      target: { value: 'password123' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm your password/i), {
+      target: { value: 'password123' },
+    });
+  
+    fireEvent.click(screen.getByRole('button', { name: /create my account/i }));
+  
+    // Assert: render validation message, doesn't allow sign up or navigate
+    expect(await screen.findByText('Please accept the terms')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockSignup).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
