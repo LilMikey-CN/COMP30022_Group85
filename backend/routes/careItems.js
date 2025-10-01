@@ -20,28 +20,28 @@ router.post('/', async (req, res) => {
       category_id
     } = req.body;
 
-    // Validation
-    if (!name || !estimated_unit_cost || !quantity_unit || !start_date || !category_id) {
-      return res.status(400).json({
-        error: 'Missing required fields: name, estimated_unit_cost, quantity_unit, start_date, category_id'
-      });
-    }
+    // Verify category exists and belongs to user if category_id is provided
+    if (category_id) {
+      const categoryDoc = await db.collection('categories').doc(category_id).get();
+      if (!categoryDoc.exists) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
 
-    // Verify category exists
-    const categoryDoc = await db.collection('categories').doc(category_id).get();
-    if (!categoryDoc.exists) {
-      return res.status(404).json({ error: 'Category not found' });
+      // Verify category belongs to user
+      if (categoryDoc.data().created_by !== req.user.uid) {
+        return res.status(403).json({ error: 'Forbidden: Category does not belong to you' });
+      }
     }
 
     const careItemData = {
-      name,
-      estimated_unit_cost: parseFloat(estimated_unit_cost),
-      quantity_per_purchase: parseInt(quantity_per_purchase),
-      quantity_unit,
-      start_date: new Date(start_date),
+      name: name || '',
+      estimated_unit_cost: estimated_unit_cost !== undefined ? parseFloat(estimated_unit_cost) : 0,
+      quantity_per_purchase: quantity_per_purchase !== undefined ? parseInt(quantity_per_purchase) : 1,
+      quantity_unit: quantity_unit || '',
+      start_date: start_date ? new Date(start_date) : new Date(),
       end_date: end_date ? new Date(end_date) : null,
       is_active: true,
-      category_id,
+      category_id: category_id || null,
       created_by: req.user.uid,
       deactivated_at: null,
       created_at: new Date(),
@@ -154,14 +154,20 @@ router.put('/:id', async (req, res) => {
       quantity_unit,
       start_date,
       end_date,
-      category_id
+      category_id,
+      is_active
     } = req.body;
 
-    // If category_id is being updated, verify it exists
-    if (category_id) {
+    // If category_id is being updated, verify it exists and belongs to user
+    if (category_id !== undefined && category_id !== null) {
       const categoryDoc = await db.collection('categories').doc(category_id).get();
       if (!categoryDoc.exists) {
         return res.status(404).json({ error: 'Category not found' });
+      }
+
+      // Verify category belongs to user
+      if (categoryDoc.data().created_by !== req.user.uid) {
+        return res.status(403).json({ error: 'Forbidden: Category does not belong to you' });
       }
     }
 
@@ -169,7 +175,7 @@ router.put('/:id', async (req, res) => {
       updated_at: new Date()
     };
 
-    // Only update provided fields
+    // Update all provided fields
     if (name !== undefined) updateData.name = name;
     if (estimated_unit_cost !== undefined) updateData.estimated_unit_cost = parseFloat(estimated_unit_cost);
     if (quantity_per_purchase !== undefined) updateData.quantity_per_purchase = parseInt(quantity_per_purchase);
@@ -177,6 +183,7 @@ router.put('/:id', async (req, res) => {
     if (start_date !== undefined) updateData.start_date = new Date(start_date);
     if (end_date !== undefined) updateData.end_date = end_date ? new Date(end_date) : null;
     if (category_id !== undefined) updateData.category_id = category_id;
+    if (is_active !== undefined) updateData.is_active = is_active;
 
     await careItemRef.update(updateData);
 

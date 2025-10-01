@@ -22,6 +22,7 @@ erDiagram
         string color_code "for UI display"
         int display_order
         boolean is_active
+        int created_by FK
         datetime created_at
         datetime updated_at
     }
@@ -123,6 +124,7 @@ erDiagram
         datetime created_at "When client profile was created"
         datetime updated_at "When client profile was last updated"
     }
+    USER ||--o{ CATEGORY : "creates"
     USER ||--o{ CARE_ITEM : "creates"
     USER ||--o{ CARE_TASK : "creates"
     USER ||--o{ TASK_EXECUTION : "executes"
