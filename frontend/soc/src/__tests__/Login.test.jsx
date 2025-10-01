@@ -89,7 +89,7 @@ describe('Login Component', () => {
     })
   })
 
-  test('clicking "Create Your Account" navigates to /signup', () => {
+  test('clicking "Create Your Account" navigates to signup page', () => {
     renderWithRouter(<Login />)
 
     fireEvent.click(screen.getByRole('button', { name: /create your account/i }))
@@ -120,5 +120,12 @@ describe('Login Component', () => {
       expect(message.error).toHaveBeenCalledWith('Incorrect password. Please try again.')
       expect(mockNavigate).not.toHaveBeenCalled()
     })
-  })  
+  })
+
+  test('clicking "Back to Home" redirects user to the landing page', async () => {
+    renderWithRouter(<Login/ >)
+
+    fireEvent.click(screen.getByRole('button', { name: /back to home/i }))
+    expect(mockNavigate).toHaveBeenCalledWith('/landing')
+  })
 })

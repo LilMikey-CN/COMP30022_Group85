@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, getByRole } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import Signup from '../pages/Signup'
 import { message } from 'antd'
 
@@ -165,5 +165,12 @@ describe('Signup Component', () => {
       expect(mockSignup).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled()
     })
+  })
+
+  test('clicking "Back to Home" redirects user to the landing page', async () => {
+    renderWithRouter(<Signup/ >)
+
+    fireEvent.click(screen.getByRole('button', { name: /back to home/i }))
+    expect(mockNavigate).toHaveBeenCalledWith('/landing')
   })
 })
