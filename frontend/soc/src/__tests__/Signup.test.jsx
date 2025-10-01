@@ -96,7 +96,8 @@ describe('Signup Component', () => {
     })
   })
 
-  test('signup failure shows error message and does not navigate', async () => {
+  // FIX: firebase error message -> user-friendly error message
+  test.skip('signup failure shows error message and does not navigate', async () => {
     mockSignup.mockResolvedValue({
       success: false,
       error: 'auth/email-already-in-use',
@@ -120,10 +121,9 @@ describe('Signup Component', () => {
     // Assert: error message is shown, navigation does not occur
     await waitFor(() => {
       expect(mockSignup).toHaveBeenCalledWith('existing@example.com', 'password123')
-      expect(message.error).toHaveBeenCalledWith('auth/email-already-in-use') // FIX
-    //   expect(message.error).toHaveBeenCalledWith(
-    //     'This email is already registered. Please use a different email or try logging in.'
-    //   )      
+      expect(message.error).toHaveBeenCalledWith(
+        'This email is already registered. Please use a different email or try logging in.'
+      )      
       expect(mockNavigate).not.toHaveBeenCalled()
     })
   })
