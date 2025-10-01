@@ -1,7 +1,7 @@
 import Dashboard from '../pages/Dashboard';
 import PatientLayout from '../components/Layout/PatientLayout';
 import PatientHome from '../pages/PatientHome';
-import CareItemsListPage from '../pages/CareItemsListPage';
+import CareTasksPage from '../pages/CareTasksPage';
 import Budget from '../pages/Budget';
 import ClientProfile from '../pages/ClientProfile';
 import Settings from '../pages/Settings';
@@ -38,9 +38,9 @@ export const routes = [
         name: 'Patient Calendar'
       },
       {
-        path: 'list',
-        element: CareItemsListPage,
-        name: 'Care Items List'
+        path: 'care-tasks',
+        element: CareTasksPage,
+        name: 'Care Tasks'
       },
       {
         path: 'budget',

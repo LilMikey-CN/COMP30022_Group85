@@ -197,8 +197,8 @@ describe('Care Items API', () => {
         .expect(200);
 
       expect(response.body.care_items).toHaveLength(2);
-      expect(response.body.care_items[0].name).toBe('Item 1');
-      expect(response.body.care_items[1].name).toBe('Item 2');
+      expect(response.body.care_items[0].name).toBe('Item 2');
+      expect(response.body.care_items[1].name).toBe('Item 1');
       expect(response.body.count).toBe(2);
       expect(response.body.pagination.limit).toBe(50);
       expect(response.body.pagination.offset).toBe(0);

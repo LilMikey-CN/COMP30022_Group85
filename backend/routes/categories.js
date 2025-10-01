@@ -55,8 +55,6 @@ router.get('/', async (req, res) => {
       query = query.where('is_active', '==', is_active === 'true');
     }
 
-    query = query.orderBy('display_order').orderBy('name');
-
     const snapshot = await query.get();
     let categories = [];
 
@@ -71,9 +69,19 @@ router.get('/', async (req, res) => {
 
     // If no categories found, initialize default categories for this user
     if (categories.length === 0) {
-      const defaultCategories = await initializeDefaultCategories(db, req.user.uid);
-      categories = defaultCategories;
+      categories = await initializeDefaultCategories(db, req.user.uid);
     }
+
+    categories.sort((a, b) => {
+      const orderA = Number.isFinite(a.display_order) ? a.display_order : 0;
+      const orderB = Number.isFinite(b.display_order) ? b.display_order : 0;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
 
     res.json({ categories });
   } catch (error) {

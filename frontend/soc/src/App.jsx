@@ -9,7 +9,8 @@ import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
-import CareItemsListPage from './pages/CareItemsListPage';
+import CareTasksPage from './pages/CareTasksPage';
+import CareItems from './pages/CareItems';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
@@ -94,12 +95,19 @@ const App = () => {
         }>
           <Route index element={<PatientCalendar />} />
         </Route>
-        <Route path="/list" element={
+        <Route path="/care-tasks" element={
           <ProtectedRoute>
             <PatientLayout />
           </ProtectedRoute>
         }>
-          <Route index element={<CareItemsListPage />} />
+          <Route index element={<CareTasksPage />} />
+        </Route>
+        <Route path="/care-items" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<CareItems />} />
         </Route>
         <Route path="/budget" element={
           <ProtectedRoute>
