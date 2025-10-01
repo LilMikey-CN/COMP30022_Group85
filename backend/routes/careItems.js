@@ -66,25 +66,11 @@ router.get('/', async (req, res) => {
   try {
     const { category_id, is_active = 'true', limit = 50, offset = 0 } = req.query;
 
-    let query = db.collection('care_items');
+    const snapshot = await db.collection('care_items')
+      .where('created_by', '==', req.user.uid)
+      .get();
 
-    // Filter by active status
-    if (is_active !== 'all') {
-      query = query.where('is_active', '==', is_active === 'true');
-    }
-
-    // Filter by category
-    if (category_id) {
-      query = query.where('category_id', '==', category_id);
-    }
-
-    // Apply pagination
-    query = query.orderBy('created_at', 'desc')
-                 .limit(parseInt(limit))
-                 .offset(parseInt(offset));
-
-    const snapshot = await query.get();
-    const careItems = [];
+    let careItems = [];
 
     snapshot.forEach(doc => {
       careItems.push({
@@ -98,9 +84,33 @@ router.get('/', async (req, res) => {
       });
     });
 
+    if (is_active !== 'all') {
+      const activeFilter = is_active === 'true';
+      careItems = careItems.filter(item => item.is_active === activeFilter);
+    }
+
+    if (category_id) {
+      careItems = careItems.filter(item => item.category_id === category_id);
+    }
+
+    careItems.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (dateA !== dateB) {
+        return dateB - dateA;
+      }
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    const start = parseInt(offset);
+    const end = start + parseInt(limit);
+    const paginatedItems = careItems.slice(start, end);
+
     res.json({
-      care_items: careItems,
-      count: careItems.length,
+      care_items: paginatedItems,
+      count: paginatedItems.length,
       pagination: {
         limit: parseInt(limit),
         offset: parseInt(offset)
