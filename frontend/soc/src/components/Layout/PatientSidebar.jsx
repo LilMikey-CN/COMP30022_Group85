@@ -67,10 +67,10 @@ const PatientSidebar = () => {
       label: 'Calendar'
     },
     {
-      key: 'list',
-      path: '/list',
+      key: 'care-tasks',
+      path: '/care-tasks',
       icon: <UnorderedListOutlined />,
-      label: 'List'
+      label: 'Care Tasks'
     },
     {
       key: 'budget',

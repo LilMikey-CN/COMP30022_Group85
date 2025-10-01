@@ -20,7 +20,7 @@ import { careItemsData } from '../data/mockData';
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-const CareItemsListPage = () => {
+const CareTasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortField, setSortField] = useState('Date');
@@ -261,7 +261,7 @@ const CareItemsListPage = () => {
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '32px' }}>
         <Title level={2} style={{ margin: 0, color: '#5a7a9a' }}>
-          Care Items
+          Care Tasks
         </Title>
         <Text type="secondary" style={{ fontSize: '16px' }}>
           Manage lifetime care requirements and track attendance schedules
@@ -373,4 +373,4 @@ const CareItemsListPage = () => {
   );
 };
 
-export default CareItemsListPage;
+export default CareTasksPage;
