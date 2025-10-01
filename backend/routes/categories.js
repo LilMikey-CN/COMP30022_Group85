@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../config/firebase');
 const { verifyToken } = require('../middleware/auth');
+const { validateCategoryName, initializeDefaultCategories } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -12,16 +13,19 @@ router.post('/', async (req, res) => {
   try {
     const { name, description, color_code, display_order } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
+    // Validate category name for duplicates within user's categories
+    const validation = await validateCategoryName(db, name, req.user.uid);
+    if (!validation.isValid) {
+      return res.status(400).json({ error: validation.error });
     }
 
     const categoryData = {
-      name,
+      name: name.trim(),
       description: description || '',
       color_code: color_code || '#6B7280',
-      display_order: display_order || 0,
+      display_order: display_order !== undefined ? parseInt(display_order) : 0,
       is_active: true,
+      created_by: req.user.uid,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -44,7 +48,8 @@ router.get('/', async (req, res) => {
   try {
     const { is_active = 'true' } = req.query;
 
-    let query = db.collection('categories');
+    let query = db.collection('categories')
+      .where('created_by', '==', req.user.uid);
 
     if (is_active !== 'all') {
       query = query.where('is_active', '==', is_active === 'true');
@@ -53,7 +58,7 @@ router.get('/', async (req, res) => {
     query = query.orderBy('display_order').orderBy('name');
 
     const snapshot = await query.get();
-    const categories = [];
+    let categories = [];
 
     snapshot.forEach(doc => {
       categories.push({
@@ -63,6 +68,12 @@ router.get('/', async (req, res) => {
         updated_at: doc.data().updated_at?.toDate()
       });
     });
+
+    // If no categories found, initialize default categories for this user
+    if (categories.length === 0) {
+      const defaultCategories = await initializeDefaultCategories(db, req.user.uid);
+      categories = defaultCategories;
+    }
 
     res.json({ categories });
   } catch (error) {
@@ -81,14 +92,28 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    const { name, description, color_code, display_order } = req.body;
+    // Verify ownership
+    if (doc.data().created_by !== req.user.uid) {
+      return res.status(403).json({ error: 'Forbidden: You can only update your own categories' });
+    }
+
+    const { name, description, color_code, display_order, is_active } = req.body;
+
+    // Validate category name if it's being updated
+    if (name !== undefined) {
+      const validation = await validateCategoryName(db, name, req.user.uid, req.params.id);
+      if (!validation.isValid) {
+        return res.status(400).json({ error: validation.error });
+      }
+    }
 
     const updateData = { updated_at: new Date() };
 
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description;
     if (color_code !== undefined) updateData.color_code = color_code;
     if (display_order !== undefined) updateData.display_order = parseInt(display_order);
+    if (is_active !== undefined) updateData.is_active = is_active;
 
     await categoryRef.update(updateData);
 
@@ -118,6 +143,11 @@ router.delete('/:id', async (req, res) => {
 
     if (!doc.exists) {
       return res.status(404).json({ error: 'Category not found' });
+    }
+
+    // Verify ownership
+    if (doc.data().created_by !== req.user.uid) {
+      return res.status(403).json({ error: 'Forbidden: You can only delete your own categories' });
     }
 
     await categoryRef.update({
