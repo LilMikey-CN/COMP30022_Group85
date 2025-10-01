@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
 import CareTasksPage from './pages/CareTasksPage';
+import CareItems from './pages/CareItems';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
@@ -100,6 +101,13 @@ const App = () => {
           </ProtectedRoute>
         }>
           <Route index element={<CareTasksPage />} />
+        </Route>
+        <Route path="/care-items" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<CareItems />} />
         </Route>
         <Route path="/budget" element={
           <ProtectedRoute>
