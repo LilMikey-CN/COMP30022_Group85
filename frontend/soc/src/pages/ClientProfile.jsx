@@ -116,7 +116,7 @@ const ClientProfile = () => {
             {title}
           </Text>
           <EditOutlined
-            className="client-profile-edit-icon"
+            className="edit-icon"
             style={{
               color: isLoading ? '#d9d9d9' : '#8c8c8c',
               cursor: isLoading ? 'not-allowed' : 'pointer',

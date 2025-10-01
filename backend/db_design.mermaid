@@ -8,6 +8,9 @@ erDiagram
         string email "Guardian's email from Firebase Auth"
         string displayName "Guardian's name from Firebase Auth"
         boolean emailVerified "from Firebase Auth"
+        string avatar_url "URL to profile image stored externally"
+        string mobile_phone "Guardian's mobile phone number"
+        string contact_address "Guardian's physical address"
         datetime created_at "from Firebase Auth metadata"
         datetime updated_at
         json client_profile "embedded profile of person with special needs"
@@ -135,3 +138,4 @@ erDiagram
     CARE_ITEM }o--o{ BUDGET : "determines budget via calculations"
     CARE_ITEM }o--o{ CATEGORY_BUDGET : "determines budget via calculations"
     USER ||--|| CLIENT_PROFILE : "manages care for (embedded profile)"
+

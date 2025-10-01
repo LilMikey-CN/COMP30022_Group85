@@ -5,7 +5,8 @@ const {
   validateLatestVitals,
   validateVitalsData,
   validateClientProfileData,
-  validateDateOfBirth
+  validateDateOfBirth,
+  validateUserProfileData
 } = require('../../utils/validation');
 
 describe('Validation Utils', () => {
@@ -328,6 +329,186 @@ describe('Validation Utils', () => {
       const today = new Date().toISOString().split('T')[0];
 
       const result = validateDateOfBirth(today);
+
+      expect(result.isValid).toBe(true);
+    });
+  });
+
+  describe('validateUserProfileData', () => {
+    it('should accept valid complete user profile data', () => {
+      const validData = {
+        displayName: 'John Doe',
+        avatar_url: 'https://example.com/avatar.jpg',
+        mobile_phone: '0412345678',
+        contact_address: '123 Main St, Melbourne VIC 3000'
+      };
+
+      const result = validateUserProfileData(validData);
+
+      expect(result.isValid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should accept partial user profile data', () => {
+      const testCases = [
+        { displayName: 'John Doe' },
+        { avatar_url: 'https://example.com/avatar.jpg' },
+        { mobile_phone: '0412345678' },
+        { contact_address: '123 Main St' },
+        { displayName: 'Jane', mobile_phone: '0987654321' }
+      ];
+
+      testCases.forEach(testCase => {
+        const result = validateUserProfileData(testCase);
+
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeUndefined();
+      });
+    });
+
+    it('should accept empty object', () => {
+      const result = validateUserProfileData({});
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject empty displayName', () => {
+      const invalidData = {
+        displayName: ''
+      };
+
+      const result = validateUserProfileData(invalidData);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('displayName must be a non-empty string');
+    });
+
+    it('should reject whitespace-only displayName', () => {
+      const invalidData = {
+        displayName: '   '
+      };
+
+      const result = validateUserProfileData(invalidData);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('displayName must be a non-empty string');
+    });
+
+    it('should reject non-string displayName', () => {
+      const testCases = [
+        { displayName: 123 },
+        { displayName: true },
+        { displayName: [] },
+        { displayName: {} }
+      ];
+
+      testCases.forEach(testCase => {
+        const result = validateUserProfileData(testCase);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toBe('displayName must be a non-empty string');
+      });
+    });
+
+    it('should reject empty avatar_url', () => {
+      const invalidData = {
+        avatar_url: ''
+      };
+
+      const result = validateUserProfileData(invalidData);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('avatar_url must be a non-empty string');
+    });
+
+    it('should reject whitespace-only avatar_url', () => {
+      const invalidData = {
+        avatar_url: '   '
+      };
+
+      const result = validateUserProfileData(invalidData);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('avatar_url must be a non-empty string');
+    });
+
+    it('should reject non-string avatar_url', () => {
+      const testCases = [
+        { avatar_url: 123 },
+        { avatar_url: true },
+        { avatar_url: [] },
+        { avatar_url: {} }
+      ];
+
+      testCases.forEach(testCase => {
+        const result = validateUserProfileData(testCase);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toBe('avatar_url must be a non-empty string');
+      });
+    });
+
+    it('should reject non-string mobile_phone', () => {
+      const testCases = [
+        { mobile_phone: 123 },
+        { mobile_phone: true },
+        { mobile_phone: [] },
+        { mobile_phone: {} }
+      ];
+
+      testCases.forEach(testCase => {
+        const result = validateUserProfileData(testCase);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toBe('mobile_phone must be a string');
+      });
+    });
+
+    it('should accept empty string for mobile_phone', () => {
+      const validData = {
+        mobile_phone: ''
+      };
+
+      const result = validateUserProfileData(validData);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should reject non-string contact_address', () => {
+      const testCases = [
+        { contact_address: 123 },
+        { contact_address: true },
+        { contact_address: [] },
+        { contact_address: {} }
+      ];
+
+      testCases.forEach(testCase => {
+        const result = validateUserProfileData(testCase);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toBe('contact_address must be a string');
+      });
+    });
+
+    it('should accept empty string for contact_address', () => {
+      const validData = {
+        contact_address: ''
+      };
+
+      const result = validateUserProfileData(validData);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it('should accept null values for optional fields', () => {
+      const validData = {
+        displayName: null,
+        avatar_url: null,
+        mobile_phone: null,
+        contact_address: null
+      };
+
+      const result = validateUserProfileData(validData);
 
       expect(result.isValid).toBe(true);
     });

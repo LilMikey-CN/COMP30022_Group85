@@ -152,6 +152,57 @@ function validateDateOfBirth(dateString) {
   return { isValid: true };
 }
 
+/**
+ * Validate user profile data
+ * @param {Object} data - User profile data to validate
+ * @returns {Object} Validation result with isValid and error message
+ */
+function validateUserProfileData(data) {
+  const { displayName, avatar_url, mobile_phone, contact_address } = data;
+
+  // Validate displayName if provided
+  if (displayName !== undefined && displayName !== null) {
+    if (typeof displayName !== 'string' || displayName.trim() === '') {
+      return {
+        isValid: false,
+        error: 'displayName must be a non-empty string'
+      };
+    }
+  }
+
+  // Validate avatar_url if provided
+  if (avatar_url !== undefined && avatar_url !== null) {
+    if (typeof avatar_url !== 'string' || avatar_url.trim() === '') {
+      return {
+        isValid: false,
+        error: 'avatar_url must be a non-empty string'
+      };
+    }
+  }
+
+  // Validate mobile_phone if provided
+  if (mobile_phone !== undefined && mobile_phone !== null) {
+    if (typeof mobile_phone !== 'string') {
+      return {
+        isValid: false,
+        error: 'mobile_phone must be a string'
+      };
+    }
+  }
+
+  // Validate contact_address if provided
+  if (contact_address !== undefined && contact_address !== null) {
+    if (typeof contact_address !== 'string') {
+      return {
+        isValid: false,
+        error: 'contact_address must be a string'
+      };
+    }
+  }
+
+  return { isValid: true };
+}
+
 module.exports = {
   VALID_SEX_OPTIONS,
   validateSex,
@@ -159,5 +210,6 @@ module.exports = {
   validateLatestVitals,
   validateVitalsData,
   validateClientProfileData,
-  validateDateOfBirth
+  validateDateOfBirth,
+  validateUserProfileData
 };
