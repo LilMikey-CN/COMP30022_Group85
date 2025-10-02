@@ -160,7 +160,7 @@ describe('Care Items API', () => {
               end_date: null,
               is_active: true,
               category_id: 'cat-1',
-              created_by: 'user-1',
+              created_by: 'test-uid',
               created_at: { toDate: () => new Date('2023-01-01') },
               updated_at: { toDate: () => new Date('2023-01-01') },
               deactivated_at: null
@@ -177,7 +177,7 @@ describe('Care Items API', () => {
               end_date: { toDate: () => new Date('2023-12-31') },
               is_active: true,
               category_id: 'cat-2',
-              created_by: 'user-1',
+              created_by: 'test-uid',
               created_at: { toDate: () => new Date('2023-01-02') },
               updated_at: { toDate: () => new Date('2023-01-02') },
               deactivated_at: null
@@ -323,7 +323,7 @@ describe('Care Items API', () => {
           end_date: { toDate: () => new Date('2023-12-31') },
           is_active: true,
           category_id: 'cat-1',
-          created_by: 'user-1',
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-01-01') },
           deactivated_at: null
@@ -357,6 +357,22 @@ describe('Care Items API', () => {
       expect(response.body.error).toBe('Care item not found');
     });
 
+    it('should return 403 when care item belongs to another user', async () => {
+      const mockCareItemDoc = {
+        exists: true,
+        id: 'item-foreign',
+        data: () => ({ created_by: 'someone-else' })
+      };
+
+      mockDoc.get.mockResolvedValue(mockCareItemDoc);
+
+      const response = await request(app)
+        .get('/api/care-items/item-foreign')
+        .expect(403);
+
+      expect(response.body.error).toBe('Forbidden: Care item does not belong to you');
+    });
+
     it('should handle database errors', async () => {
       mockDoc.get.mockRejectedValue(new Error('Database error'));
 
@@ -382,6 +398,7 @@ describe('Care Items API', () => {
           end_date: null,
           is_active: true,
           category_id: 'cat-1',
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-01-01') }
         })
@@ -399,6 +416,7 @@ describe('Care Items API', () => {
           end_date: { toDate: () => new Date('2023-12-31') },
           is_active: true,
           category_id: 'cat-2',
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-02-01') }
         })
@@ -449,6 +467,7 @@ describe('Care Items API', () => {
           estimated_unit_cost: 10.0,
           quantity_unit: 'piece',
           is_active: true,
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-01-01') }
         })
@@ -462,6 +481,7 @@ describe('Care Items API', () => {
           estimated_unit_cost: 10.0,
           quantity_unit: 'piece',
           is_active: true,
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-02-01') }
         })
@@ -483,6 +503,26 @@ describe('Care Items API', () => {
       expect(response.body.data.name).toBe('Updated Item Name');
     });
 
+    it('should return 403 when updating care item belonging to another user', async () => {
+      const mockCareItemDoc = {
+        exists: true,
+        id: 'item-foreign',
+        data: () => ({
+          name: 'Foreign Item',
+          created_by: 'someone-else'
+        })
+      };
+
+      mockDoc.get.mockResolvedValueOnce(mockCareItemDoc);
+
+      const response = await request(app)
+        .put('/api/care-items/item-foreign')
+        .send({ name: 'Attempted Update' })
+        .expect(403);
+
+      expect(response.body.error).toBe('Forbidden: Care item does not belong to you');
+    });
+
     it('should update is_active field', async () => {
       const mockCareItemDoc = {
         exists: true,
@@ -490,6 +530,7 @@ describe('Care Items API', () => {
         data: () => ({
           name: 'Item',
           is_active: true,
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-01-01') }
         })
@@ -501,6 +542,7 @@ describe('Care Items API', () => {
         data: () => ({
           name: 'Item',
           is_active: false,
+          created_by: 'test-uid',
           created_at: { toDate: () => new Date('2023-01-01') },
           updated_at: { toDate: () => new Date('2023-02-01') }
         })
@@ -545,7 +587,8 @@ describe('Care Items API', () => {
         exists: true,
         data: () => ({
           name: 'Item',
-          category_id: 'cat-1'
+          category_id: 'cat-1',
+          created_by: 'test-uid'
         })
       };
 
@@ -572,7 +615,8 @@ describe('Care Items API', () => {
         exists: true,
         data: () => ({
           name: 'Item',
-          category_id: 'cat-1'
+          category_id: 'cat-1',
+          created_by: 'test-uid'
         })
       };
 
@@ -621,7 +665,8 @@ describe('Care Items API', () => {
         id: 'item-123',
         data: () => ({
           name: 'Item to Delete',
-          is_active: true
+          is_active: true,
+          created_by: 'test-uid'
         })
       };
 
@@ -639,6 +684,26 @@ describe('Care Items API', () => {
           is_active: false
         })
       );
+    });
+
+    it('should return 403 when deactivating care item belonging to another user', async () => {
+      const mockCareItemDoc = {
+        exists: true,
+        id: 'item-foreign',
+        data: () => ({
+          name: 'Foreign Item',
+          is_active: true,
+          created_by: 'someone-else'
+        })
+      };
+
+      mockDoc.get.mockResolvedValue(mockCareItemDoc);
+
+      const response = await request(app)
+        .delete('/api/care-items/item-foreign')
+        .expect(403);
+
+      expect(response.body.error).toBe('Forbidden: Care item does not belong to you');
     });
 
     it('should return 404 when care item not found', async () => {
@@ -674,7 +739,8 @@ describe('Care Items API', () => {
         data: () => ({
           name: 'Deactivated Item',
           is_active: false,
-          deactivated_at: new Date('2023-06-01')
+          deactivated_at: new Date('2023-06-01'),
+          created_by: 'test-uid'
         })
       };
 
@@ -693,6 +759,26 @@ describe('Care Items API', () => {
           deactivated_at: null
         })
       );
+    });
+
+    it('should return 403 when reactivating care item belonging to another user', async () => {
+      const mockCareItemDoc = {
+        exists: true,
+        id: 'item-foreign',
+        data: () => ({
+          name: 'Foreign Item',
+          is_active: false,
+          created_by: 'someone-else'
+        })
+      };
+
+      mockDoc.get.mockResolvedValue(mockCareItemDoc);
+
+      const response = await request(app)
+        .patch('/api/care-items/item-foreign/reactivate')
+        .expect(403);
+
+      expect(response.body.error).toBe('Forbidden: Care item does not belong to you');
     });
 
     it('should return 404 when care item not found', async () => {

@@ -1,374 +1,394 @@
-/*
- * TODO: 
- * 1. Add pagination if the list exceeds 15 items and when backend is integrated
- * 2. Integrate with backend API to fetch real data
- * */
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Typography,
-  Table,
+  Card,
+  Space,
+  Button,
   Input,
   Select,
-  Button,
+  DatePicker,
+  Table,
   Tag,
-  Space,
-  Card
+  Alert,
+  Tooltip,
 } from 'antd';
-import { SearchOutlined, SortAscendingOutlined, SortDescendingOutlined } from '@ant-design/icons';
-import { careItemsData } from '../data/mockData';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  FileSearchOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useCareItems } from '../hooks/useCareItems';
+import {
+  useCareTasks,
+  useCreateCareTask,
+  useUpdateCareTask,
+  useDeactivateCareTask,
+  useReactivateCareTask,
+  useGenerateTaskExecution,
+  useCreateManualExecution,
+} from '../hooks/useCareTasks';
+import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
+import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
+import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
+import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
+import { showErrorMessage } from '../utils/messageConfig';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 const { Option } = Select;
 
+const describeRecurrence = (interval) => {
+  const numeric = Number(interval ?? 0);
+  if (numeric === 0) {
+    return 'One-off';
+  }
+  if (numeric === 1) {
+    return 'Every day';
+  }
+  if (numeric === 7) {
+    return 'Every week';
+  }
+  if (numeric === 14) {
+    return 'Every 2 weeks';
+  }
+  if (numeric === 30) {
+    return 'Every month';
+  }
+  if (numeric === 90) {
+    return 'Every quarter';
+  }
+  if (numeric === 365) {
+    return 'Every year';
+  }
+  return `Every ${numeric} days`;
+};
+
+const statusTag = (task) => {
+  if (task.is_active === false) {
+    return <Tag color="default">Inactive</Tag>;
+  }
+  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
+    return <Tag color="gold">Ended</Tag>;
+  }
+  return <Tag color="green">Active</Tag>;
+};
+
 const CareTasksPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
-  const [sortField, setSortField] = useState('Date');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [startRange, setStartRange] = useState(null);
 
-  // Status color mapping
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
-        return '#1890ff';
-      case 'Overdue':
-        return '#ff4d4f';
-      case 'Completed':
-        return '#52c41a';
-      default:
-        return '#d9d9d9';
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTask, setEditTask] = useState(null);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [manualTask, setManualTask] = useState(null);
+
+  useEffect(() => {
+    if (location.state?.focusTaskId) {
+      setSelectedTaskId(location.state.focusTaskId);
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  };
+  }, [location, navigate]);
 
-  // Priority color mapping
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'High':
-        return '#ff4d4f';
-      case 'Medium':
-        return '#fa8c16';
-      case 'Low':
-        return '#52c41a';
-      default:
-        return '#d9d9d9';
-    }
-  };
+  const { data: careItemsResponse, isLoading: isCareItemsLoading } = useCareItems({ is_active: 'all' });
+  const {
+    data: careTasksResponse,
+    isFetching: isCareTasksFetching,
+    error: careTasksError,
+    refetch: refetchCareTasks,
+  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
 
-  // Category color mapping
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'Medical':
-        return '#1890ff';
-      case 'Hygiene':
-        return '#722ed1';
-      case 'Clothing':
-        return '#13c2c2';
-      default:
-        return '#d9d9d9';
-    }
-  };
+  const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
+  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  }, {}), [careItems]);
 
-  // Filter and sort data
-  const filteredAndSortedData = useMemo(() => {
-    let filtered = [...careItemsData];
+  const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
 
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(item =>
-        item.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+  const createCareTask = useCreateCareTask();
+  const updateCareTask = useUpdateCareTask();
+  const deactivateCareTask = useDeactivateCareTask();
+  const reactivateCareTask = useReactivateCareTask();
+  const generateExecution = useGenerateTaskExecution();
+  const createManualExecution = useCreateManualExecution();
 
-    // Apply status filter
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(item => item.status === statusFilter);
-    }
+  const filteredTasks = useMemo(() => {
+    const lowered = searchTerm.trim().toLowerCase();
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortField) {
-        case 'Date':
-          aValue = new Date(a.dueDate);
-          bValue = new Date(b.dueDate);
-          break;
-        case 'Priority': {
-          const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
-          aValue = priorityOrder[a.priority] || 0;
-          bValue = priorityOrder[b.priority] || 0;
-          break;
+    return careTasks.filter((task) => {
+      if (lowered) {
+        const name = task.name?.toLowerCase() || '';
+        const description = task.description?.toLowerCase() || '';
+        const careItemName = task.care_item_id ? (careItemsById[task.care_item_id]?.name?.toLowerCase() || '') : '';
+        if (!name.includes(lowered) && !description.includes(lowered) && !careItemName.includes(lowered)) {
+          return false;
         }
-        case 'Category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
-          break;
-        case 'Status': {
-          const statusOrder = { 'Overdue': 3, 'Active': 2, 'Completed': 1 };
-          aValue = statusOrder[a.status] || 0;
-          bValue = statusOrder[b.status] || 0;
-          break;
-        }
-        case 'Cost':
-          aValue = parseFloat(a.cost.replace('$', ''));
-          bValue = parseFloat(b.cost.replace('$', ''));
-          break;
-        case 'Item':
-          aValue = a.item.toLowerCase();
-          bValue = b.item.toLowerCase();
-          break;
-        default:
-          aValue = a.dueDate;
-          bValue = b.dueDate;
       }
 
-      let result = 0;
-      if (aValue < bValue) result = -1;
-      if (aValue > bValue) result = 1;
+      if (statusFilter === 'active' && task.is_active === false) {
+        return false;
+      }
+      if (statusFilter === 'inactive' && task.is_active !== false) {
+        return false;
+      }
 
-      return sortDirection === 'desc' ? -result : result;
+      if (typeFilter !== 'all' && task.task_type !== typeFilter) {
+        return false;
+      }
+
+      if (startRange && startRange.length === 2) {
+        const [from, to] = startRange;
+        if (from && task.start_date && dayjs(task.start_date).isBefore(dayjs(from), 'day')) {
+          return false;
+        }
+        if (to && task.start_date && dayjs(task.start_date).isAfter(dayjs(to), 'day')) {
+          return false;
+        }
+      }
+
+      return true;
     });
+  }, [careTasks, careItemsById, searchTerm, statusFilter, typeFilter, startRange]);
 
-    return filtered;
-  }, [searchTerm, statusFilter, sortField, sortDirection]);
+  const handleCreateTask = useCallback(async (payload) => {
+    await createCareTask.mutateAsync(payload);
+    await refetchCareTasks();
+  }, [createCareTask, refetchCareTasks]);
 
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-AU', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
+  const handleUpdateTask = useCallback(async (id, payload) => {
+    await updateCareTask.mutateAsync({ id, payload });
+    await refetchCareTasks();
+  }, [updateCareTask, refetchCareTasks]);
 
-  // Table columns configuration
-  const columns = [
+  const handleDeactivate = useCallback((task) => {
+    deactivateCareTask.mutate(task.id);
+  }, [deactivateCareTask]);
+
+  const handleReactivate = useCallback((task) => {
+    reactivateCareTask.mutate(task.id);
+  }, [reactivateCareTask]);
+
+  const handleManualSubmit = useCallback(async (payload) => {
+    if (!manualTask) return;
+    try {
+      await createManualExecution.mutateAsync({ taskId: manualTask.id, payload });
+      setManualTask(null);
+    } catch (error) {
+      showErrorMessage(error.message || 'Failed to create execution');
+    }
+  }, [createManualExecution, manualTask]);
+
+  const handleGenerateExecution = useCallback((task) => {
+    generateExecution.mutate(task.id);
+  }, [generateExecution]);
+
+  const columns = useMemo(() => ([
     {
-      title: 'Action',
-      dataIndex: 'action',
-      width: 100,
-      render: (action, record) => (
-        <Button
-          type="primary"
-          size="small"
-          style={{
-            backgroundColor: record.status === 'Completed' ? '#52c41a' : '#1890ff',
-            borderColor: record.status === 'Completed' ? '#52c41a' : '#1890ff',
-            fontSize: '12px'
-          }}
-        >
-          {record.status === 'Completed' ? '✓ Review' : action}
-        </Button>
-      ),
+      title: 'Name',
+      dataIndex: 'name',
+      render: (value) => value || 'Untitled task',
     },
     {
-      title: 'Item',
-      dataIndex: 'item',
-      render: (item) => (
-        <Text style={{ fontWeight: '500', fontSize: '14px' }}>
-          {item}
-        </Text>
-      ),
+      title: 'Type',
+      dataIndex: 'task_type',
+      render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
+    },
+    {
+      title: 'Recurrence',
+      dataIndex: 'recurrence_interval_days',
+      render: (value) => describeRecurrence(value),
+    },
+    {
+      title: 'Start',
+      dataIndex: 'start_date',
+      render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
+    },
+    {
+      title: 'End',
+      dataIndex: 'end_date',
+      render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
       title: 'Status',
-      dataIndex: 'status',
-      width: 100,
-      render: (status) => (
-        <Tag
-          color={getStatusColor(status)}
-          style={{
-            fontSize: '12px',
-            fontWeight: '500',
-            borderRadius: '4px'
-          }}
-        >
-          {status}
-        </Tag>
-      ),
+      key: 'status',
+      render: (_, task) => statusTag(task),
     },
     {
-      title: 'Due date',
-      dataIndex: 'dueDate',
-      width: 120,
-      render: (date) => (
-        <Text style={{ fontSize: '14px' }}>
-          {formatDate(date)}
-        </Text>
-      ),
-    },
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      width: 100,
-      render: (category) => (
-        <Tag
-          color={getCategoryColor(category)}
-          style={{
-            fontSize: '11px',
-            fontWeight: '500',
-            borderRadius: '12px',
-            color: 'white'
-          }}
-        >
-          {category}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Cycle',
-      dataIndex: 'cycle',
-      width: 100,
-      render: (cycle) => (
-        <Text style={{ fontSize: '14px' }}>
-          {cycle}
-        </Text>
-      ),
-    },
-    {
-      title: 'Cost',
-      dataIndex: 'cost',
-      width: 80,
-      render: (cost) => (
-        <Text style={{ fontSize: '14px', fontWeight: '500' }}>
-          {cost}
-        </Text>
-      ),
-    },
-    {
-      title: 'Priority',
-      dataIndex: 'priority',
-      width: 100,
-      render: (priority) => (
-        <Tag
-          color={getPriorityColor(priority)}
-          style={{
-            fontSize: '11px',
-            fontWeight: '500',
-            borderRadius: '4px',
-            color: 'white'
-          }}
-        >
-          {priority}
-        </Tag>
-      ),
-    },
-  ];
+      title: 'Actions',
+      key: 'actions',
+      render: (_, task) => (
+        <Space size="small">
+          <Tooltip title="View details">
+            <Button
+              size="small"
+              icon={<FileSearchOutlined />}
+              onClick={() => setSelectedTaskId(task.id)}
+            />
+          </Tooltip>
+          <Tooltip title="Edit task">
+            <Button
+              size="small"
+              onClick={() => setEditTask(task)}
+            >
+              Edit
+            </Button>
+          </Tooltip>
+          {task.is_active !== false ? (
+            <Tooltip title="Deactivate task">
+              <Button size="small" danger onClick={() => handleDeactivate(task)}>
+                Deactivate
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Reactivate task">
+              <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
+                Reactivate
+              </Button>
+            </Tooltip>
+          )}
+        </Space>
+      )
+    }
+  ]), [handleDeactivate, handleReactivate]);
+
+  const handleRefresh = () => {
+    refetchCareTasks();
+  };
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={2} style={{ margin: 0, color: '#5a7a9a' }}>
-          Care Tasks
-        </Title>
-        <Text type="secondary" style={{ fontSize: '16px' }}>
-          Manage lifetime care requirements and track attendance schedules
-        </Text>
-      </div>
+    <div style={{ padding: 24 }}>
+      <Space direction="vertical" style={{ width: '100%' }} size={24}>
+        <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+          <div>
+            <Title level={2} style={{ marginBottom: 0 }}>Care tasks</Title>
+            <Text type="secondary">
+              Manage recurring and one-off care tasks. Use task scheduling to view execution history and upcoming runs.
+            </Text>
+          </div>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={isCareTasksFetching}>
+              Refresh
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => navigate('/task-scheduling')}
+            >
+              Task scheduling
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              New care task
+            </Button>
+          </Space>
+        </Space>
 
-      <Card style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        {/* Filters and Search */}
-        <div style={{
-          marginBottom: '20px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '16px',
-          flexWrap: 'wrap'
-        }}>
-          <Input
-            placeholder="Search"
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '300px',
-              borderRadius: '6px'
+        {careTasksError && (
+          <Alert
+            type="error"
+            showIcon
+            message="Failed to load care tasks"
+            description={careTasksError.message}
+          />
+        )}
+
+        <Card>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+            <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+              <Input
+                placeholder="Search by name, description, or care item"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                allowClear
+                style={{ minWidth: 260, maxWidth: 360 }}
+              />
+              <Space wrap>
+                <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }}>
+                  <Option value="all">All statuses</Option>
+                  <Option value="active">Active</Option>
+                  <Option value="inactive">Inactive</Option>
+                </Select>
+                <Select value={typeFilter} onChange={setTypeFilter} style={{ width: 150 }}>
+                  <Option value="all">All types</Option>
+                  <Option value="GENERAL">General</Option>
+                  <Option value="PURCHASE">Purchase</Option>
+                </Select>
+                <RangePicker
+                  value={startRange}
+                  onChange={(range) => setStartRange(range)}
+                  placeholder={['Start from', 'Start to']}
+                  allowClear
+                />
+              </Space>
+            </Space>
+          </Space>
+        </Card>
+
+        <Card>
+          <Table
+            rowKey="id"
+            dataSource={filteredTasks}
+            columns={columns}
+            loading={isCareItemsLoading && careItems.length === 0}
+            pagination={{ pageSize: 10 }}
+            locale={{
+              emptyText: (
+                <div style={{ padding: 32, textAlign: 'center' }}>
+                  <CalendarOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+                  <div style={{ marginTop: 12 }}>No care tasks found</div>
+                </div>
+              )
             }}
           />
+        </Card>
+      </Space>
 
-          <Space>
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              style={{ width: '120px' }}
-              suffixIcon={<span style={{ fontSize: '12px' }}>▼</span>}
-            >
-              <Option value="All">All</Option>
-              <Option value="Active">Active</Option>
-              <Option value="Overdue">Overdue</Option>
-              <Option value="Completed">Completed</Option>
-            </Select>
+      <AddCareTaskModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateTask}
+        submitting={createCareTask.isLoading}
+        careItems={careItems}
+        careItemsLoading={isCareItemsLoading}
+      />
 
-            <Select
-              value={sortField}
-              onChange={setSortField}
-              style={{ width: '120px' }}
-              placeholder="Sort by"
-            >
-              <Option value="Date">Date</Option>
-              <Option value="Priority">Priority</Option>
-              <Option value="Category">Category</Option>
-              <Option value="Status">Status</Option>
-              <Option value="Cost">Cost</Option>
-              <Option value="Item">Item</Option>
-            </Select>
+      <EditCareTaskModal
+        open={!!editTask}
+        task={editTask}
+        onClose={() => setEditTask(null)}
+        onSubmit={(values) => handleUpdateTask(editTask.id, values)}
+        submitting={updateCareTask.isLoading}
+        careItems={careItems}
+        careItemsLoading={isCareItemsLoading}
+      />
 
-            <Button
-              icon={sortDirection === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-              onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '32px'
-              }}
-              title={`Sort ${sortDirection === 'asc' ? 'Descending' : 'Ascending'}`}
-            />
-          </Space>
-        </div>
+      <ManualExecutionModal
+        open={!!manualTask}
+        onClose={() => setManualTask(null)}
+        onSubmit={handleManualSubmit}
+        submitting={createManualExecution.isLoading}
+      />
 
-        {/* Care Items Table */}
-        <Table
-          columns={columns}
-          dataSource={filteredAndSortedData}
-          rowKey="id"
-          pagination={false}
-          size="small"
-          rowClassName={(record) => {
-            if (record.status === 'Overdue') return 'overdue-row';
-            if (record.status === 'Completed') return 'completed-row';
-            return '';
-          }}
-          style={{
-            backgroundColor: 'white'
-          }}
-        />
-      </Card>
-
-      <style jsx>{`
-        .ant-table-tbody > tr.overdue-row {
-          background-color: #fff2f0 !important;
-        }
-        .ant-table-tbody > tr.overdue-row:hover {
-          background-color: #ffebe6 !important;
-        }
-        .ant-table-tbody > tr.completed-row {
-          background-color: #f6ffed !important;
-        }
-        .ant-table-tbody > tr.completed-row:hover {
-          background-color: #f0f9e8 !important;
-        }
-        .ant-table-thead > tr > th {
-          background-color: #fafafa !important;
-          font-weight: 600 !important;
-          color: #262626 !important;
-          border-bottom: 1px solid #f0f0f0 !important;
-        }
-      `}</style>
+      <TaskDetailsDrawer
+        taskId={selectedTaskId}
+        open={!!selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+        onEdit={(task) => setEditTask(task)}
+        onManualExecution={(task) => setManualTask(task)}
+        onDeactivate={handleDeactivate}
+        onReactivate={handleReactivate}
+        onGenerateExecution={handleGenerateExecution}
+        careItemsById={careItemsById}
+      />
     </div>
   );
 };

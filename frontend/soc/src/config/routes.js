@@ -2,6 +2,7 @@ import Dashboard from '../pages/Dashboard';
 import PatientLayout from '../components/Layout/PatientLayout';
 import PatientHome from '../pages/PatientHome';
 import CareTasksPage from '../pages/CareTasksPage';
+import TaskSchedulingPage from '../pages/TaskSchedulingPage';
 import Budget from '../pages/Budget';
 import ClientProfile from '../pages/ClientProfile';
 import Settings from '../pages/Settings';
@@ -41,6 +42,11 @@ export const routes = [
         path: 'care-tasks',
         element: CareTasksPage,
         name: 'Care Tasks'
+      },
+      {
+        path: 'task-scheduling',
+        element: TaskSchedulingPage,
+        name: 'Task Scheduling'
       },
       {
         path: 'budget',
