@@ -61,6 +61,12 @@ export const categoriesService = {
     const queryString = buildQueryString(params);
     return await authenticatedApiCall(`/api/categories${queryString}`);
   },
+  async createCategory(payload = {}) {
+    return await authenticatedApiCall('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 export default categoriesService;

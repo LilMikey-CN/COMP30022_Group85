@@ -2,7 +2,8 @@
  * TanStack Query hook for Categories retrieval
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { categoriesService } from '../services/categoriesApi';
 
 export const CATEGORIES_QUERY_KEY = 'categories';
@@ -26,6 +27,24 @@ export const useCategories = (params = {}) => {
         return false;
       }
       return failureCount < 2;
+    },
+  });
+};
+
+export const useCreateCategory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload) => {
+      return await categoriesService.createCategory(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CATEGORIES_QUERY_KEY], exact: false });
+      message.success('Category created successfully');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to create category';
+      message.error(`Failed to create category: ${reason}`);
     },
   });
 };
