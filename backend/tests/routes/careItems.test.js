@@ -587,7 +587,8 @@ describe('Care Items API', () => {
         exists: true,
         data: () => ({
           name: 'Item',
-          category_id: 'cat-1'
+          category_id: 'cat-1',
+          created_by: 'test-uid'
         })
       };
 
@@ -614,7 +615,8 @@ describe('Care Items API', () => {
         exists: true,
         data: () => ({
           name: 'Item',
-          category_id: 'cat-1'
+          category_id: 'cat-1',
+          created_by: 'test-uid'
         })
       };
 
