@@ -1,0 +1,349 @@
+import React, { useMemo, useCallback } from 'react';
+import {
+  Drawer,
+  Typography,
+  Tag,
+  Space,
+  Button,
+  Descriptions,
+  Divider,
+  Tabs,
+  Table,
+  Empty,
+  Spin,
+  Popconfirm,
+  Tooltip,
+} from 'antd';
+import {
+  CheckOutlined,
+  CloseCircleOutlined,
+  EditOutlined,
+  PlusOutlined,
+  SyncOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { useCareTaskDetails } from '../../hooks/useCareTasks';
+import {
+  useCompleteTaskExecution,
+  useTaskExecutionsForTask,
+  useUpdateTaskExecution,
+} from '../../hooks/useTaskExecutions';
+
+const { Title, Text } = Typography;
+
+const statusColorMap = {
+  TODO: 'default',
+  DONE: 'green',
+  COVERED: 'blue',
+  REFUNDED: 'purple',
+  PARTIALLY_REFUNDED: 'gold',
+  CANCELLED: 'red',
+};
+
+const formatDate = (value) => {
+  if (!value) {
+    return '—';
+  }
+  return dayjs(value).format('DD MMM YYYY');
+};
+
+const describeRecurrence = (interval) => {
+  const numeric = Number(interval ?? 0);
+  if (numeric === 0) {
+    return 'One-off';
+  }
+  if (numeric === 1) {
+    return 'Every day';
+  }
+  if (numeric === 7) {
+    return 'Every week';
+  }
+  if (numeric === 14) {
+    return 'Every 2 weeks';
+  }
+  if (numeric === 30) {
+    return 'Every month';
+  }
+  if (numeric === 90) {
+    return 'Every quarter';
+  }
+  if (numeric === 365) {
+    return 'Every year';
+  }
+  return `Every ${numeric} days`;
+};
+
+const computeTaskStatus = (task) => {
+  if (!task) {
+    return { label: 'Loading', color: 'default' };
+  }
+
+  if (task.is_active === false) {
+    return { label: 'Inactive', color: 'default' };
+  }
+
+  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
+    return { label: 'Ended', color: 'gold' };
+  }
+
+  return { label: 'Active', color: 'green' };
+};
+
+const TaskDetailsDrawer = ({
+  taskId,
+  open,
+  onClose,
+  onEdit,
+  onManualExecution,
+  onDeactivate,
+  onReactivate,
+  onGenerateExecution,
+  careItemsById = {},
+}) => {
+  const {
+    data: task,
+    isLoading: isTaskLoading,
+    isFetching: isTaskFetching,
+  } = useCareTaskDetails(taskId, { keepPreviousData: true });
+
+  const {
+    data: executionsResponse,
+    isLoading: isExecutionsLoading,
+    isFetching: isExecutionsFetching,
+  } = useTaskExecutionsForTask(taskId, { limit: 100, offset: 0 });
+
+  const completeExecution = useCompleteTaskExecution();
+  const updateExecution = useUpdateTaskExecution();
+
+  const executions = executionsResponse?.executions || [];
+  const taskStatus = computeTaskStatus(task);
+  const linkedCareItem = task?.care_item_id ? careItemsById[task.care_item_id] : undefined;
+
+  const handleMarkDone = useCallback((execution) => {
+    completeExecution.mutate({ id: execution.id, payload: {}, taskId });
+  }, [completeExecution, taskId]);
+
+  const handleCancelExecution = useCallback((execution) => {
+    updateExecution.mutate({ id: execution.id, payload: { status: 'CANCELLED' }, taskId });
+  }, [updateExecution, taskId]);
+
+  const executionColumns = useMemo(() => ([
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (value) => <Tag color={statusColorMap[value] || 'default'}>{value}</Tag>,
+    },
+    {
+      title: 'Scheduled',
+      dataIndex: 'scheduled_date',
+      render: (date) => formatDate(date),
+    },
+    {
+      title: 'Completed',
+      dataIndex: 'execution_date',
+      render: (date) => formatDate(date),
+    },
+    {
+      title: 'Quantity',
+      dataIndex: 'quantity_purchased',
+      render: (value, record) => (
+        <span>
+          {value ?? '—'} {record.quantity_unit}
+        </span>
+      ),
+    },
+    {
+      title: 'Actual cost',
+      dataIndex: 'actual_cost',
+      render: (value) => (value !== null && value !== undefined ? `$${Number(value).toFixed(2)}` : '—'),
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      ellipsis: true,
+      render: (value) => value || '—',
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => {
+        const disabled = completeExecution.isLoading || updateExecution.isLoading;
+        const isDone = record.status === 'DONE';
+        const isCancelled = record.status === 'CANCELLED';
+
+        return (
+          <Space size="middle">
+            {!isDone && !isCancelled && (
+              <Tooltip title="Mark as done">
+                <Button
+                  size="small"
+                  type="primary"
+                  icon={<CheckOutlined />}
+                  loading={completeExecution.isLoading}
+                  disabled={disabled}
+                  onClick={() => handleMarkDone(record)}
+                >
+                  Done
+                </Button>
+              </Tooltip>
+            )}
+            {!isCancelled && (
+              <Tooltip title="Cancel execution">
+                <Button
+                  size="small"
+                  danger
+                  ghost
+                  icon={<CloseCircleOutlined />}
+                  loading={updateExecution.isLoading}
+                  disabled={disabled}
+                  onClick={() => handleCancelExecution(record)}
+                >
+                  Cancel
+                </Button>
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
+    },
+  ]), [completeExecution.isLoading, updateExecution.isLoading, handleMarkDone, handleCancelExecution]);
+
+  const drawerTitle = (
+    <Space direction="vertical" size={0} style={{ width: '100%' }}>
+      <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
+        <Title level={4} style={{ margin: 0 }}>
+          {task?.name || 'Care task'}
+        </Title>
+        <Tag color={taskStatus.color}>{taskStatus.label}</Tag>
+      </Space>
+      {task?.task_type && (
+        <Tag color={task?.task_type === 'PURCHASE' ? 'cyan' : 'blue'}>{task.task_type}</Tag>
+      )}
+    </Space>
+  );
+
+  const extraActions = (
+    <Space>
+      <Button icon={<EditOutlined />} onClick={() => onEdit?.(task)} disabled={!task}>
+        Edit
+      </Button>
+      <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
+        Manual execution
+      </Button>
+      <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
+        Generate next
+      </Button>
+    </Space>
+  );
+
+  return (
+    <Drawer
+      width={640}
+      title={drawerTitle}
+      open={open}
+      onClose={onClose}
+      extra={extraActions}
+      destroyOnClose
+    >
+      <Spin spinning={isTaskLoading || isTaskFetching}>
+        {task ? (
+          <>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              {task?.care_item_id && (
+                <Text type="secondary">
+                  Linked care item: <Text strong>{linkedCareItem?.name || task.care_item_id}</Text>
+                </Text>
+              )}
+              <Text type="secondary">
+                Recurrence: <Text strong>{describeRecurrence(task.recurrence_interval_days)}</Text>
+              </Text>
+            </Space>
+
+            <Divider />
+
+            <Tabs
+              items={[
+                {
+                  key: 'overview',
+                  label: 'Overview',
+                  children: (
+                    <Descriptions
+                      column={1}
+                      size="small"
+                      labelStyle={{ fontWeight: 600 }}
+                      contentStyle={{ marginBottom: 8 }}
+                    >
+                      <Descriptions.Item label="Description">
+                        {task.description || '—'}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Start date">
+                        {formatDate(task.start_date)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="End date">
+                        {formatDate(task.end_date)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Created">
+                        {formatDate(task.created_at)}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Updated">
+                        {formatDate(task.updated_at)}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  ),
+                },
+                {
+                  key: 'executions',
+                  label: 'Executions',
+                  children: (
+                    <Spin spinning={isExecutionsLoading || isExecutionsFetching}>
+                      {executions.length === 0 ? (
+                        <Empty description="No executions yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                      ) : (
+                        <Table
+                          dataSource={executions}
+                          columns={executionColumns}
+                          pagination={false}
+                          rowKey="id"
+                          size="small"
+                        />
+                      )}
+                    </Spin>
+                  ),
+                },
+              ]}
+            />
+
+            <Divider />
+
+            <Space>
+              {task?.is_active === false ? (
+                <Popconfirm
+                  title="Reactivate task"
+                  description="This will allow the task to generate executions again."
+                  onConfirm={() => onReactivate?.(task)}
+                  okText="Reactivate"
+                >
+                  <Button type="primary">Reactivate task</Button>
+                </Popconfirm>
+              ) : (
+                <Popconfirm
+                  title="Deactivate task"
+                  description="Future executions will stop generating until reactivated."
+                  onConfirm={() => onDeactivate?.(task)}
+                  okText="Deactivate"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger>Deactivate task</Button>
+                </Popconfirm>
+              )}
+            </Space>
+          </>
+        ) : (
+          <Empty description="Select a task to see details" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        )}
+      </Spin>
+    </Drawer>
+  );
+};
+
+export default TaskDetailsDrawer;
