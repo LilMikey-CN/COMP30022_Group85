@@ -61,6 +61,18 @@ export const careItemsService = {
     const queryString = buildQueryString(params);
     return await authenticatedApiCall(`/api/care-items${queryString}`);
   },
+  async createCareItem(payload = {}) {
+    return await authenticatedApiCall('/api/care-items', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  async updateCareItem(id, payload = {}) {
+    return await authenticatedApiCall(`/api/care-items/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 export default careItemsService;
