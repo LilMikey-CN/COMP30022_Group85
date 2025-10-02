@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
 import CareTasksPage from './pages/CareTasksPage';
+import TaskSchedulingPage from './pages/TaskSchedulingPage';
 import CareItems from './pages/CareItems';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
@@ -101,6 +102,13 @@ const App = () => {
           </ProtectedRoute>
         }>
           <Route index element={<CareTasksPage />} />
+        </Route>
+        <Route path="/task-scheduling" element={
+          <ProtectedRoute>
+            <PatientLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<TaskSchedulingPage />} />
         </Route>
         <Route path="/care-items" element={
           <ProtectedRoute>

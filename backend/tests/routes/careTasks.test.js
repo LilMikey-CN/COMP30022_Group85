@@ -118,8 +118,30 @@ describe('Care Tasks API', () => {
     careItemsDoc.get.mockResolvedValueOnce(careItemSnapshot);
 
     careTasksCollection.add.mockResolvedValueOnce({ id: 'task-123' });
-    taskExecutionsCollection.get.mockResolvedValueOnce({ empty: true, docs: [] });
-    taskExecutionsCollection.add.mockResolvedValueOnce({ id: 'exec-456' });
+
+    const insertedExecutions = [];
+
+    taskExecutionsCollection.get.mockImplementation(async () => {
+      if (insertedExecutions.length === 0) {
+        return { empty: true, docs: [] };
+      }
+
+      const lastExecution = insertedExecutions[insertedExecutions.length - 1];
+      return {
+        empty: false,
+        docs: [
+          {
+            data: () => ({ scheduled_date: lastExecution.scheduled_date })
+          }
+        ]
+      };
+    });
+
+    taskExecutionsCollection.add.mockImplementation(async (executionData) => {
+      const id = `exec-${insertedExecutions.length + 1}`;
+      insertedExecutions.push({ ...executionData, id });
+      return { id };
+    });
 
     const createdTaskSnapshot = {
       exists: true,
@@ -143,7 +165,10 @@ describe('Care Tasks API', () => {
 
     expect(response.body.message).toBe('Care task created successfully');
     expect(response.body.id).toBe('task-123');
-    expect(response.body.generated_execution_id).toBe('exec-456');
+    expect(response.body.generated_execution_id).toBe('exec-1');
+    expect(Array.isArray(response.body.generated_execution_ids)).toBe(true);
+    expect(response.body.generated_execution_ids).toHaveLength(insertedExecutions.length);
+    expect(insertedExecutions.length).toBeGreaterThan(0);
 
     const createdData = response.body.data;
     expect(createdData.name).toBe('Buy Toothpaste');
@@ -286,5 +311,35 @@ describe('Care Tasks API', () => {
     expect(taskExecutionsCollection.add).toHaveBeenCalledTimes(1);
     expect(response.body.data.status).toBe('DONE');
     expect(response.body.data.executed_by).toBe('test-uid');
+  });
+
+  it('returns 403 when fetching a care task owned by another user', async () => {
+    const { careTasksDoc } = setupCareTaskCollections();
+
+    careTasksDoc.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ created_by: 'someone-else' })
+    });
+
+    const response = await request(app)
+      .get('/api/care-tasks/task-foreign')
+      .expect(403);
+
+    expect(response.body.error).toBe('Forbidden: Care task does not belong to you');
+  });
+
+  it('returns 403 when listing executions for a care task owned by another user', async () => {
+    const { careTasksDoc } = setupCareTaskCollections();
+
+    careTasksDoc.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ created_by: 'someone-else' })
+    });
+
+    const response = await request(app)
+      .get('/api/care-tasks/task-foreign/executions')
+      .expect(403);
+
+    expect(response.body.error).toBe('Forbidden: Care task does not belong to you');
   });
 });

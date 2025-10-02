@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Typography,
   Card,
@@ -9,17 +9,17 @@ import {
   DatePicker,
   Table,
   Tag,
-  Spin,
   Alert,
-  Empty,
   Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
   FileSearchOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCareItems } from '../hooks/useCareItems';
 import {
   useCareTasks,
@@ -30,49 +30,15 @@ import {
   useGenerateTaskExecution,
   useCreateManualExecution,
 } from '../hooks/useCareTasks';
+import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
 import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
 import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
-import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
+import { showErrorMessage } from '../utils/messageConfig';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-const statusFilterOptions = [
-  { label: 'Active', value: 'active' },
-  { label: 'Inactive', value: 'inactive' },
-  { label: 'All', value: 'all' },
-];
-
-const taskTypeOptions = [
-  { label: 'All', value: 'all' },
-  { label: 'General', value: 'GENERAL' },
-  { label: 'Purchase', value: 'PURCHASE' },
-];
-
-const sortOptions = [
-  { label: 'Start date', value: 'start_date' },
-  { label: 'Created', value: 'created_at' },
-  { label: 'Updated', value: 'updated_at' },
-  { label: 'Name', value: 'name' },
-];
-
-const describeTaskStatus = (task) => {
-  if (!task) {
-    return { label: 'Unknown', color: 'default' };
-  }
-
-  if (task.is_active === false) {
-    return { label: 'Inactive', color: 'default' };
-  }
-
-  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
-    return { label: 'Ended', color: 'gold' };
-  }
-
-  return { label: 'Active', color: 'green' };
-};
 
 const describeRecurrence = (interval) => {
   const numeric = Number(interval ?? 0);
@@ -80,146 +46,71 @@ const describeRecurrence = (interval) => {
     return 'One-off';
   }
   if (numeric === 1) {
-    return 'Daily';
+    return 'Every day';
   }
   if (numeric === 7) {
-    return 'Weekly';
+    return 'Every week';
   }
   if (numeric === 14) {
-    return 'Fortnightly';
+    return 'Every 2 weeks';
   }
   if (numeric === 30) {
-    return 'Monthly';
+    return 'Every month';
   }
   if (numeric === 90) {
-    return 'Quarterly';
+    return 'Every quarter';
   }
   if (numeric === 365) {
-    return 'Yearly';
+    return 'Every year';
   }
   return `Every ${numeric} days`;
 };
 
-const formatDate = (value) => {
-  if (!value) {
-    return '—';
+const statusTag = (task) => {
+  if (task.is_active === false) {
+    return <Tag color="default">Inactive</Tag>;
   }
-  return dayjs(value).format('DD MMM YYYY');
+  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
+    return <Tag color="gold">Ended</Tag>;
+  }
+  return <Tag color="green">Active</Tag>;
 };
 
 const CareTasksPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
-  const [taskTypeFilter, setTaskTypeFilter] = useState('all');
-  const [startDateRange, setStartDateRange] = useState(null);
-  const [sortField, setSortField] = useState('start_date');
-  const [sortOrder, setSortOrder] = useState('ascend');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [startRange, setStartRange] = useState(null);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [manualTask, setManualTask] = useState(null);
 
-  const careTaskApiParams = useMemo(() => {
-    const params = {};
-
-    if (statusFilter === 'active') {
-      params.is_active = 'true';
-    } else if (statusFilter === 'inactive') {
-      params.is_active = 'false';
-    } else {
-      params.is_active = 'all';
+  useEffect(() => {
+    if (location.state?.focusTaskId) {
+      setSelectedTaskId(location.state.focusTaskId);
+      navigate(location.pathname, { replace: true, state: {} });
     }
+  }, [location, navigate]);
 
-    if (taskTypeFilter !== 'all') {
-      params.task_type = taskTypeFilter;
-    }
-
-    if (startDateRange && startDateRange.length === 2) {
-      params.start_date_from = startDateRange[0] ? dayjs(startDateRange[0]).format('YYYY-MM-DD') : undefined;
-      params.start_date_to = startDateRange[1] ? dayjs(startDateRange[1]).format('YYYY-MM-DD') : undefined;
-    }
-
-    params.limit = 200;
-    params.offset = 0;
-
-    return params;
-  }, [statusFilter, taskTypeFilter, startDateRange]);
-
+  const { data: careItemsResponse, isLoading: isCareItemsLoading } = useCareItems({ is_active: 'all' });
   const {
     data: careTasksResponse,
-    isLoading: isCareTasksLoading,
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks(careTaskApiParams);
-
-  const {
-    data: careItemsResponse,
-    isLoading: isCareItemsLoading,
-  } = useCareItems({ is_active: 'all' });
+  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
 
   const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
-  const careItemsById = useMemo(() => {
-    return careItems.reduce((acc, item) => {
-      acc[item.id] = item;
-      return acc;
-    }, {});
-  }, [careItems]);
+  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  }, {}), [careItems]);
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
-
-  const filteredTasks = useMemo(() => {
-    const lowerSearch = searchTerm.trim().toLowerCase();
-
-    const filtered = careTasks.filter((task) => {
-      if (lowerSearch) {
-        const matchesName = task.name?.toLowerCase().includes(lowerSearch);
-        const matchesDescription = task.description?.toLowerCase().includes(lowerSearch);
-        const careItemName = careItemsById[task.care_item_id]?.name?.toLowerCase();
-        if (!matchesName && !matchesDescription && !(careItemName && careItemName.includes(lowerSearch))) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    const sorted = [...filtered].sort((a, b) => {
-      let valueA;
-      let valueB;
-
-      switch (sortField) {
-        case 'name':
-          valueA = a.name?.toLowerCase() || '';
-          valueB = b.name?.toLowerCase() || '';
-          break;
-        case 'created_at':
-          valueA = dayjs(a.created_at).valueOf();
-          valueB = dayjs(b.created_at).valueOf();
-          break;
-        case 'updated_at':
-          valueA = dayjs(a.updated_at).valueOf();
-          valueB = dayjs(b.updated_at).valueOf();
-          break;
-        case 'start_date':
-        default:
-          valueA = dayjs(a.start_date).valueOf();
-          valueB = dayjs(b.start_date).valueOf();
-          break;
-      }
-
-      if (valueA === valueB) {
-        return 0;
-      }
-      if (sortOrder === 'ascend') {
-        return valueA > valueB ? 1 : -1;
-      }
-      return valueA > valueB ? -1 : 1;
-    });
-
-    return sorted;
-  }, [careTasks, careItemsById, searchTerm, sortField, sortOrder]);
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
@@ -228,13 +119,53 @@ const CareTasksPage = () => {
   const generateExecution = useGenerateTaskExecution();
   const createManualExecution = useCreateManualExecution();
 
+  const filteredTasks = useMemo(() => {
+    const lowered = searchTerm.trim().toLowerCase();
+
+    return careTasks.filter((task) => {
+      if (lowered) {
+        const name = task.name?.toLowerCase() || '';
+        const description = task.description?.toLowerCase() || '';
+        const careItemName = task.care_item_id ? (careItemsById[task.care_item_id]?.name?.toLowerCase() || '') : '';
+        if (!name.includes(lowered) && !description.includes(lowered) && !careItemName.includes(lowered)) {
+          return false;
+        }
+      }
+
+      if (statusFilter === 'active' && task.is_active === false) {
+        return false;
+      }
+      if (statusFilter === 'inactive' && task.is_active !== false) {
+        return false;
+      }
+
+      if (typeFilter !== 'all' && task.task_type !== typeFilter) {
+        return false;
+      }
+
+      if (startRange && startRange.length === 2) {
+        const [from, to] = startRange;
+        if (from && task.start_date && dayjs(task.start_date).isBefore(dayjs(from), 'day')) {
+          return false;
+        }
+        if (to && task.start_date && dayjs(task.start_date).isAfter(dayjs(to), 'day')) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [careTasks, careItemsById, searchTerm, statusFilter, typeFilter, startRange]);
+
   const handleCreateTask = useCallback(async (payload) => {
     await createCareTask.mutateAsync(payload);
-  }, [createCareTask]);
+    await refetchCareTasks();
+  }, [createCareTask, refetchCareTasks]);
 
   const handleUpdateTask = useCallback(async (id, payload) => {
     await updateCareTask.mutateAsync({ id, payload });
-  }, [updateCareTask]);
+    await refetchCareTasks();
+  }, [updateCareTask, refetchCareTasks]);
 
   const handleDeactivate = useCallback((task) => {
     deactivateCareTask.mutate(task.id);
@@ -244,41 +175,30 @@ const CareTasksPage = () => {
     reactivateCareTask.mutate(task.id);
   }, [reactivateCareTask]);
 
-  const handleGenerate = useCallback((task) => {
+  const handleManualSubmit = useCallback(async (payload) => {
+    if (!manualTask) return;
+    try {
+      await createManualExecution.mutateAsync({ taskId: manualTask.id, payload });
+      setManualTask(null);
+    } catch (error) {
+      showErrorMessage(error.message || 'Failed to create execution');
+    }
+  }, [createManualExecution, manualTask]);
+
+  const handleGenerateExecution = useCallback((task) => {
     generateExecution.mutate(task.id);
   }, [generateExecution]);
 
-  const handleManualSubmit = useCallback(async (payload) => {
-    if (!manualTask) return;
-    await createManualExecution.mutateAsync({ taskId: manualTask.id, payload });
-  }, [createManualExecution, manualTask]);
-
   const columns = useMemo(() => ([
     {
-      title: 'Task',
+      title: 'Name',
       dataIndex: 'name',
-      key: 'name',
-      render: (value, record) => (
-        <Space direction="vertical" size={0}>
-          <span style={{ fontWeight: 500 }}>{value}</span>
-          <Space size={4}>
-            <Tag color={record.task_type === 'PURCHASE' ? 'cyan' : 'blue'}>{record.task_type}</Tag>
-            {record.care_item_id && (
-              <Tag>
-                {careItemsById[record.care_item_id]?.name || 'Linked item'}
-              </Tag>
-            )}
-          </Space>
-        </Space>
-      ),
+      render: (value) => value || 'Untitled task',
     },
     {
-      title: 'Status',
-      key: 'status',
-      render: (_, record) => {
-        const status = describeTaskStatus(record);
-        return <Tag color={status.color}>{status.label}</Tag>;
-      },
+      title: 'Type',
+      dataIndex: 'task_type',
+      render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
     },
     {
       title: 'Recurrence',
@@ -286,40 +206,61 @@ const CareTasksPage = () => {
       render: (value) => describeRecurrence(value),
     },
     {
-      title: 'Start date',
+      title: 'Start',
       dataIndex: 'start_date',
-      render: (date) => formatDate(date),
+      render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: 'End date',
+      title: 'End',
       dataIndex: 'end_date',
-      render: (date) => formatDate(date),
+      render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, task) => statusTag(task),
     },
     {
       title: 'Actions',
       key: 'actions',
-      fixed: 'right',
-      width: 160,
-      render: (_, record) => (
-        <Space>
+      render: (_, task) => (
+        <Space size="small">
           <Tooltip title="View details">
             <Button
               size="small"
               icon={<FileSearchOutlined />}
-              onClick={() => setSelectedTaskId(record.id)}
+              onClick={() => setSelectedTaskId(task.id)}
             />
           </Tooltip>
-          <Button size="small" onClick={() => setEditTask(record)}>Edit</Button>
+          <Tooltip title="Edit task">
+            <Button
+              size="small"
+              onClick={() => setEditTask(task)}
+            >
+              Edit
+            </Button>
+          </Tooltip>
+          {task.is_active !== false ? (
+            <Tooltip title="Deactivate task">
+              <Button size="small" danger onClick={() => handleDeactivate(task)}>
+                Deactivate
+              </Button>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Reactivate task">
+              <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
+                Reactivate
+              </Button>
+            </Tooltip>
+          )}
         </Space>
-      ),
-    },
-  ]), [careItemsById]);
+      )
+    }
+  ]), [handleDeactivate, handleReactivate]);
 
   const handleRefresh = () => {
     refetchCareTasks();
   };
-
-  const careItemsLoadingState = isCareItemsLoading && careItems.length === 0;
 
   return (
     <div style={{ padding: 24 }}>
@@ -327,13 +268,19 @@ const CareTasksPage = () => {
         <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
           <div>
             <Title level={2} style={{ marginBottom: 0 }}>Care tasks</Title>
-            <Typography.Text type="secondary">
-              Manage recurring responsibilities and track their execution history.
-            </Typography.Text>
+            <Text type="secondary">
+              Manage recurring and one-off care tasks. Use task scheduling to view execution history and upcoming runs.
+            </Text>
           </div>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={isCareTasksFetching}>
               Refresh
+            </Button>
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => navigate('/task-scheduling')}
+            >
+              Task scheduling
             </Button>
             <Button
               type="primary"
@@ -358,79 +305,50 @@ const CareTasksPage = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
               <Input
-                placeholder="Search by task, description, or care item"
+                placeholder="Search by name, description, or care item"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 allowClear
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
-                <Select
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                  style={{ width: 150 }}
-                >
-                  {statusFilterOptions.map((option) => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
+                <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }}>
+                  <Option value="all">All statuses</Option>
+                  <Option value="active">Active</Option>
+                  <Option value="inactive">Inactive</Option>
                 </Select>
-                <Select
-                  value={taskTypeFilter}
-                  onChange={setTaskTypeFilter}
-                  style={{ width: 140 }}
-                >
-                  {taskTypeOptions.map((option) => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
+                <Select value={typeFilter} onChange={setTypeFilter} style={{ width: 150 }}>
+                  <Option value="all">All types</Option>
+                  <Option value="GENERAL">General</Option>
+                  <Option value="PURCHASE">Purchase</Option>
                 </Select>
                 <RangePicker
-                  value={startDateRange}
-                  onChange={(range) => setStartDateRange(range)}
-                  allowEmpty={[true, true]}
-                  format="YYYY-MM-DD"
+                  value={startRange}
+                  onChange={(range) => setStartRange(range)}
+                  placeholder={['Start from', 'Start to']}
+                  allowClear
                 />
-                <Select
-                  value={`${sortField}:${sortOrder}`}
-                  style={{ width: 190 }}
-                  onChange={(value) => {
-                    const [field, order] = value.split(':');
-                    setSortField(field);
-                    setSortOrder(order);
-                  }}
-                >
-                  {sortOptions.map((option) => (
-                    <React.Fragment key={option.value}>
-                      <Option value={`${option.value}:ascend`}>
-                        {option.label} ↑
-                      </Option>
-                      <Option value={`${option.value}:descend`}>
-                        {option.label} ↓
-                      </Option>
-                    </React.Fragment>
-                  ))}
-                </Select>
               </Space>
             </Space>
-
-            <Spin spinning={isCareTasksLoading}>
-              {filteredTasks.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No care tasks yet" />
-              ) : (
-                <Table
-                  dataSource={filteredTasks}
-                  columns={columns}
-                  rowKey="id"
-                  size="middle"
-                  scroll={{ x: true }}
-                  pagination={false}
-                />
-              )}
-            </Spin>
           </Space>
+        </Card>
+
+        <Card>
+          <Table
+            rowKey="id"
+            dataSource={filteredTasks}
+            columns={columns}
+            loading={isCareItemsLoading && careItems.length === 0}
+            pagination={{ pageSize: 10 }}
+            locale={{
+              emptyText: (
+                <div style={{ padding: 32, textAlign: 'center' }}>
+                  <CalendarOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+                  <div style={{ marginTop: 12 }}>No care tasks found</div>
+                </div>
+              )
+            }}
+          />
         </Card>
       </Space>
 
@@ -440,17 +358,17 @@ const CareTasksPage = () => {
         onSubmit={handleCreateTask}
         submitting={createCareTask.isLoading}
         careItems={careItems}
-        careItemsLoading={careItemsLoadingState}
+        careItemsLoading={isCareItemsLoading}
       />
 
       <EditCareTaskModal
         open={!!editTask}
+        task={editTask}
         onClose={() => setEditTask(null)}
-        onSubmit={handleUpdateTask}
+        onSubmit={(values) => handleUpdateTask(editTask.id, values)}
         submitting={updateCareTask.isLoading}
         careItems={careItems}
-        careItemsLoading={careItemsLoadingState}
-        task={editTask}
+        careItemsLoading={isCareItemsLoading}
       />
 
       <ManualExecutionModal
@@ -468,7 +386,7 @@ const CareTasksPage = () => {
         onManualExecution={(task) => setManualTask(task)}
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
-        onGenerateExecution={handleGenerate}
+        onGenerateExecution={handleGenerateExecution}
         careItemsById={careItemsById}
       />
     </div>
@@ -476,4 +394,3 @@ const CareTasksPage = () => {
 };
 
 export default CareTasksPage;
-

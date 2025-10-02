@@ -185,4 +185,34 @@ describe('Task Executions API', () => {
     expect(response.body.executions).toHaveLength(1);
     expect(response.body.executions[0].id).toBe('exec-1');
   });
+
+  it('prevents accessing task executions owned by another user', async () => {
+    const {
+      careTasksCollection,
+      taskExecutionsCollection,
+      careTaskDoc,
+      taskExecutionDoc
+    } = setupExecutionCollections();
+
+    taskExecutionDoc.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        care_task_id: 'other-task',
+        status: 'TODO'
+      })
+    });
+
+    careTaskDoc.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({ created_by: 'someone-else' })
+    });
+
+    const response = await request(app)
+      .get('/api/task-executions/exec-999')
+      .expect(403);
+
+    expect(response.body.error).toBe('Forbidden: Task execution does not belong to you');
+    expect(taskExecutionsCollection.doc).toHaveBeenCalledWith('exec-999');
+    expect(careTasksCollection.doc).toHaveBeenCalledWith('other-task');
+  });
 });

@@ -7,6 +7,26 @@ const router = express.Router();
 // Apply auth middleware to all routes
 router.use(verifyToken);
 
+const getOwnedCareItem = async (careItemId, uid) => {
+  const careItemRef = db.collection('care_items').doc(careItemId);
+  const doc = await careItemRef.get();
+
+  if (!doc.exists) {
+    const error = new Error('Care item not found');
+    error.status = 404;
+    throw error;
+  }
+
+  const data = doc.data();
+  if (data.created_by !== uid) {
+    const error = new Error('Forbidden: Care item does not belong to you');
+    error.status = 403;
+    throw error;
+  }
+
+  return { doc, data, ref: careItemRef };
+};
+
 // CREATE - Add new care item
 router.post('/', async (req, res) => {
   try {
@@ -125,13 +145,7 @@ router.get('/', async (req, res) => {
 // READ - Get specific care item by ID
 router.get('/:id', async (req, res) => {
   try {
-    const doc = await db.collection('care_items').doc(req.params.id).get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Care item not found' });
-    }
-
-    const data = doc.data();
+    const { doc, data } = await getOwnedCareItem(req.params.id, req.user.uid);
     res.json({
       id: doc.id,
       ...data,
@@ -143,19 +157,17 @@ router.get('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching care item:', error);
-    res.status(500).json({ error: 'Failed to fetch care item' });
+    const status = error.status || 500;
+    res.status(status).json({
+      error: status === 500 ? 'Failed to fetch care item' : error.message
+    });
   }
 });
 
 // UPDATE - Update care item
 router.put('/:id', async (req, res) => {
   try {
-    const careItemRef = db.collection('care_items').doc(req.params.id);
-    const doc = await careItemRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Care item not found' });
-    }
+    const { ref: careItemRef } = await getOwnedCareItem(req.params.id, req.user.uid);
 
     const {
       name,
@@ -215,19 +227,17 @@ router.put('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating care item:', error);
-    res.status(500).json({ error: 'Failed to update care item' });
+    const status = error.status || 500;
+    res.status(status).json({
+      error: status === 500 ? 'Failed to update care item' : error.message
+    });
   }
 });
 
 // SOFT DELETE - Deactivate care item
 router.delete('/:id', async (req, res) => {
   try {
-    const careItemRef = db.collection('care_items').doc(req.params.id);
-    const doc = await careItemRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Care item not found' });
-    }
+    const { ref: careItemRef } = await getOwnedCareItem(req.params.id, req.user.uid);
 
     const updateData = {
       is_active: false,
@@ -243,19 +253,17 @@ router.delete('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error deactivating care item:', error);
-    res.status(500).json({ error: 'Failed to deactivate care item' });
+    const status = error.status || 500;
+    res.status(status).json({
+      error: status === 500 ? 'Failed to deactivate care item' : error.message
+    });
   }
 });
 
 // REACTIVATE - Reactivate a soft-deleted care item
 router.patch('/:id/reactivate', async (req, res) => {
   try {
-    const careItemRef = db.collection('care_items').doc(req.params.id);
-    const doc = await careItemRef.get();
-
-    if (!doc.exists) {
-      return res.status(404).json({ error: 'Care item not found' });
-    }
+    const { ref: careItemRef } = await getOwnedCareItem(req.params.id, req.user.uid);
 
     const updateData = {
       is_active: true,
@@ -271,7 +279,10 @@ router.patch('/:id/reactivate', async (req, res) => {
     });
   } catch (error) {
     console.error('Error reactivating care item:', error);
-    res.status(500).json({ error: 'Failed to reactivate care item' });
+    const status = error.status || 500;
+    res.status(status).json({
+      error: status === 500 ? 'Failed to reactivate care item' : error.message
+    });
   }
 });
 

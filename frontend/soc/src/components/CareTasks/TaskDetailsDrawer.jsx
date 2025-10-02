@@ -99,6 +99,8 @@ const TaskDetailsDrawer = ({
   onReactivate,
   onGenerateExecution,
   careItemsById = {},
+  selectedExecution,
+  onCompleteExecution,
 }) => {
   const {
     data: task,
@@ -118,10 +120,7 @@ const TaskDetailsDrawer = ({
   const executions = executionsResponse?.executions || [];
   const taskStatus = computeTaskStatus(task);
   const linkedCareItem = task?.care_item_id ? careItemsById[task.care_item_id] : undefined;
-
-  const handleMarkDone = useCallback((execution) => {
-    completeExecution.mutate({ id: execution.id, payload: {}, taskId });
-  }, [completeExecution, taskId]);
+  const selectedExecutionId = selectedExecution?.id || null;
 
   const handleCancelExecution = useCallback((execution) => {
     updateExecution.mutate({ id: execution.id, payload: { status: 'CANCELLED' }, taskId });
@@ -131,7 +130,9 @@ const TaskDetailsDrawer = ({
     {
       title: 'Status',
       dataIndex: 'status',
-      render: (value) => <Tag color={statusColorMap[value] || 'default'}>{value}</Tag>,
+      render: (value) => (
+        <Tag color={statusColorMap[value] || 'default'}>{value}</Tag>
+      ),
     },
     {
       title: 'Scheduled',
@@ -173,15 +174,14 @@ const TaskDetailsDrawer = ({
 
         return (
           <Space size="middle">
-            {!isDone && !isCancelled && (
+            {!isDone && !isCancelled && onCompleteExecution && (
               <Tooltip title="Mark as done">
                 <Button
                   size="small"
                   type="primary"
                   icon={<CheckOutlined />}
-                  loading={completeExecution.isLoading}
                   disabled={disabled}
-                  onClick={() => handleMarkDone(record)}
+                  onClick={() => onCompleteExecution(record, task)}
                 >
                   Done
                 </Button>
@@ -206,33 +206,32 @@ const TaskDetailsDrawer = ({
         );
       },
     },
-  ]), [completeExecution.isLoading, updateExecution.isLoading, handleMarkDone, handleCancelExecution]);
+  ]), [completeExecution.isLoading, updateExecution.isLoading, handleCancelExecution, onCompleteExecution, task]);
 
   const drawerTitle = (
-    <Space direction="vertical" size={0} style={{ width: '100%' }}>
-      <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-        <Title level={4} style={{ margin: 0 }}>
-          {task?.name || 'Care task'}
-        </Title>
+    <Space direction="vertical" size={12} style={{ width: '100%' }}>
+      <Title level={4} style={{ margin: 0 }}>
+        {task?.name || 'Care task'}
+      </Title>
+
+      <Space align="center" wrap>
+        {task?.task_type && (
+          <Tag color={task?.task_type === 'PURCHASE' ? 'cyan' : 'blue'}>{task.task_type}</Tag>
+        )}
         <Tag color={taskStatus.color}>{taskStatus.label}</Tag>
       </Space>
-      {task?.task_type && (
-        <Tag color={task?.task_type === 'PURCHASE' ? 'cyan' : 'blue'}>{task.task_type}</Tag>
-      )}
-    </Space>
-  );
 
-  const extraActions = (
-    <Space>
-      <Button icon={<EditOutlined />} onClick={() => onEdit?.(task)} disabled={!task}>
-        Edit
-      </Button>
-      <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
-        Manual execution
-      </Button>
-      <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
-        Generate next
-      </Button>
+      <Space wrap>
+        <Button icon={<EditOutlined />} onClick={() => onEdit?.(task)} disabled={!task}>
+          Edit
+        </Button>
+        <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
+          Manual execution
+        </Button>
+        <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
+          Generate next
+        </Button>
+      </Space>
     </Space>
   );
 
@@ -242,7 +241,6 @@ const TaskDetailsDrawer = ({
       title={drawerTitle}
       open={open}
       onClose={onClose}
-      extra={extraActions}
       destroyOnClose
     >
       <Spin spinning={isTaskLoading || isTaskFetching}>
@@ -299,13 +297,21 @@ const TaskDetailsDrawer = ({
                       {executions.length === 0 ? (
                         <Empty description="No executions yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                       ) : (
-                        <Table
-                          dataSource={executions}
-                          columns={executionColumns}
-                          pagination={false}
-                          rowKey="id"
-                          size="small"
-                        />
+                        <>
+                          <Table
+                            dataSource={executions}
+                            columns={executionColumns}
+                            pagination={false}
+                            rowKey="id"
+                            size="small"
+                            rowClassName={(record) => record.id === selectedExecutionId ? 'selected-execution-row' : ''}
+                          />
+                          <style>{`
+                            .selected-execution-row {
+                              background-color: #e6f7ff !important;
+                            }
+                          `}</style>
+                        </>
                       )}
                     </Spin>
                   ),

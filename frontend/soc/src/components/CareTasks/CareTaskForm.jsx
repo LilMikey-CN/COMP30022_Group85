@@ -26,6 +26,10 @@ const CareTaskForm = ({
         form.setFieldsValue({ recurrence_interval_days: preset.interval });
       }
     }
+
+    if (recurrencePresetValue === '0') {
+      form.setFieldsValue({ end_date: null });
+    }
   }, [recurrencePresetValue, form]);
 
   const filteredCareItems = useMemo(() => {
@@ -165,23 +169,25 @@ const CareTaskForm = ({
         <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
       </Form.Item>
 
-      <Form.Item
-        name="end_date"
-        label="End date"
-        rules={[
-          {
-            validator: (_, value) => {
-              const start = form.getFieldValue('start_date');
-              if (value && start && dayjs(value).isBefore(dayjs(start), 'day')) {
-                return Promise.reject(new Error('End date cannot be before start date'));
-              }
-              return Promise.resolve();
+      {recurrencePresetValue !== '0' && (
+        <Form.Item
+          name="end_date"
+          label="End date"
+          rules={[
+            {
+              validator: (_, value) => {
+                const start = form.getFieldValue('start_date');
+                if (value && start && dayjs(value).isBefore(dayjs(start), 'day')) {
+                  return Promise.reject(new Error('End date cannot be before start date'));
+                }
+                return Promise.resolve();
+              },
             },
-          },
-        ]}
-      >
-        <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" allowClear />
-      </Form.Item>
+          ]}
+        >
+          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" allowClear />
+        </Form.Item>
+      )}
 
       {initialTask?.is_active === false && (
         <Alert

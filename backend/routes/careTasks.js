@@ -52,6 +52,20 @@ const optionalDate = (value, fieldName) => {
   return parsed;
 };
 
+const startOfDay = (date) => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const startOfYear = (year) => new Date(year, 0, 1, 0, 0, 0, 0);
+const endOfYear = (year) => new Date(year, 11, 31, 23, 59, 59, 999);
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
 const formatCareTask = (doc) => {
   const data = doc.data();
   return {
@@ -182,8 +196,51 @@ router.post('/', async (req, res) => {
 
     const docRef = await db.collection('care_tasks').add(careTaskData);
 
-    // Auto-generate first task execution
-    const executionId = await generateTaskExecution(docRef.id, careTaskData);
+    const generatedExecutionIds = [];
+
+    if (recurrenceInt === 0) {
+      const executionData = {
+        care_task_id: docRef.id,
+        status: 'TODO',
+        quantity_purchased: 1,
+        quantity_unit: task_type === 'PURCHASE' ? 'piece' : '',
+        actual_cost: null,
+        evidence_url: null,
+        scheduled_date: parsedStartDate,
+        execution_date: null,
+        covered_by_execution_id: null,
+        executed_by: null,
+        notes: '',
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+
+      const executionRef = await db.collection('task_executions').add(executionData);
+      generatedExecutionIds.push(executionRef.id);
+    } else {
+      const currentYear = new Date().getFullYear();
+      if (parsedStartDate.getFullYear() <= currentYear) {
+        const rangeStart = startOfDay(parsedStartDate);
+        const calendarRangeEnd = endOfYear(currentYear);
+        const taskEndDate = parsedEndDate ? startOfDay(parsedEndDate) : null;
+        const rangeEnd = taskEndDate && taskEndDate < calendarRangeEnd ? taskEndDate : calendarRangeEnd;
+
+        if (rangeStart <= rangeEnd) {
+          const generationOptions = {
+            minScheduledDate: rangeStart,
+            maxScheduledDate: rangeEnd
+          };
+
+          let createdId;
+          do {
+            createdId = await generateTaskExecution(docRef.id, careTaskData, generationOptions);
+            if (createdId) {
+              generatedExecutionIds.push(createdId);
+            }
+          } while (createdId);
+        }
+      }
+    }
 
     const createdDoc = await db.collection('care_tasks').doc(docRef.id).get();
 
@@ -191,7 +248,8 @@ router.post('/', async (req, res) => {
       message: 'Care task created successfully',
       id: docRef.id,
       data: formatCareTask(createdDoc),
-      generated_execution_id: executionId
+      generated_execution_id: generatedExecutionIds[0] || null,
+      generated_execution_ids: generatedExecutionIds
     });
   } catch (error) {
     console.error('Error creating care task:', error);
@@ -603,7 +661,7 @@ router.post('/:id/generate-executions', async (req, res) => {
 });
 
 // Helper function to generate task executions
-async function generateTaskExecution(careTaskId, taskData) {
+async function generateTaskExecution(careTaskId, taskData, options = {}) {
   try {
     // Find the last execution to determine next scheduled date
     const lastExecutionSnapshot = await db.collection('task_executions')
@@ -614,14 +672,14 @@ async function generateTaskExecution(careTaskId, taskData) {
 
     let nextScheduledDate;
 
-    const startDate = toDate(taskData.start_date);
+    const startDate = startOfDay(toDate(taskData.start_date));
     if (!startDate) {
       const error = new Error('Task start_date is invalid');
       error.status = 400;
       throw error;
     }
 
-    const endDate = toDate(taskData.end_date);
+    const endDate = taskData.end_date ? startOfDay(toDate(taskData.end_date)) : null;
     const recurrenceInterval = Number(taskData.recurrence_interval_days) || 0;
 
     if (lastExecutionSnapshot.empty) {
@@ -630,15 +688,38 @@ async function generateTaskExecution(careTaskId, taskData) {
     } else {
       // Calculate next date based on recurrence
       const lastExecution = lastExecutionSnapshot.docs[0].data();
-      const lastDate = toDate(lastExecution.scheduled_date);
-      nextScheduledDate = new Date(lastDate || startDate);
-      nextScheduledDate.setDate(nextScheduledDate.getDate() + recurrenceInterval);
+      const lastDate = startOfDay(toDate(lastExecution.scheduled_date));
+      nextScheduledDate = addDays(lastDate || startDate, recurrenceInterval);
     }
 
-    // Check if we should stop generating (past end_date)
+    if (recurrenceInterval === 0) {
+      return null;
+    }
+
+    const { minScheduledDate, maxScheduledDate } = options;
+
+    if (minScheduledDate instanceof Date) {
+      const minDate = startOfDay(minScheduledDate);
+      while (nextScheduledDate < minDate) {
+        nextScheduledDate = addDays(nextScheduledDate, recurrenceInterval);
+        if (endDate && nextScheduledDate > endDate) {
+          return null;
+        }
+        if (maxScheduledDate && nextScheduledDate > maxScheduledDate) {
+          return null;
+        }
+      }
+    }
+
     if (endDate && nextScheduledDate > endDate) {
       return null;
     }
+
+    if (maxScheduledDate && nextScheduledDate > maxScheduledDate) {
+      return null;
+    }
+
+    const scheduledDate = startOfDay(nextScheduledDate);
 
     const executionData = {
       care_task_id: careTaskId,
@@ -647,7 +728,7 @@ async function generateTaskExecution(careTaskId, taskData) {
       quantity_unit: taskData.task_type === 'PURCHASE' ? 'piece' : '',
       actual_cost: null,
       evidence_url: null,
-      scheduled_date: nextScheduledDate,
+      scheduled_date: scheduledDate,
       execution_date: null,
       covered_by_execution_id: null,
       executed_by: null,
@@ -665,3 +746,11 @@ async function generateTaskExecution(careTaskId, taskData) {
 }
 
 module.exports = router;
+module.exports._internal = {
+  generateTaskExecution,
+  startOfDay,
+  startOfYear,
+  endOfYear,
+  addDays,
+  toDate
+};

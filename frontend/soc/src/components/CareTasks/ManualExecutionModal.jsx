@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Modal, Form, DatePicker, InputNumber, Select, Input } from 'antd';
 import dayjs from 'dayjs';
 
@@ -9,6 +9,10 @@ const ManualExecutionModal = ({
   onClose,
   onSubmit,
   submitting = false,
+  mode = 'create',
+  initialValues = null,
+  title,
+  okText,
 }) => {
   const [form] = Form.useForm();
 
@@ -16,6 +20,40 @@ const ManualExecutionModal = ({
     form.resetFields();
     onClose();
   }, [form, onClose]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const defaults = {
+      scheduled_date: dayjs(),
+      status: 'TODO',
+      quantity_purchased: 1,
+      quantity_unit: undefined,
+      actual_cost: undefined,
+      notes: undefined,
+      execution_date: undefined
+    };
+
+    const values = { ...defaults };
+
+    if (initialValues) {
+      if (initialValues.scheduled_date) {
+        values.scheduled_date = dayjs(initialValues.scheduled_date);
+      }
+      if (initialValues.execution_date) {
+        values.execution_date = dayjs(initialValues.execution_date);
+      }
+      if (initialValues.status) values.status = initialValues.status;
+      if (initialValues.quantity_purchased !== undefined) values.quantity_purchased = initialValues.quantity_purchased;
+      if (initialValues.quantity_unit !== undefined) values.quantity_unit = initialValues.quantity_unit;
+      if (initialValues.actual_cost !== undefined) values.actual_cost = initialValues.actual_cost;
+      if (initialValues.notes !== undefined) values.notes = initialValues.notes;
+    }
+
+    form.setFieldsValue(values);
+  }, [open, initialValues, form]);
 
   const handleOk = useCallback(async () => {
     try {
@@ -41,11 +79,14 @@ const ManualExecutionModal = ({
     }
   }, [form, onSubmit, resetAndClose]);
 
+  const modalTitle = title || (mode === 'edit' ? 'Edit execution' : 'Create manual execution');
+  const modalOkText = okText || (mode === 'edit' ? 'Save changes' : 'Create');
+
   return (
     <Modal
       open={open}
-      title="Create manual execution"
-      okText="Create"
+      title={modalTitle}
+      okText={modalOkText}
       onCancel={resetAndClose}
       onOk={handleOk}
       confirmLoading={submitting}
@@ -126,4 +167,3 @@ const ManualExecutionModal = ({
 };
 
 export default ManualExecutionModal;
-
