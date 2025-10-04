@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { auth } from '../firebase/config';
+import { auth, db } from '../firebase/config';
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { clearAllQueries } from '../utils/queryClient';
 
@@ -60,6 +61,11 @@ const useAuthStore = create((set /* , get */) => ({
     try {
       set({ isLoading: true });
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      setDoc(doc(db, "User", user.uid), {
+      email: email,
+      createdAt: serverTimestamp(),
+      });
       set({
         user: userCredential.user,
         isAuthenticated: true,
