@@ -57,7 +57,7 @@ const useAuthStore = create((set /* , get */) => ({
   },
 
   // Signup function
-  signup: async (email, password) => {
+  signup: async (email, password, role, name) => {
     try {
       set({ isLoading: true });
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -65,6 +65,8 @@ const useAuthStore = create((set /* , get */) => ({
       setDoc(doc(db, "User", user.uid), {
       email: email,
       createdAt: serverTimestamp(),
+      name: name,
+      role: role,
       });
       set({
         user: userCredential.user,

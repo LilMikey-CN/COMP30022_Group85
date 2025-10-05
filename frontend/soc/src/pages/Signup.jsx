@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message } from 'antd';
+import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message, Select } from 'antd';
 import { HeartFilled, MailOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate /* , useLocation */ } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
@@ -22,7 +22,7 @@ const Signup = () => {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      const result = await signup(values.email, values.password);
+      const result = await signup(values.email, values.password, values.role, values.name);
       if (result.success) {
         message.success('Account created successfully!');
         navigate('/');
@@ -345,6 +345,35 @@ const Signup = () => {
                   style={inputStyle}
                 />
               </Form.Item>
+
+              <Form.Item
+                label={<Text style={labelStyle}>Full Name</Text>}
+                name="name"
+                rules={[{ required: true, message: 'Please enter your full name' }]}
+              >
+                <Input
+                  placeholder="Enter your full name"
+                  style={inputStyle}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={<Text style={labelStyle}>Role</Text>}
+                name="role"
+                rules={[{ required: true, message: 'Please select your role' }]}
+              >
+                <Select
+                  placeholder="Select your role"
+                  style={{ ...inputStyle, height: '52px' }}
+                  options={[
+                    { value: 'family', label: 'Family Member' },
+                    { value: 'powerOfAttorney', label: 'Power of Attorney' },
+                    { value: 'carer', label: 'Carer' },
+                    { value: 'manager', label: 'Manager' },
+                  ]}
+                />
+              </Form.Item>
+
 
               <Form.Item
                 name="agreement"
