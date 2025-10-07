@@ -80,12 +80,6 @@ const PatientSidebar = () => {
       label: 'Task Scheduling'
     },
     {
-      key: 'care-items',
-      path: '/care-items',
-      icon: <UnorderedListOutlined />,
-      label: 'Care Items'
-    },
-    {
       key: 'budget',
       path: '/budget',
       icon: <DollarOutlined />,

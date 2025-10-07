@@ -30,7 +30,8 @@ describe('User Profile Utils', () => {
         mobile_phone: '0412345678',
         contact_address: '123 Main St, Melbourne VIC 3000',
         created_at: new Date('2023-01-01'),
-        updated_at: new Date('2023-01-02')
+        updated_at: new Date('2023-01-02'),
+        client_profile: null
       });
     });
 
@@ -172,6 +173,8 @@ describe('User Profile Utils', () => {
       expect(result.emailVerified).toBe(true);
       expect(result.created_at).toEqual(new Date('2023-01-01T00:00:00Z'));
       expect(result.updated_at).toBeInstanceOf(Date);
+      expect(result.client_profile).toBeTruthy();
+      expect(result.client_profile.is_active).toBe(true);
     });
 
     it('should use token data when Firebase Auth record is not available', () => {
@@ -189,6 +192,7 @@ describe('User Profile Utils', () => {
       expect(result.emailVerified).toBe(false);
       expect(result.created_at).toBeInstanceOf(Date);
       expect(result.updated_at).toBeInstanceOf(Date);
+      expect(result.client_profile).toBeTruthy();
     });
 
     it('should use default values when no user data provided', () => {
@@ -202,6 +206,7 @@ describe('User Profile Utils', () => {
       expect(result.emailVerified).toBe(false);
       expect(result.created_at).toBeInstanceOf(Date);
       expect(result.updated_at).toBeInstanceOf(Date);
+      expect(result.client_profile).toBeTruthy();
     });
 
     it('should prefer Firebase Auth data over token data', () => {
@@ -224,6 +229,7 @@ describe('User Profile Utils', () => {
       expect(result.email).toBe('auth@example.com');
       expect(result.displayName).toBe('Auth User');
       expect(result.emailVerified).toBe(true);
+      expect(result.client_profile).toBeTruthy();
     });
 
     it('should handle partial Firebase Auth record', () => {
@@ -240,6 +246,7 @@ describe('User Profile Utils', () => {
       expect(result.emailVerified).toBe(false);
       expect(result.created_at).toBeInstanceOf(Date);
       expect(result.updated_at).toBeInstanceOf(Date);
+      expect(result.client_profile).toBeTruthy();
     });
   });
 });

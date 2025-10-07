@@ -1,143 +1,128 @@
 ---
 config:
   look: neo
+  theme: base
 ---
 erDiagram
-    USER {
-        string uid PK "Firebase Auth UID - Guardian/Family Member"
+    USERS_COLLECTION {
+        string description "Root collection containing all users"
+    }
+    
+    USER_DOCUMENT {
+        string uid PK "Firebase Auth UID (Document ID)"
         string email "Guardian's email from Firebase Auth"
-        string displayName "Guardian's name from Firebase Auth"
+        string displayName "Guardian's name"
         boolean emailVerified "from Firebase Auth"
-        string avatar_url "URL to profile image stored externally"
-        string mobile_phone "Guardian's mobile phone number"
-        string contact_address "Guardian's physical address"
-        datetime created_at "from Firebase Auth metadata"
-        datetime updated_at
-        json client_profile "embedded profile of person with special needs"
+        string avatar_url "Profile image URL"
+        string mobile_phone "Guardian's phone"
+        string contact_address "Guardian's address"
+        timestamp created_at "Firebase server timestamp"
+        timestamp updated_at "Firebase server timestamp"
+        map client_profile "Embedded client profile data"
     }
-    CATEGORY {
-        int id PK
-        string name "e.g., Clothing, Hygiene, Food, Medical"
-        string description
-        string color_code "for UI display"
-        int display_order
-        boolean is_active
-        int created_by FK
-        datetime created_at
-        datetime updated_at
+    
+    CLIENT_PROFILE_MAP {
+        string full_name "Client's full name"
+        date date_of_birth "Client's DOB"
+        string sex "Client's sex/gender"
+        int age "Calculated or entered age"
+        string mobile_number "Client's mobile"
+        string email_address "Client's email"
+        string postal_address "Client's address"
+        array emergency_contacts "Array of contact objects"
+        string notes "General care notes"
+        string medical_conditions "Medical conditions"
+        string allergies "Known allergies"
+        string medications "Current medications"
+        string accessibility_needs "Accessibility requirements"
+        map latest_vitals "Latest vital signs"
+        boolean is_active "Profile active status"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
     }
-    CARE_ITEM {
-        int id PK
-        string name
-        decimal estimated_unit_cost
-        int quantity_per_purchase "default 1 - typical bulk quantity"
-        string quantity_unit "e.g., piece, pack, bottle"
-        date start_date
-        date end_date "nullable - when item no longer needed"
-        boolean is_active "false = soft deleted"
-        int category_id FK
-        int created_by FK
-        datetime deactivated_at "nullable - when soft deleted"
-        datetime created_at
-        datetime updated_at
+    
+    CARE_TASKS_SUBCOLLECTION {
+        string description "Subcollection under each user"
     }
-    CARE_TASK {
-        int id PK
-        string name
-        text description
-        date start_date
-        date end_date "nullable - when task should stop generating executions"
-        int recurrence_interval_days "0 for one-off, 7 for weekly, 30 for monthly, 365 for yearly"
+    
+    CARE_TASK_DOCUMENT {
+        string id PK "Auto-generated document ID"
+        string name "Task name"
+        string description "Task description"
+        date start_date "Task start date"
+        date end_date "Optional end date"
+        int recurrence_interval_days "0=one-off, 7=weekly, etc"
         string task_type "PURCHASE or GENERAL"
-        boolean is_active "false = soft deleted"
-        int care_item_id FK "nullable"
-        int created_by FK
-        datetime deactivated_at "nullable - when soft deleted"
-        datetime created_at
-        datetime updated_at
+        boolean is_active "Soft delete flag"
+        number estimated_unit_cost "Cost per unit"
+        int quantity_per_purchase "Default purchase quantity"
+        string quantity_unit "piece, pack, bottle, etc"
+        string category_id "Reference to category entry by ID"
+        timestamp deactivated_at "Soft delete timestamp"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
     }
-    TASK_EXECUTION {
-        int id PK
-        int care_task_id FK
+    
+    USER_CATEGORIES_SUBCOLLECTION {
+        string description "Subcollection under each user for reusable categories"
+    }
+    
+    CATEGORY_OPTIONS_DOCUMENT {
+        string id PK "Document ID (options)"
+        array categories "Array of category entries"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+    
+    CATEGORY_ENTRY {
+        string id PK "Category identifier referenced by care tasks"
+        string name "Category name"
+        string description "Category description"
+        string color_code "UI display color"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+    
+    TASK_EXECUTIONS_SUBCOLLECTION {
+        string description "Subcollection under each care task"
+    }
+    
+    TASK_EXECUTION_DOCUMENT {
+        string id PK "Auto-generated document ID"
         string status "TODO, DONE, COVERED, REFUNDED, PARTIALLY_REFUNDED, CANCELLED"
-        int quantity_purchased "default 1 - actual quantity bought"
-        string quantity_unit "e.g., piece, pack, bottle"
-        decimal actual_cost "nullable - total cost for quantity purchased"
-        string evidence_url "nullable"
-        date scheduled_date
-        date execution_date "nullable - when actually completed"
-        int covered_by_execution_id FK "nullable - links to bulk purchase"
-        int executed_by FK "nullable"
-        text notes "optional notes"
-        datetime created_at
-        datetime updated_at
+        int quantity_purchased "Actual quantity bought"
+        string quantity_unit "Unit of measurement"
+        number actual_cost "Total cost for quantity"
+        string evidence_url "Receipt/proof URL"
+        date scheduled_date "When task should be done"
+        date execution_date "When actually completed"
+        reference covered_by_execution_ref "Reference to bulk purchase execution"
+        string executed_by_uid "User UID who executed"
+        string notes "Optional notes"
+        map refund "Optional refund details - null if no refund"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
     }
-    REFUND {
-        int id PK
-        int task_execution_id FK
-        decimal refund_amount
-        text refund_reason
-        string refund_evidence_url "refund receipt/confirmation"
-        date refund_date
-        int refunded_by FK "user who processed refund"
-        datetime created_at
-        datetime updated_at
+    
+    REFUND_MAP {
+        number refund_amount "Amount refunded"
+        string refund_reason "Reason for refund"
+        string refund_evidence_url "Refund receipt URL"
+        date refund_date "Date of refund"
+        string refunded_by_uid "User who processed refund"
+        timestamp created_at "When refund was recorded"
     }
-    BUDGET {
-        int id PK
-        int year
-        decimal total_budget "CALCULATED: sum of all items' yearly costs"
-        decimal total_spent "CALCULATED: sum of all actual costs"
-        decimal total_remaining "CALCULATED: total_budget - total_spent"
-        int created_by FK
-        datetime last_calculated_at "when calculations were refreshed"
-        datetime created_at
-        datetime updated_at
-    }
-    CATEGORY_BUDGET {
-        int id PK
-        int budget_id FK
-        int category_id FK
-        decimal category_budget "CALCULATED: sum of category items' yearly costs"
-        decimal category_spent "CALCULATED: sum of category actual costs"
-        decimal category_remaining "CALCULATED: category_budget - category_spent"
-        datetime last_calculated_at "when calculations were refreshed"
-        datetime created_at
-        datetime updated_at
-    }
-    CLIENT_PROFILE {
-        string full_name "Person with special needs' full name"
-        date date_of_birth "Client's date of birth"
-        string sex "Client's sex/gender identity"
-        int age "Client's calculated or manually entered age"
-        string mobile_number "Client's mobile number"
-        string email_address "Client's email address"
-        string postal_address "Client's postal address"
-        json emergency_contacts "Emergency contacts for the client"
-        text notes "General notes about the client's care needs"
-        text medical_conditions "Client's medical conditions"
-        text allergies "Client's known allergies"
-        text medications "Client's current medications"
-        text accessibility_needs "Client's accessibility requirements"
-        json latest_vitals "Client's latest vital signs measurements"
-        boolean is_active "Whether client profile is active"
-        datetime created_at "When client profile was created"
-        datetime updated_at "When client profile was last updated"
-    }
-    USER ||--o{ CATEGORY : "creates"
-    USER ||--o{ CARE_ITEM : "creates"
-    USER ||--o{ CARE_TASK : "creates"
-    USER ||--o{ TASK_EXECUTION : "executes"
-    USER ||--o{ BUDGET : "creates"
-    USER ||--o{ REFUND : "processes"
-    CATEGORY ||--o{ CARE_ITEM : "categorizes"
-    CATEGORY ||--o{ CATEGORY_BUDGET : "has budgets"
-    BUDGET ||--o{ CATEGORY_BUDGET : "contains"
-    CARE_ITEM ||--o{ CARE_TASK : "generates"
-    CARE_TASK ||--o{ TASK_EXECUTION : "has"
-    TASK_EXECUTION ||--o{ REFUND : "can have"
-    TASK_EXECUTION ||--o{ TASK_EXECUTION : "covers future executions"
-    CARE_ITEM }o--o{ BUDGET : "determines budget via calculations"
-    CARE_ITEM }o--o{ CATEGORY_BUDGET : "determines budget via calculations"
-    USER ||--|| CLIENT_PROFILE : "manages care for (embedded profile)"
-
+    
+    USERS_COLLECTION ||--o{ USER_DOCUMENT : contains
+    USER_DOCUMENT ||--|| CLIENT_PROFILE_MAP : "embeds"
+    USER_DOCUMENT ||--o{ CARE_TASKS_SUBCOLLECTION : "has"
+    CARE_TASKS_SUBCOLLECTION ||--o{ CARE_TASK_DOCUMENT : contains
+    CARE_TASK_DOCUMENT ||--|| CATEGORY_MAP : "embeds"
+    CARE_TASK_DOCUMENT ||--o{ TASK_EXECUTIONS_SUBCOLLECTION : "has"
+    TASK_EXECUTIONS_SUBCOLLECTION ||--o{ TASK_EXECUTION_DOCUMENT : contains
+    TASK_EXECUTION_DOCUMENT ||--o| REFUND_MAP : "optionally embeds"
+    TASK_EXECUTION_DOCUMENT ||..|| TASK_EXECUTION_DOCUMENT : "references via covered_by_execution_ref"
+    USER_DOCUMENT ||--o{ USER_CATEGORIES_SUBCOLLECTION : "has"
+    USER_CATEGORIES_SUBCOLLECTION ||--|| CATEGORY_OPTIONS_DOCUMENT : "contains"
+    CATEGORY_OPTIONS_DOCUMENT ||--o{ CATEGORY_ENTRY : "lists entries"
+    CARE_TASK_DOCUMENT }o--|| CATEGORY_ENTRY : "references via category_id"

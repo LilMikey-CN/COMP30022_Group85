@@ -3,7 +3,6 @@
 
 import {
   budgetCategories as initialCategories,
-  careItems as initialCareItems,
   careTasks as initialTasks
 } from '../data/integratedMockDatabase.js';
 import { generateBudgetAnalytics } from '../data/budgetCalculations.js';
@@ -13,7 +12,6 @@ import { generateBudgetAnalytics } from '../data/budgetCalculations.js';
 // In-memory data store (simulates backend database)
 let mockData = {
   categories: [...initialCategories],
-  careItems: [...initialCareItems],
   tasks: [...initialTasks]
 };
 
@@ -36,7 +34,7 @@ export const fetchBudgetAnalytics = async (patientId) => {
 
   // In a real API, you would filter data by patientId
   // For now, we use all data since we have only one patient
-  const analytics = generateBudgetAnalytics(mockData.careItems, mockData.tasks);
+  const analytics = generateBudgetAnalytics(mockData.categories, mockData.tasks);
 
   return {
     success: true,
@@ -80,6 +78,7 @@ export const createCategory = async (categoryData) => {
     name: categoryData.name.trim(),
     description: categoryData.description.trim(),
     color: categoryData.color || '#1890ff',
+    annualBudget: Number(categoryData.annualBudget) || 0,
     subcategories: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -134,10 +133,10 @@ export const deleteCategory = async (categoryId) => {
     throw new Error(`Cannot delete category "${deletedCategory.name}" because it has ${deletedCategory.subcategories.length} subcategories`);
   }
 
-  // Check if any care items are using this category
-  const associatedCareItems = mockData.careItems.filter(item => item.budgetCategoryId === categoryId);
-  if (associatedCareItems.length > 0) {
-    throw new Error(`Cannot delete category "${deletedCategory.name}" because it has ${associatedCareItems.length} associated care items`);
+  // Check if any tasks reference this category
+  const associatedTasks = mockData.tasks.filter(task => task.budgetCategoryId === categoryId);
+  if (associatedTasks.length > 0) {
+    throw new Error(`Cannot delete category "${deletedCategory.name}" because ${associatedTasks.length} tasks reference it`);
   }
 
   mockData.categories.splice(categoryIndex, 1);
@@ -170,6 +169,7 @@ export const createSubcategory = async (categoryId, subcategoryData) => {
     id: generateId('sub'),
     name: subcategoryData.name.trim(),
     categoryId: categoryId,
+    annualBudget: Number(subcategoryData.annualBudget) || 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -234,10 +234,10 @@ export const deleteSubcategory = async (categoryId, subcategoryId) => {
 
   const deletedSubcategory = mockData.categories[categoryIndex].subcategories[subcategoryIndex];
 
-  // Check if any care items are using this subcategory
-  const associatedCareItems = mockData.careItems.filter(item => item.budgetSubcategoryId === subcategoryId);
-  if (associatedCareItems.length > 0) {
-    throw new Error(`Cannot delete subcategory "${deletedSubcategory.name}" because it has ${associatedCareItems.length} associated care items`);
+  // Check if any tasks reference this subcategory
+  const associatedTasks = mockData.tasks.filter(task => task.budgetSubcategoryId === subcategoryId);
+  if (associatedTasks.length > 0) {
+    throw new Error(`Cannot delete subcategory "${deletedSubcategory.name}" because ${associatedTasks.length} tasks reference it`);
   }
 
   mockData.categories[categoryIndex].subcategories.splice(subcategoryIndex, 1);
@@ -246,23 +246,6 @@ export const deleteSubcategory = async (categoryId, subcategoryId) => {
     success: true,
     data: { id: subcategoryId },
     message: `Subcategory "${deletedSubcategory.name}" deleted successfully`
-  };
-};
-
-// ================================
-// CARE ITEMS API (for future use)
-// ================================
-
-export const fetchCareItems = async (patientId) => {
-  await simulateDelay(200);
-
-  // In a real API, you would filter care items by patientId
-  // For now, we return all care items since we have only one patient
-  return {
-    success: true,
-    data: mockData.careItems,
-    patientId,
-    timestamp: new Date().toISOString()
   };
 };
 
@@ -277,7 +260,6 @@ export const getMockDataState = () => ({ ...mockData });
 export const resetMockData = () => {
   mockData = {
     categories: [...initialCategories],
-    careItems: [...initialCareItems],
     tasks: [...initialTasks]
   };
 
@@ -294,6 +276,5 @@ export const queryKeys = {
     analytics: (patientId) => [...queryKeys.budget.all, 'analytics', patientId],
     categories: (patientId) => [...queryKeys.budget.all, 'categories', patientId],
     category: (categoryId) => [...queryKeys.budget.all, 'category', categoryId],
-    careItems: (patientId) => [...queryKeys.budget.all, 'careItems', patientId],
   }
 };

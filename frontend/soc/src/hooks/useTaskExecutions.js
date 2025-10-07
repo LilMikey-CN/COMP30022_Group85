@@ -5,12 +5,47 @@ import { taskExecutionsService } from '../services/taskExecutionsApi';
 
 export const TASK_EXECUTIONS_QUERY_KEY = 'taskExecutions';
 
-export const useTaskExecutions = (params = {}) => {
+export const useTaskExecutions = ({ taskIds = [], params = {} } = {}) => {
+  const sanitizedIds = Array.isArray(taskIds)
+    ? [...new Set(taskIds.filter(Boolean))]
+    : [];
+
   return useQuery({
-    queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'list', params],
+    queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'list', sanitizedIds.slice().sort(), params],
+    enabled: sanitizedIds.length > 0,
+    placeholderData: { executions: [], count: 0 },
     queryFn: async () => {
+      const queryParams = {};
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams[key] = value;
+        }
+      });
+
       try {
-        return await taskExecutionsService.getTaskExecutions(params);
+        const executionLists = await Promise.all(
+          sanitizedIds.map(async (taskId) => {
+            try {
+              const response = await careTasksService.getExecutionsForTask(taskId, queryParams);
+              const executions = response?.executions || [];
+              return executions.map((execution) => ({
+                ...execution,
+                care_task_id: execution.care_task_id || taskId,
+              }));
+            } catch (error) {
+              if (error.message.includes('User not authenticated')) {
+                return [];
+              }
+              throw error;
+            }
+          })
+        );
+
+        const flattened = executionLists.flat();
+        return {
+          executions: flattened,
+          count: flattened.length,
+        };
       } catch (error) {
         if (error.message.includes('User not authenticated')) {
           return { executions: [], count: 0 };
@@ -41,7 +76,12 @@ export const useUpdateTaskExecution = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payload }) => await taskExecutionsService.updateTaskExecution(id, payload),
+    mutationFn: async ({ id, payload, taskId }) => {
+      if (!taskId) {
+        throw new Error('Care task id is required to update an execution');
+      }
+      return await taskExecutionsService.updateTaskExecution(taskId, id, payload);
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
       if (variables?.taskId) {
@@ -61,7 +101,12 @@ export const useCompleteTaskExecution = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payload }) => await taskExecutionsService.completeTaskExecution(id, payload),
+    mutationFn: async ({ id, payload, taskId }) => {
+      if (!taskId) {
+        throw new Error('Care task id is required to complete an execution');
+      }
+      return await taskExecutionsService.completeTaskExecution(taskId, id, payload);
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
       if (variables?.taskId) {
@@ -97,3 +142,33 @@ export const useCoverTaskExecutions = () => {
   });
 };
 
+export const useRefundTaskExecution = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, executionId, payload }) => {
+      if (!taskId) {
+        throw new Error('Care task id is required to record a refund');
+      }
+      if (!executionId) {
+        throw new Error('Execution id is required to record a refund');
+      }
+      return await taskExecutionsService.refundTaskExecution(taskId, executionId, payload);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
+      if (variables?.taskId) {
+        queryClient.invalidateQueries({
+          queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', variables.taskId],
+          exact: false
+        });
+        queryClient.invalidateQueries({ queryKey: ['careTasks', 'detail', variables.taskId] });
+      }
+      message.success('Refund recorded');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to record refund';
+      message.error(reason);
+    }
+  });
+};

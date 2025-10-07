@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Modal, Form } from 'antd';
+import { Modal, Form, message } from 'antd';
 import dayjs from 'dayjs';
 import CareTaskForm from './CareTaskForm';
 
@@ -8,8 +8,9 @@ const AddCareTaskModal = ({
   onClose,
   onSubmit,
   submitting = false,
-  careItems = [],
-  careItemsLoading = false,
+  categories = [],
+  categoriesLoading = false,
+  onCreateCategory,
 }) => {
   const [form] = Form.useForm();
 
@@ -22,6 +23,41 @@ const AddCareTaskModal = ({
     try {
       const values = await form.validateFields();
 
+      const trimmedCategoryInput = values.category_input ? values.category_input.trim() : '';
+      let categoryId = values.category_id || null;
+
+      if (!categoryId && trimmedCategoryInput) {
+        const existingMatch = categories.find(
+          (category) => category.name.trim().toLowerCase() === trimmedCategoryInput.toLowerCase()
+        );
+        if (existingMatch) {
+          categoryId = existingMatch.id;
+        }
+      }
+
+      if (!categoryId && trimmedCategoryInput) {
+        if (!onCreateCategory) {
+          message.error('Unable to create category. Please select an existing option.');
+          return;
+        }
+        const newCategory = await onCreateCategory({ name: trimmedCategoryInput });
+        categoryId = newCategory?.id || null;
+        if (categoryId) {
+          form.setFieldsValue({ category_id: categoryId });
+        }
+      }
+
+      if (!categoryId) {
+        message.error('Please select or create a category before saving.');
+        return;
+      }
+
+      const rawEstimatedCost = values.estimated_unit_cost;
+      const estimatedUnitCost =
+        rawEstimatedCost === null || rawEstimatedCost === undefined || rawEstimatedCost === ''
+          ? null
+          : Number(rawEstimatedCost);
+
       const payload = {
         name: values.name.trim(),
         description: values.description?.trim() || '',
@@ -29,11 +65,9 @@ const AddCareTaskModal = ({
         recurrence_interval_days: Number(values.recurrence_interval_days ?? 0),
         start_date: values.start_date ? dayjs(values.start_date).format('YYYY-MM-DD') : undefined,
         end_date: values.end_date ? dayjs(values.end_date).format('YYYY-MM-DD') : null,
+        category_id: categoryId,
+        estimated_unit_cost: estimatedUnitCost,
       };
-
-      if (values.task_type === 'PURCHASE') {
-        payload.care_item_id = values.care_item_id;
-      }
 
       await onSubmit(payload);
       resetAndClose();
@@ -42,7 +76,7 @@ const AddCareTaskModal = ({
         // error message handled by mutation hook
       }
     }
-  }, [form, onSubmit, resetAndClose]);
+  }, [form, onSubmit, resetAndClose, categories, onCreateCategory]);
 
   return (
     <Modal
@@ -59,12 +93,11 @@ const AddCareTaskModal = ({
       <CareTaskForm
         form={form}
         mode="create"
-        careItems={careItems}
-        careItemsLoading={careItemsLoading}
+        categories={categories}
+        categoriesLoading={categoriesLoading}
       />
     </Modal>
   );
 };
 
 export default AddCareTaskModal;
-

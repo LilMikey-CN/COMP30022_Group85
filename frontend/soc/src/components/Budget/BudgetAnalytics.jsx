@@ -1,14 +1,14 @@
 import React from 'react';
-import { Card, Row, Col, Typography, Space, Tag, Progress } from 'antd';
+import { Card, Row, Col, Typography, Space, Tag } from 'antd';
 import { LineChartOutlined, CalendarOutlined, ExclamationCircleOutlined, BarChartOutlined } from '@ant-design/icons';
 import { formatCurrency } from '../../data/budgetCalculations';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const BudgetAnalytics = ({ budgetAnalytics }) => {
   const {
     projectedSpending,
-    overBudgetItems,
+    overBudgetSegments,
     upcomingCosts,
     monthlySpending
   } = budgetAnalytics;
@@ -89,9 +89,9 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
               <span>Budget Alerts</span>
-              {overBudgetItems.length > 0 && (
+              {overBudgetSegments.length > 0 && (
                 <Tag color="red" style={{ marginLeft: 'auto' }}>
-                  {overBudgetItems.length}
+                  {overBudgetSegments.length}
                 </Tag>
               )}
             </div>
@@ -99,11 +99,11 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
           style={{ height: '100%' }}
         >
           <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-            {overBudgetItems.length > 0 ? (
+            {overBudgetSegments.length > 0 ? (
               <Space direction="vertical" style={{ width: '100%' }}>
-                {overBudgetItems.slice(0, 3).map(item => (
+                {overBudgetSegments.slice(0, 3).map(segment => (
                   <div
-                    key={item.id}
+                    key={segment.id}
                     style={{
                       padding: '8px 12px',
                       backgroundColor: '#fff2f0',
@@ -113,28 +113,28 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ fontSize: '13px', fontWeight: 500 }}>
-                        {item.name}
+                        {segment.name}
                       </Text>
                       <Text style={{ fontSize: '11px', color: '#ff4d4f', fontWeight: 'bold' }}>
-                        +{formatCurrency(item.variance.absolute)}
+                        +{formatCurrency(segment.variance.absolute)}
                       </Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#7f8c8d' }}>
-                      <span>Budget: {formatCurrency(item.annualBudget)}</span>
-                      <span>Spent: {formatCurrency(item.actualSpent)}</span>
+                      <span>Budget: {formatCurrency(segment.annualBudget)}</span>
+                      <span>Spent: {formatCurrency(segment.actualSpent)}</span>
                     </div>
                   </div>
                 ))}
-                {overBudgetItems.length > 3 && (
+                {overBudgetSegments.length > 3 && (
                   <Text style={{ fontSize: '12px', color: '#7f8c8d', textAlign: 'center', display: 'block' }}>
-                    +{overBudgetItems.length - 3} more items over budget
+                    +{overBudgetSegments.length - 3} more segments over budget
                   </Text>
                 )}
               </Space>
             ) : (
               <div style={{ textAlign: 'center', color: '#52c41a', padding: '20px 0' }}>
                 <Text style={{ fontSize: '14px' }}>
-                  ✓ All items within budget
+                  ✓ All segments within budget
                 </Text>
               </div>
             )}
@@ -176,7 +176,7 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
                   borderBottom: '1px solid #f0f0f0'
                 }}
               >
-                <Text style={{ fontSize: '12px' }}>{task.careItemName}</Text>
+                <Text style={{ fontSize: '12px' }}>{task.name}</Text>
                 <Text style={{ fontSize: '12px', fontWeight: 500 }}>
                   {formatCurrency(task.estimatedCost)}
                 </Text>

@@ -11,7 +11,6 @@ import Signup from './pages/Signup';
 import PatientHome from './pages/PatientHome';
 import CareTasksPage from './pages/CareTasksPage';
 import TaskSchedulingPage from './pages/TaskSchedulingPage';
-import CareItems from './pages/CareItems';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
@@ -109,13 +108,6 @@ const App = () => {
           </ProtectedRoute>
         }>
           <Route index element={<TaskSchedulingPage />} />
-        </Route>
-        <Route path="/care-items" element={
-          <ProtectedRoute>
-            <PatientLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<CareItems />} />
         </Route>
         <Route path="/budget" element={
           <ProtectedRoute>

@@ -12,7 +12,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : ['http://localhost:3001'];
 
 app.use(cors({
-  origin: function (origin, callback) {
+  origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
 
@@ -50,10 +50,8 @@ try {
 } catch (error) {
   console.error('❌ Error loading users route:', error);
 }
-app.use('/api/care-items', require('./routes/careItems'));
 app.use('/api/care-tasks', require('./routes/careTasks'));
 app.use('/api/categories', require('./routes/categories'));
-app.use('/api/task-executions', require('./routes/taskExecutions'));
 app.use('/api/simple-test', require('./routes/simple-test'));
 
 // Error handling middleware
@@ -74,7 +72,8 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  startTaskExecutionScheduler();
+  // Temporarily disable the task execution scheduler 
+  //startTaskExecutionScheduler();
 });
 
 module.exports = app;

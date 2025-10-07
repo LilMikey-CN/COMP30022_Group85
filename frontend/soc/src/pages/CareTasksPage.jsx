@@ -17,10 +17,11 @@ import {
   ReloadOutlined,
   FileSearchOutlined,
   CalendarOutlined,
+  CaretUpOutlined,
+  CaretDownOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useCareItems } from '../hooks/useCareItems';
 import {
   useCareTasks,
   useCreateCareTask,
@@ -30,6 +31,7 @@ import {
   useGenerateTaskExecution,
   useCreateManualExecution,
 } from '../hooks/useCareTasks';
+import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
 import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
@@ -88,6 +90,8 @@ const CareTasksPage = () => {
   const [editTask, setEditTask] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [manualTask, setManualTask] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ field: 'created_at', order: 'descend' });
+  const [taskPagination, setTaskPagination] = useState({ current: 1, pageSize: 10 });
 
   useEffect(() => {
     if (location.state?.focusTaskId) {
@@ -96,19 +100,28 @@ const CareTasksPage = () => {
     }
   }, [location, navigate]);
 
-  const { data: careItemsResponse, isLoading: isCareItemsLoading } = useCareItems({ is_active: 'all' });
   const {
     data: careTasksResponse,
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  const {
+    data: categoriesResponse,
+    isFetching: isCategoriesFetching,
+    refetch: refetchCategories
+  } = useCategories();
+  const createCategory = useCreateCategory();
+  const categories = useMemo(() => categoriesResponse?.categories || [], [categoriesResponse]);
 
-  const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
-  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  }, {}), [careItems]);
+  const handleCreateCategory = useCallback(
+    async ({ name }) => {
+      const response = await createCategory.mutateAsync({ name });
+      await refetchCategories();
+      return response?.data;
+    },
+    [createCategory, refetchCategories]
+  );
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
 
@@ -126,8 +139,7 @@ const CareTasksPage = () => {
       if (lowered) {
         const name = task.name?.toLowerCase() || '';
         const description = task.description?.toLowerCase() || '';
-        const careItemName = task.care_item_id ? (careItemsById[task.care_item_id]?.name?.toLowerCase() || '') : '';
-        if (!name.includes(lowered) && !description.includes(lowered) && !careItemName.includes(lowered)) {
+        if (!name.includes(lowered) && !description.includes(lowered)) {
           return false;
         }
       }
@@ -155,7 +167,91 @@ const CareTasksPage = () => {
 
       return true;
     });
-  }, [careTasks, careItemsById, searchTerm, statusFilter, typeFilter, startRange]);
+  }, [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
+
+  const sortedTasks = useMemo(() => {
+    const { field, order } = sortConfig;
+
+    const getValue = (task) => {
+      switch (field) {
+        case 'name':
+          return (task.name || '').toLowerCase();
+        case 'task_type':
+          return task.task_type || '';
+        case 'estimated_unit_cost':
+          return task.task_type === 'PURCHASE'
+            ? Number(task.estimated_unit_cost ?? -Infinity)
+            : -Infinity;
+        case 'recurrence_interval_days':
+          return Number(task.recurrence_interval_days ?? 0);
+        case 'start_date':
+          return task.start_date ? dayjs(task.start_date).valueOf() : -Infinity;
+        case 'end_date':
+          return task.end_date ? dayjs(task.end_date).valueOf() : Number.MAX_SAFE_INTEGER;
+        case 'status':
+          return task.is_active === false ? 0 : 1;
+        case 'created_at':
+        default:
+          return task.created_at ? dayjs(task.created_at).valueOf() : -Infinity;
+      }
+    };
+
+    return [...filteredTasks].sort((a, b) => {
+      const valueA = getValue(a);
+      const valueB = getValue(b);
+
+      if (valueA === valueB) {
+        return 0;
+      }
+
+      if (order === 'ascend') {
+        return valueA > valueB ? 1 : -1;
+      }
+      return valueA > valueB ? -1 : 1;
+    });
+  }, [filteredTasks, sortConfig]);
+
+  const handleSort = useCallback((field) => {
+    setSortConfig((prev) => {
+      if (prev.field === field) {
+        return {
+          field,
+          order: prev.order === 'ascend' ? 'descend' : 'ascend'
+        };
+      }
+      return { field, order: 'ascend' };
+    });
+  }, []);
+
+  const renderSortTitle = useCallback((label, field) => {
+    const isActive = sortConfig.field === field;
+    const isAsc = isActive && sortConfig.order === 'ascend';
+    const isDesc = isActive && sortConfig.order === 'descend';
+
+    return (
+      <span
+        onClick={() => handleSort(field)}
+        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        {label}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
+          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
+          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+        </span>
+      </span>
+    );
+  }, [handleSort, sortConfig]);
+
+  useEffect(() => {
+    setTaskPagination((prev) => ({ ...prev, current: 1 }));
+  }, [searchTerm, statusFilter, typeFilter, startRange, sortConfig, careTasks.length]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(sortedTasks.length / taskPagination.pageSize));
+    if (taskPagination.current > maxPage) {
+      setTaskPagination((prev) => ({ ...prev, current: maxPage }));
+    }
+  }, [sortedTasks.length, taskPagination.pageSize, taskPagination]);
 
   const handleCreateTask = useCallback(async (payload) => {
     await createCareTask.mutateAsync(payload);
@@ -191,32 +287,40 @@ const CareTasksPage = () => {
 
   const columns = useMemo(() => ([
     {
-      title: 'Name',
+      title: renderSortTitle('Name', 'name'),
       dataIndex: 'name',
       render: (value) => value || 'Untitled task',
     },
     {
-      title: 'Type',
+      title: renderSortTitle('Type', 'task_type'),
       dataIndex: 'task_type',
       render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
     },
     {
-      title: 'Recurrence',
+      title: renderSortTitle('Estimated cost', 'estimated_unit_cost'),
+      key: 'estimated_unit_cost',
+      render: (_, task) =>
+        task.task_type === 'PURCHASE' && task.estimated_unit_cost !== null && task.estimated_unit_cost !== undefined
+          ? `$${Number(task.estimated_unit_cost).toFixed(2)}`
+          : '—',
+    },
+    {
+      title: renderSortTitle('Recurrence', 'recurrence_interval_days'),
       dataIndex: 'recurrence_interval_days',
       render: (value) => describeRecurrence(value),
     },
     {
-      title: 'Start',
+      title: renderSortTitle('Start', 'start_date'),
       dataIndex: 'start_date',
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: 'End',
+      title: renderSortTitle('End', 'end_date'),
       dataIndex: 'end_date',
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: 'Status',
+      title: renderSortTitle('Status', 'status'),
       key: 'status',
       render: (_, task) => statusTag(task),
     },
@@ -256,7 +360,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [handleDeactivate, handleReactivate]);
+  ]), [handleDeactivate, handleReactivate, renderSortTitle]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -305,7 +409,7 @@ const CareTasksPage = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
               <Input
-                placeholder="Search by name, description, or care item"
+                placeholder="Search by name or description"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 allowClear
@@ -328,6 +432,17 @@ const CareTasksPage = () => {
                   placeholder={['Start from', 'Start to']}
                   allowClear
                 />
+                <Select
+                  value={String(taskPagination.pageSize)}
+                  style={{ width: 140 }}
+                  onChange={(value) =>
+                    setTaskPagination({ current: 1, pageSize: Number(value) })
+                  }
+                >
+                  <Option value="10">10 / page</Option>
+                  <Option value="20">20 / page</Option>
+                  <Option value="50">50 / page</Option>
+                </Select>
               </Space>
             </Space>
           </Space>
@@ -336,10 +451,16 @@ const CareTasksPage = () => {
         <Card>
           <Table
             rowKey="id"
-            dataSource={filteredTasks}
+            dataSource={sortedTasks}
             columns={columns}
-            loading={isCareItemsLoading && careItems.length === 0}
-            pagination={{ pageSize: 10 }}
+            loading={isCareTasksFetching}
+            pagination={{
+              current: taskPagination.current,
+              pageSize: taskPagination.pageSize,
+              total: sortedTasks.length,
+              onChange: (page, pageSize) => setTaskPagination({ current: page, pageSize }),
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+            }}
             locale={{
               emptyText: (
                 <div style={{ padding: 32, textAlign: 'center' }}>
@@ -356,9 +477,10 @@ const CareTasksPage = () => {
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateTask}
-        submitting={createCareTask.isLoading}
-        careItems={careItems}
-        careItemsLoading={isCareItemsLoading}
+        submitting={createCareTask.isLoading || createCategory.isLoading}
+        categories={categories}
+        categoriesLoading={isCategoriesFetching || createCategory.isLoading}
+        onCreateCategory={handleCreateCategory}
       />
 
       <EditCareTaskModal
@@ -366,9 +488,10 @@ const CareTasksPage = () => {
         task={editTask}
         onClose={() => setEditTask(null)}
         onSubmit={(values) => handleUpdateTask(editTask.id, values)}
-        submitting={updateCareTask.isLoading}
-        careItems={careItems}
-        careItemsLoading={isCareItemsLoading}
+        submitting={updateCareTask.isLoading || createCategory.isLoading}
+        categories={categories}
+        categoriesLoading={isCategoriesFetching || createCategory.isLoading}
+        onCreateCategory={handleCreateCategory}
       />
 
       <ManualExecutionModal
@@ -387,7 +510,6 @@ const CareTasksPage = () => {
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
         onGenerateExecution={handleGenerateExecution}
-        careItemsById={careItemsById}
       />
     </div>
   );

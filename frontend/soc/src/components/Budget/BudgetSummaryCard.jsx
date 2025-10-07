@@ -13,6 +13,9 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
     budgetUtilization,
     alertStatus
   } = budgetAnalytics;
+  const remainingPercentage = totalAnnualBudget > 0
+    ? ((totalRemainingBudget / totalAnnualBudget) * 100).toFixed(1)
+    : '0.0';
 
   return (
     <Card
@@ -53,7 +56,7 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
             {formatCurrency(totalAnnualBudget)}
           </div>
           <div style={{ fontSize: '12px', color: '#7f8c8d', marginTop: '4px' }}>
-            Calculated from care items
+            Annual allocation across categories
           </div>
         </div>
 
@@ -71,7 +74,7 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
             {formatCurrency(totalRemainingBudget)}
           </div>
           <div style={{ fontSize: '12px', color: '#7f8c8d', marginTop: '4px' }}>
-            {((totalRemainingBudget / totalAnnualBudget) * 100).toFixed(1)}% of budget left
+            {remainingPercentage}% of budget left
           </div>
         </div>
 
@@ -101,7 +104,7 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
             Budget Utilization
           </Text>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {alertStatus.level !== 'good' && (
+            {alertStatus.message && (
               <div style={{
                 padding: '2px 8px',
                 borderRadius: '12px',

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, Form, InputNumber, Input, Upload } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Modal, Form, InputNumber, Input, Upload, Typography } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { showErrorMessage } from '../../utils/messageConfig';
 
@@ -20,6 +20,23 @@ const CompleteExecutionModal = ({
   const [fileError, setFileError] = useState(null);
 
   const requiresCost = task?.task_type === 'PURCHASE';
+  const quantityValue = Form.useWatch('quantity', form) || 1;
+  const additionalCovered = Math.max(quantityValue - 1, 0);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    form.setFieldsValue({
+      actual_cost: execution?.actual_cost ?? undefined,
+      notes: execution?.notes ?? '',
+      quantity: execution?.quantity ?? 1
+    });
+    setUploadList([]);
+    setSelectedFile(null);
+    setFileError(null);
+  }, [open, execution, form]);
 
   const beforeUpload = (file) => {
     const isValidType = ALLOWED_IMAGE_TYPES.includes(file.type);
@@ -66,6 +83,7 @@ const CompleteExecutionModal = ({
         actualCost: values.actual_cost,
         notes: values.notes,
         file: selectedFile,
+        quantity: values.quantity || 1,
       });
       form.resetFields();
       setUploadList([]);
@@ -104,8 +122,34 @@ const CompleteExecutionModal = ({
         initialValues={{
           actual_cost: execution?.actual_cost ?? undefined,
           notes: execution?.notes ?? '',
+          quantity: execution?.quantity ?? 1,
         }}
       >
+        {requiresCost && (
+          <>
+            <Form.Item
+              name="quantity"
+              label="Quantity"
+              rules={[{ required: true, message: 'Please enter the quantity' }, { type: 'number', min: 1, message: 'Quantity must be at least 1' }]}
+            >
+              <InputNumber
+                style={{ width: '100%' }}
+                min={1}
+                step={1}
+                stringMode
+                disabled={submitting}
+              />
+            </Form.Item>
+            <div style={{ marginTop: -8, marginBottom: 16 }}>
+              <Typography.Text type="secondary">
+                {additionalCovered > 0
+                  ? `This completion will cover ${additionalCovered} additional execution${additionalCovered === 1 ? '' : 's'}.`
+                  : 'This completion will only apply to this execution.'}
+              </Typography.Text>
+            </div>
+          </>
+        )}
+
         {requiresCost && (
           <Form.Item
             name="actual_cost"

@@ -25,6 +25,7 @@ const calculateNextRunDelay = () => {
   return Math.max(nextRun.getTime() - now.getTime(), MS_IN_DAY);
 };
 
+// Generate any missing executions for a single recurring task inside a user doc.
 const generateForTask = async (taskDoc, currentYear) => {
   const taskData = taskDoc.data();
   if (!taskData || taskData.is_active === false) {
@@ -68,9 +69,16 @@ const generateForTask = async (taskDoc, currentYear) => {
   let createdCount = 0;
   let createdId;
 
+  const userRef = taskDoc.ref.parent.parent;
+  if (!userRef) {
+    return 0;
+  }
+
+  const uid = userRef.id;
+
   do {
     // eslint-disable-next-line no-await-in-loop
-    createdId = await generateTaskExecution(taskDoc.id, normalizedTaskData, generationOptions);
+    createdId = await generateTaskExecution(uid, taskDoc.id, normalizedTaskData, generationOptions);
     if (createdId) {
       createdCount += 1;
     }
@@ -84,7 +92,8 @@ const runDailyGeneration = async () => {
   const currentYear = now.getFullYear();
 
   try {
-    const snapshot = await db.collection('care_tasks')
+    const snapshot = await db
+      .collectionGroup('care_tasks')
       .where('is_active', '==', true)
       .get();
 

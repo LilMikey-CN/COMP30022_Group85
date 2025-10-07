@@ -69,21 +69,51 @@ export const taskExecutionsService = {
     return await authenticatedApiCall(`/api/task-executions/${id}`);
   },
 
-  async updateTaskExecution(id, payload = {}) {
+  async updateTaskExecution(taskId, id, payload = {}) {
+    if (!taskId) {
+      throw new Error('Care task id is required for execution updates');
+    }
     if (!id) {
       throw new Error('Task execution id is required');
     }
-    return await authenticatedApiCall(`/api/task-executions/${id}`, {
-      method: 'PUT',
+    return await authenticatedApiCall(`/api/care-tasks/${taskId}/executions/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     });
   },
 
-  async completeTaskExecution(id, payload = {}) {
+  async completeTaskExecution(taskId, id, payload = {}) {
+    if (!taskId) {
+      throw new Error('Care task id is required to complete an execution');
+    }
     if (!id) {
       throw new Error('Task execution id is required');
     }
-    return await authenticatedApiCall(`/api/task-executions/${id}/complete`, {
+
+    const completionPayload = {
+      ...payload,
+      status: 'DONE',
+    };
+
+    if (completionPayload.execution_date === undefined || completionPayload.execution_date === null || completionPayload.execution_date === '') {
+      completionPayload.execution_date = new Date().toISOString();
+    }
+
+    return await authenticatedApiCall(`/api/care-tasks/${taskId}/executions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(completionPayload),
+    });
+  },
+
+  async refundTaskExecution(taskId, id, payload = {}) {
+    if (!taskId) {
+      throw new Error('Care task id is required to refund an execution');
+    }
+    if (!id) {
+      throw new Error('Task execution id is required');
+    }
+
+    return await authenticatedApiCall(`/api/care-tasks/${taskId}/executions/${id}/refund`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

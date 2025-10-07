@@ -1,12 +1,12 @@
-// Mock care schedule data for patients
-export const careScheduleData = {
+// Mock task schedule data for patients
+export const taskScheduleData = {
   default: {
     todayCount: 0,
     overdueCount: 1,
     budgetRemaining: 4800.00,
     budgetSpent: 200,
     budgetTotal: 5000,
-    upcomingItems: [
+    upcomingTasks: [
       {
         id: '1',
         title: 'Replace toothbrush',
@@ -26,7 +26,7 @@ export const careScheduleData = {
         daysUntil: 29
       }
     ],
-    overdueItems: [
+    overdueTasks: [
       {
         id: '4',
         title: 'Replace bed sheets',
@@ -41,7 +41,7 @@ export const careScheduleData = {
     budgetRemaining: 4800.00,
     budgetSpent: 200,
     budgetTotal: 5000,
-    upcomingItems: [
+    upcomingTasks: [
       {
         id: '1',
         title: 'Replace toothbrush',
@@ -61,7 +61,7 @@ export const careScheduleData = {
         daysUntil: 29
       }
     ],
-    overdueItems: [
+    overdueTasks: [
       {
         id: '4',
         title: 'Replace bed sheets',
@@ -76,7 +76,7 @@ export const careScheduleData = {
     budgetRemaining: 3200.00,
     budgetSpent: 800,
     budgetTotal: 4000,
-    upcomingItems: [
+    upcomingTasks: [
       {
         id: '1',
         title: 'Physical therapy session',
@@ -96,7 +96,7 @@ export const careScheduleData = {
         daysUntil: 6
       }
     ],
-    overdueItems: []
+    overdueTasks: []
   },
   'PT-2025-02-003': {
     todayCount: 1,
@@ -104,7 +104,7 @@ export const careScheduleData = {
     budgetRemaining: 6500.00,
     budgetSpent: 1500,
     budgetTotal: 8000,
-    upcomingItems: [
+    upcomingTasks: [
       {
         id: '1',
         title: 'Weekly nurse visit',
@@ -118,7 +118,7 @@ export const careScheduleData = {
         daysUntil: 10
       }
     ],
-    overdueItems: [
+    overdueTasks: [
       {
         id: '3',
         title: 'Eye examination',
@@ -142,7 +142,7 @@ export const calendarEvents = [
     title: 'Replace toothbrush',
     start: '2025-08-28',
     end: '2025-08-28',
-    type: 'care',
+    type: 'task',
     status: 'upcoming'
   },
   {
@@ -150,7 +150,7 @@ export const calendarEvents = [
     title: 'New socks',
     start: '2025-09-03',
     end: '2025-09-03',
-    type: 'care',
+    type: 'task',
     status: 'upcoming'
   },
   {
@@ -166,7 +166,7 @@ export const calendarEvents = [
     title: 'Replace bed sheets',
     start: '2025-08-05',
     end: '2025-08-05',
-    type: 'care',
+    type: 'task',
     status: 'overdue'
   }
 ];

@@ -17,11 +17,12 @@ import {
 import {
   ReloadOutlined,
   FileSearchOutlined,
-  PlusOutlined
+  PlusOutlined,
+  CaretUpOutlined,
+  CaretDownOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { useCareItems } from '../hooks/useCareItems';
 import {
   useCareTasks,
   useCreateManualExecution,
@@ -30,10 +31,12 @@ import {
   useTaskExecutions,
   useCompleteTaskExecution,
   useUpdateTaskExecution,
+  useRefundTaskExecution,
 } from '../hooks/useTaskExecutions';
 import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
 import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionModal';
 import ExecutionDetailsDrawer from '../components/CareTasks/ExecutionDetailsDrawer';
+import RefundExecutionModal from '../components/CareTasks/RefundExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
 
 const { Title } = Typography;
@@ -50,12 +53,7 @@ const executionStatusFilters = [
   { label: 'Cancelled', value: 'CANCELLED' },
 ];
 
-const sortOptions = [
-  { label: 'Scheduled date', value: 'scheduled_date' },
-  { label: 'Created', value: 'created_at' },
-  { label: 'Updated', value: 'updated_at' },
-  { label: 'Task name', value: 'task_name' },
-];
+const DEFAULT_SORT = { field: 'scheduled_date', order: 'ascend' };
 
 const formatDate = (value) => {
   if (!value) {
@@ -91,8 +89,7 @@ const TaskSchedulingPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [startDateRange, setStartDateRange] = useState(null);
-  const [sortField, setSortField] = useState('scheduled_date');
-  const [sortOrder, setSortOrder] = useState('ascend');
+  const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
 
   const [detailsExecution, setDetailsExecution] = useState(null);
   const [executionFormState, setExecutionFormState] = useState({
@@ -103,8 +100,10 @@ const TaskSchedulingPage = () => {
     initialValues: null
   });
   const [completeModalState, setCompleteModalState] = useState({ open: false, task: null, execution: null });
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
+  const [executionPagination, setExecutionPagination] = useState({ current: 1, pageSize: 10 });
 
-  const { data: careItemsResponse } = useCareItems({ is_active: 'all' });
   const {
     data: careTasksResponse,
     isFetching: isCareTasksFetching,
@@ -112,23 +111,18 @@ const TaskSchedulingPage = () => {
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
 
-  const executionParams = useMemo(() => {
-    const params = {
-      limit: 300,
-      offset: 0,
-    };
+  const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
+  const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
+    acc[task.id] = task;
+    return acc;
+  }, {}), [careTasks]);
+  const taskIds = useMemo(() => careTasks.map((task) => task.id).filter(Boolean), [careTasks]);
 
-    if (statusFilter !== 'all') {
-      params.status = statusFilter;
-    }
-
-    if (startDateRange && startDateRange.length === 2) {
-      params.date_from = startDateRange[0] ? dayjs(startDateRange[0]).format('YYYY-MM-DD') : undefined;
-      params.date_to = startDateRange[1] ? dayjs(startDateRange[1]).format('YYYY-MM-DD') : undefined;
-    }
-
-    return params;
-  }, [statusFilter, startDateRange]);
+  const executionQueryParams = useMemo(() => ({
+    limit: 300,
+    offset: 0,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+  }), [statusFilter]);
 
   const {
     data: executionsResponse,
@@ -136,23 +130,15 @@ const TaskSchedulingPage = () => {
     isFetching: isExecutionsFetching,
     error: executionsError,
     refetch: refetchExecutions,
-  } = useTaskExecutions(executionParams);
-
-  const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
-  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  }, {}), [careItems]);
-
-  const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
-  const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
-    acc[task.id] = task;
-    return acc;
-  }, {}), [careTasks]);
+  } = useTaskExecutions({
+    taskIds,
+    params: executionQueryParams,
+  });
 
   const updateExecution = useUpdateTaskExecution();
   const completeExecution = useCompleteTaskExecution();
   const createManualExecution = useCreateManualExecution();
+  const refundExecutionMutation = useRefundTaskExecution();
 
   const executions = useMemo(() => executionsResponse?.executions || [], [executionsResponse]);
 
@@ -169,56 +155,153 @@ const TaskSchedulingPage = () => {
     }
   }, [executions, detailsExecution]);
 
+  useEffect(() => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+    const latest = executions.find(exec => exec.id === refundExecutionTarget.id);
+    if (latest && latest !== refundExecutionTarget) {
+      setRefundExecutionTarget(latest);
+    }
+    if (!latest) {
+      setRefundExecutionTarget(null);
+      setRefundModalOpen(false);
+    }
+  }, [executions, refundExecutionTarget]);
+
+  const openRefundModal = useCallback((execution) => {
+    setRefundExecutionTarget(execution);
+    setRefundModalOpen(true);
+  }, []);
+
+  const closeRefundModal = useCallback(() => {
+    setRefundModalOpen(false);
+    setRefundExecutionTarget(null);
+  }, []);
+
+  const handleRefundSubmit = useCallback(async (payload) => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+
+    await refundExecutionMutation.mutateAsync({
+      taskId: refundExecutionTarget.care_task_id,
+      executionId: refundExecutionTarget.id,
+      payload,
+    });
+
+    closeRefundModal();
+  }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
+
   const filteredExecutions = useMemo(() => {
     const lowered = searchTerm.trim().toLowerCase();
 
-    const filtered = executions.filter((execution) => {
-      if (!lowered) {
-        return true;
-      }
+    const [from, to] = startDateRange || [];
+    const fromBoundary = from ? dayjs(from) : null;
+    const toBoundary = to ? dayjs(to) : null;
+
+    return executions.filter((execution) => {
       const parentTask = careTasksById[execution.care_task_id];
       const taskName = parentTask?.name?.toLowerCase() || '';
       const notes = execution.notes?.toLowerCase() || '';
-      const careItemName = parentTask?.care_item_id ? (careItemsById[parentTask.care_item_id]?.name?.toLowerCase() || '') : '';
-      return taskName.includes(lowered) || notes.includes(lowered) || careItemName.includes(lowered);
-    });
 
-    const sorted = [...filtered].sort((a, b) => {
-      let valueA;
-      let valueB;
-
-      switch (sortField) {
-        case 'created_at':
-          valueA = dayjs(a.created_at).valueOf();
-          valueB = dayjs(b.created_at).valueOf();
-          break;
-        case 'updated_at':
-          valueA = dayjs(a.updated_at).valueOf();
-          valueB = dayjs(b.updated_at).valueOf();
-          break;
-        case 'task_name': {
-          valueA = careTasksById[a.care_task_id]?.name?.toLowerCase() || '';
-          valueB = careTasksById[b.care_task_id]?.name?.toLowerCase() || '';
-          break;
-        }
-        case 'scheduled_date':
-        default:
-          valueA = dayjs(a.scheduled_date).valueOf();
-          valueB = dayjs(b.scheduled_date).valueOf();
-          break;
+      if (lowered && !taskName.includes(lowered) && !notes.includes(lowered)) {
+        return false;
       }
+
+      if (fromBoundary || toBoundary) {
+        const scheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
+        if (fromBoundary && scheduled && scheduled.isBefore(fromBoundary, 'day')) {
+          return false;
+        }
+        if (toBoundary && scheduled && scheduled.isAfter(toBoundary, 'day')) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [executions, careTasksById, searchTerm, startDateRange]);
+
+  const sortedExecutions = useMemo(() => {
+    const data = [...filteredExecutions];
+    const { field, order } = sortConfig;
+
+    const getValue = (execution) => {
+      switch (field) {
+        case 'task_name':
+          return careTasksById[execution.care_task_id]?.name?.toLowerCase() || '';
+        case 'status':
+          return execution.status || '';
+        case 'scheduled_date':
+          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+        case 'execution_date':
+          return execution.execution_date ? dayjs(execution.execution_date).valueOf() : Number.MAX_SAFE_INTEGER;
+        case 'created_at':
+          return execution.created_at ? dayjs(execution.created_at).valueOf() : -Infinity;
+        case 'updated_at':
+          return execution.updated_at ? dayjs(execution.updated_at).valueOf() : -Infinity;
+        default:
+          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+      }
+    };
+
+    return data.sort((a, b) => {
+      const valueA = getValue(a);
+      const valueB = getValue(b);
 
       if (valueA === valueB) {
         return 0;
       }
-      if (sortOrder === 'ascend') {
+
+      if (order === 'ascend') {
         return valueA > valueB ? 1 : -1;
       }
       return valueA > valueB ? -1 : 1;
     });
+  }, [filteredExecutions, sortConfig, careTasksById]);
 
-    return sorted;
-  }, [executions, careTasksById, careItemsById, searchTerm, sortField, sortOrder]);
+  const handleSort = useCallback((field) => {
+    setSortConfig((prev) => {
+      if (prev.field === field) {
+        return {
+          field,
+          order: prev.order === 'ascend' ? 'descend' : 'ascend'
+        };
+      }
+      return { field, order: 'ascend' };
+    });
+  }, []);
+
+  const renderSortTitle = useCallback((label, field) => {
+    const isActive = sortConfig.field === field;
+    const isAsc = isActive && sortConfig.order === 'ascend';
+    const isDesc = isActive && sortConfig.order === 'descend';
+
+    return (
+      <span
+        onClick={() => handleSort(field)}
+        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        {label}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
+          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
+          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+        </span>
+      </span>
+    );
+  }, [handleSort, sortConfig]);
+
+  useEffect(() => {
+    setExecutionPagination((prev) => ({ ...prev, current: 1 }));
+  }, [searchTerm, statusFilter, startDateRange, sortConfig, executions.length]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(sortedExecutions.length / executionPagination.pageSize));
+    if (executionPagination.current > maxPage) {
+      setExecutionPagination((prev) => ({ ...prev, current: maxPage }));
+    }
+  }, [sortedExecutions.length, executionPagination.pageSize, executionPagination]);
 
   const handleExecutionFormClose = useCallback(() => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });
@@ -300,7 +383,7 @@ const TaskSchedulingPage = () => {
     setDetailsExecution(null);
   }, []);
 
-  const handleCompleteSubmit = async ({ actualCost, notes, file }) => {
+  const handleCompleteSubmit = async ({ actualCost, notes, file, quantity }) => {
     if (!completeModalState.execution) {
       return;
     }
@@ -319,6 +402,10 @@ const TaskSchedulingPage = () => {
 
       if (notes !== undefined) {
         payload.notes = notes;
+      }
+
+      if (quantity !== undefined) {
+        payload.quantity = Number(quantity) || 1;
       }
 
       if (evidenceUrl) {
@@ -341,22 +428,22 @@ const TaskSchedulingPage = () => {
 
   const columns = useMemo(() => ([
     {
-      title: 'Task',
+      title: renderSortTitle('Task', 'task_name'),
       dataIndex: 'care_task_id',
       render: (taskId) => careTasksById[taskId]?.name || 'Care task',
     },
     {
-      title: 'Status',
+      title: renderSortTitle('Status', 'status'),
       dataIndex: 'status',
       render: (status) => <Tag color={status === 'DONE' ? 'green' : status === 'CANCELLED' ? 'red' : 'blue'}>{status}</Tag>,
     },
     {
-      title: 'Scheduled date',
+      title: renderSortTitle('Scheduled date', 'scheduled_date'),
       dataIndex: 'scheduled_date',
       render: (date) => formatDate(date),
     },
     {
-      title: 'Completed',
+      title: renderSortTitle('Completed', 'execution_date'),
       dataIndex: 'execution_date',
       render: (date) => formatDate(date),
     },
@@ -367,6 +454,10 @@ const TaskSchedulingPage = () => {
         const parentTask = careTasksById[record.care_task_id];
         const canComplete = record.status === 'TODO';
         const loading = completeExecution.isLoading || updateExecution.isLoading;
+        const isPurchaseTask = parentTask?.task_type === 'PURCHASE';
+        const hasRecordedCost = record.actual_cost !== null && record.actual_cost !== undefined && Number(record.actual_cost) > 0;
+        const canRefund = record.status === 'DONE' && !record.refund && isPurchaseTask && hasRecordedCost;
+        const refundLoading = refundExecutionMutation.isLoading;
         return (
           <Space size="small">
             <Tooltip title="View details">
@@ -405,15 +496,38 @@ const TaskSchedulingPage = () => {
                 Mark done
               </Button>
             )}
+            {canRefund && (
+              <Button
+                size="small"
+                onClick={() => openRefundModal(record)}
+                disabled={refundLoading}
+                loading={refundLoading}
+              >
+                Refund
+              </Button>
+            )}
           </Space>
         );
       }
     }
-  ]), [careTasksById, completeExecution.isLoading, updateExecution.isLoading, openDetailsDrawer, openEditExecutionForm, openCompleteModal]);
+  ]), [
+    careTasksById,
+    completeExecution.isLoading,
+    updateExecution.isLoading,
+    refundExecutionMutation.isLoading,
+    renderSortTitle,
+    openDetailsDrawer,
+    openEditExecutionForm,
+    openCompleteModal,
+    openCreateExecutionForm,
+    openRefundModal,
+  ]);
 
   const handleRefresh = () => {
     refetchCareTasks();
-    refetchExecutions();
+    if (taskIds.length > 0) {
+      refetchExecutions();
+    }
   };
 
   return (
@@ -447,7 +561,7 @@ const TaskSchedulingPage = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
               <Input
-                placeholder="Search by task, care item, or notes"
+                placeholder="Search by task or notes"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 allowClear
@@ -472,39 +586,36 @@ const TaskSchedulingPage = () => {
                   format="YYYY-MM-DD"
                 />
                 <Select
-                  value={`${sortField}:${sortOrder}`}
-                  style={{ width: 190 }}
-                  onChange={(value) => {
-                    const [field, order] = value.split(':');
-                    setSortField(field);
-                    setSortOrder(order);
-                  }}
+                  value={String(executionPagination.pageSize)}
+                  style={{ width: 140 }}
+                  onChange={(value) =>
+                    setExecutionPagination({ current: 1, pageSize: Number(value) })
+                  }
                 >
-                  {sortOptions.map((option) => (
-                    <React.Fragment key={option.value}>
-                      <Option value={`${option.value}:ascend`}>
-                        {option.label} ↑
-                      </Option>
-                      <Option value={`${option.value}:descend`}>
-                        {option.label} ↓
-                      </Option>
-                    </React.Fragment>
-                  ))}
+                  <Option value="10">10 / page</Option>
+                  <Option value="20">20 / page</Option>
+                  <Option value="50">50 / page</Option>
                 </Select>
               </Space>
             </Space>
 
             <Spin spinning={isExecutionsLoading}>
-              {filteredExecutions.length === 0 ? (
+              {sortedExecutions.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No task executions found" />
               ) : (
                 <Table
-                  dataSource={filteredExecutions}
+                  dataSource={sortedExecutions}
                   columns={columns}
                   rowKey="id"
                   size="middle"
                   scroll={{ x: true }}
-                  pagination={false}
+                  pagination={{
+                    current: executionPagination.current,
+                    pageSize: executionPagination.pageSize,
+                    total: sortedExecutions.length,
+                    onChange: (page, pageSize) => setExecutionPagination({ current: page, pageSize }),
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+                  }}
                 />
               )}
             </Spin>
@@ -547,6 +658,14 @@ const TaskSchedulingPage = () => {
         }}
         isUpdating={updateExecution.isLoading}
         isCompleting={completeExecution.isLoading}
+      />
+      <RefundExecutionModal
+        open={refundModalOpen}
+        execution={refundExecutionTarget}
+        submitting={refundExecutionMutation.isLoading}
+        maxAmount={refundExecutionTarget?.actual_cost ?? null}
+        onClose={closeRefundModal}
+        onSubmit={handleRefundSubmit}
       />
     </div>
   );

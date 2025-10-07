@@ -2,7 +2,7 @@
 
 ## Overview
 
-Care tasks describe recurring or one-off responsibilities linked to a client's care plan. Tasks can optionally reference a care item for purchasing workflows and automatically generate task executions based on recurrence rules.
+Care tasks describe recurring or one-off responsibilities linked to a client's care plan. Each authenticated user stores tasks inside their personal Firestore document (`users/{uid}/care_tasks`). Tasks reference categories by `category_id` so they remain aligned with the reusable category list saved at `users/{uid}/categories/options`.
 
 ## Authentication
 
@@ -36,9 +36,12 @@ Creates a new care task and generates the first execution.
   "description": "string",               // Optional (defaults "")
   "start_date": "YYYY-MM-DD",            // Required
   "end_date": "YYYY-MM-DD",              // Optional
-  "recurrence_interval_days": 0,          // Required, integer >= 0
-  "task_type": "PURCHASE" | "GENERAL", // Required
-  "care_item_id": "string"               // Required when task_type = PURCHASE
+  "recurrence_interval_days": 0,           // Required, integer >= 0
+  "task_type": "PURCHASE" | "GENERAL",  // Required
+  "category_id": "string",               // Required, must exist in category options
+  "estimated_unit_cost": 12.5,             // Optional number ≥ 0
+  "quantity_per_purchase": 1,              // Optional integer ≥ 1
+  "quantity_unit": "bottle"              // Optional string
 }
 ```
 
@@ -46,8 +49,9 @@ Creates a new care task and generates the first execution.
 - `task_type` must be `PURCHASE` or `GENERAL`.
 - `recurrence_interval_days` must be an integer ≥ 0 (0 = one-off).
 - `end_date`, when provided, must not be before `start_date`.
-- `care_item_id` must belong to the authenticated user when supplied.
-- For `PURCHASE` tasks, `care_item_id` is mandatory.
+- `category_id` must exist in the user's category options document.
+- `estimated_unit_cost`, when provided, must be a number ≥ 0.
+- `quantity_per_purchase`, when provided, must be an integer ≥ 1.
 
 #### Success Response (`201 Created`)
 
@@ -65,8 +69,11 @@ Creates a new care task and generates the first execution.
     "recurrence_interval_days": 30,
     "task_type": "PURCHASE",
     "is_active": true,
-    "care_item_id": "care-item-1",
-    "created_by": "user-uid",
+    "category_id": "hygiene",
+    "estimated_unit_cost": 12.5,
+    "quantity_per_purchase": 2,
+    "quantity_unit": "tubes",
+    "user_id": "user-uid",
     "deactivated_at": null,
     "created_at": "2024-02-01T08:00:00.000Z",
     "updated_at": "2024-02-01T08:00:00.000Z"
@@ -84,7 +91,7 @@ Returns care tasks owned by the authenticated user.
 
 #### Query Parameters
 - `task_type`: Filter by `PURCHASE` or `GENERAL`.
-- `care_item_id`: Filter tasks linked to a specific care item.
+- `category_id`: Filter tasks linked to a specific category.
 - `is_active`: `true` (default), `false`, or `all`.
 - `start_date_from`, `start_date_to`: ISO date window for task start dates.
 - `limit` (default 50) & `offset` (default 0) for pagination.
@@ -102,8 +109,11 @@ Returns care tasks owned by the authenticated user.
       "end_date": null,
       "recurrence_interval_days": 30,
       "is_active": true,
-      "care_item_id": "care-item-1",
-      "created_by": "user-uid",
+      "category_id": "hygiene",
+      "estimated_unit_cost": 12.5,
+      "quantity_per_purchase": 2,
+      "quantity_unit": "tubes",
+      "user_id": "user-uid",
       "created_at": "2024-02-01T08:00:00.000Z",
       "updated_at": "2024-02-01T08:00:00.000Z",
       "deactivated_at": null
@@ -141,10 +151,11 @@ Performs partial updates. Ownership checks are enforced.
 - `name`, `description`, `start_date`, `end_date`
 - `recurrence_interval_days`
 - `task_type`
-- `care_item_id`
+- `category_id`
+- `estimated_unit_cost`, `quantity_per_purchase`, `quantity_unit`
 
 #### Notes
-- Switching to `PURCHASE` requires a valid `care_item_id` belonging to the user.
+- Switching task type does not change the requirement for `category_id`; it must continue to exist in the user's category options.
 - Date validation rules mirror creation endpoint.
 - Recurrence interval must remain ≥ 0.
 
@@ -204,57 +215,116 @@ Creates the next scheduled execution for recurring tasks.
 
 ## Task Execution Endpoints
 
-### 1. Update Execution
+### Update Execution
 
-**PUT** `/api/task-executions/{executionId}`
+**PATCH** `/api/care-tasks/{taskId}/executions/{executionId}`
 
-Allows editing status, quantities, cost, evidence URL, execution date, and notes. All ownership checks trace back to the parent care task.
+Allows editing status, quantities, cost, evidence URL, execution date, and notes for a specific execution belonging to the supplied task. Ownership checks are enforced on both the task and execution identifiers.
 
-### 2. Mark Execution Complete
+- Status transitions to `REFUNDED` / `PARTIALLY_REFUNDED` must be performed through the refund endpoint. Attempts to set those statuses directly are rejected.
+- Executions with an existing refund cannot have their status changed.
 
-**POST** `/api/task-executions/{executionId}/complete`
+### Execution Payload Structure
 
-Convenience endpoint that:
-- Forces `status = DONE`.
-- Sets `execution_date` to the provided value or now.
-- Records `executed_by` as the authenticated user.
-- Accepts optional `actual_cost`, `quantity_purchased`, and `notes` updates.
-
-### 3. Cover Additional Executions
-
-**PATCH** `/api/task-executions/{executionId}/cover-executions`
-
-Marks a set of executions as `COVERED`, linking them to a bulk purchase execution owned by the user.
+Every execution returned by the API contains the following shape (fields omitted when `null`):
 
 ```json
 {
-  "execution_ids": ["exec-2", "exec-3"]
+  "id": "exec-123",
+  "care_task_id": "task-123",
+  "user_id": "user-uid",
+  "status": "TODO" | "DONE" | "CANCELLED" | "COVERED" | "PARTIALLY_REFUNDED" | "REFUNDED",
+  "quantity_purchased": 1,
+  "quantity_unit": "piece",
+  "actual_cost": 45.5,
+  "evidence_url": "https://example.com/receipt.jpg",
+  "scheduled_date": "2024-05-01T00:00:00.000Z",
+  "execution_date": "2024-05-05T00:00:00.000Z",
+  "covered_by_execution_ref": "exec-456",
+  "executed_by_uid": "user-uid",
+  "notes": "",
+  "refund": {
+    "refund_amount": 20,
+    "refund_reason": "Damaged item",
+    "refund_evidence_url": "https://example.com/refund.pdf",
+    "refund_date": "2024-05-10T00:00:00.000Z",
+    "refunded_by_uid": "user-uid",
+    "created_at": "2024-05-15T08:30:00.000Z"
+  },
+  "created_at": "2024-04-15T08:30:00.000Z",
+  "updated_at": "2024-05-15T08:30:00.000Z"
 }
 ```
 
-### 4. List Covered Executions
+### Record Execution Refund
 
-**GET** `/api/task-executions/{executionId}/covered-executions`
+**POST** `/api/care-tasks/{taskId}/executions/{executionId}/refund`
 
-Returns executions whose `covered_by_execution_id` matches the provided execution. Ownership is validated before data is returned.
+Records a refund for a purchase execution. Each execution supports at most one refund and the refund entry becomes immutable once stored.
 
-### 5. Global Execution Listing
+#### Request Body
 
-**GET** `/api/task-executions`
+```json
+{
+  "refund_amount": 12.5,                  // Required, > 0 and ≤ execution.actual_cost
+  "refund_reason": "Damaged goods",       // Optional string
+  "refund_evidence_url": "https://...",   // Optional string
+  "refund_date": "2024-05-12"             // Optional ISO date (defaults to today)
+}
+```
 
-- Optional filters: `status`, `care_task_id`, `executed_by`, `date_from`, `date_to`, `limit`, `offset`.
-- When `care_task_id` is omitted, results are restricted to executions whose parent tasks belong to the user.
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `refund_amount` | number | Yes | Must be greater than `0` and less than or equal to the execution’s recorded `actual_cost`. |
+| `refund_reason` | string | No | Free-form message explaining why the refund was issued. |
+| `refund_evidence_url` | string | No | Link to supporting documentation (receipt, credit note, etc.). |
+| `refund_date` | date string | No | When omitted, the API defaults to the current date (normalised to midnight). |
 
----
+#### Behaviour
+
+- Only `PURCHASE` tasks may be refunded.
+- The execution must have a positive `actual_cost`.
+- When the refund amount equals the recorded cost, the execution status becomes `REFUNDED`; lower amounts set the status to `PARTIALLY_REFUNDED`.
+- Subsequent requests are rejected if a refund already exists.
+
+#### Success Response (`201 Created`)
+
+```json
+{
+  "message": "Refund recorded successfully",
+  "data": {
+    "id": "exec-123",
+    "status": "PARTIALLY_REFUNDED",
+    "refund": {
+      "refund_amount": 12.5,
+      "refund_reason": "Damaged goods",
+      "refund_evidence_url": null,
+      "refund_date": "2024-05-12T00:00:00.000Z",
+      "refunded_by_uid": "user-uid",
+      "created_at": "2024-05-20T08:00:00.000Z"
+    },
+    "care_task_id": "task-123",
+    "user_id": "user-uid",
+    "quantity_purchased": 2,
+    "quantity_unit": "piece",
+    "actual_cost": 20,
+    "scheduled_date": "2024-05-01T00:00:00.000Z",
+    "execution_date": "2024-05-02T00:00:00.000Z",
+    "notes": "",
+    "created_at": "2024-04-20T08:00:00.000Z",
+    "updated_at": "2024-05-20T08:00:00.000Z"
+  }
+}
+```
 
 ## Error Handling Summary
 
 | Status | Scenario |
 |--------|----------|
-| 400 | Validation failure (invalid dates, recurrence interval, missing care item for purchase task, invalid status, etc.) |
+| 400 | Validation failure (invalid dates, recurrence interval, missing/unknown category, invalid status, etc.) |
 | 401 | Missing or invalid authentication token |
 | 403 | Attempt to access or mutate resources that belong to another user |
-| 404 | Referenced care item, care task, or execution not found |
+| 404 | Referenced care task, execution, or category not found |
 | 500 | Unexpected server error |
 
 ---
@@ -264,5 +334,4 @@ Returns executions whose `covered_by_execution_id` matches the provided executio
 - Include the Firebase Bearer token on every call.
 - Use `recurrence_interval_days = 0` for one-off tasks; greater than zero enables recurring generation.
 - Run manual execution creation for ad-hoc completions or large purchases outside the automated schedule.
-- Use `/api/task-executions/{id}/complete` to streamline marking tasks done while recording quantities and costs.
-
+- Use `/api/care-tasks/{taskId}/executions` to record completions or ad-hoc work.
