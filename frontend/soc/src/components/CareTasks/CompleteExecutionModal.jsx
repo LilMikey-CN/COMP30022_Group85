@@ -13,6 +13,7 @@ const CompleteExecutionModal = ({
   submitting = false,
   task,
   execution,
+  maxCoverableExecutions = null,
 }) => {
   const [form] = Form.useForm();
   const [uploadList, setUploadList] = useState([]);
@@ -20,8 +21,30 @@ const CompleteExecutionModal = ({
   const [fileError, setFileError] = useState(null);
 
   const requiresCost = task?.task_type === 'PURCHASE';
-  const quantityValue = Form.useWatch('quantity', form) || 1;
-  const additionalCovered = Math.max(quantityValue - 1, 0);
+  const rawQuantityValue = Form.useWatch('quantity', form);
+  const normalizedQuantity = Number(rawQuantityValue ?? 1);
+  const safeQuantity = Number.isFinite(normalizedQuantity) && normalizedQuantity > 0
+    ? normalizedQuantity
+    : 1;
+  const requestedAdditional = Math.max(safeQuantity - 1, 0);
+  const coverCap = typeof maxCoverableExecutions === 'number'
+    ? Math.max(maxCoverableExecutions, 0)
+    : null;
+  const effectiveAdditional = coverCap === null
+    ? requestedAdditional
+    : Math.min(requestedAdditional, coverCap);
+
+  let coverageHint = 'This completion will only apply to this execution.';
+  if (effectiveAdditional > 0) {
+    const plural = effectiveAdditional === 1 ? '' : 's';
+    if (coverCap !== null && requestedAdditional > coverCap) {
+      coverageHint = `This completion will cover ${effectiveAdditional} additional execution${plural}; all remaining executions for this task will be marked as covered.`;
+    } else {
+      coverageHint = `This completion will cover ${effectiveAdditional} additional execution${plural}.`;
+    }
+  } else if (requestedAdditional > 0 && coverCap === 0) {
+    coverageHint = 'No additional executions remain to cover for this task.';
+  }
 
   useEffect(() => {
     if (!open) {
@@ -83,7 +106,7 @@ const CompleteExecutionModal = ({
         actualCost: values.actual_cost,
         notes: values.notes,
         file: selectedFile,
-        quantity: values.quantity || 1,
+        quantity: values.quantity ? Number(values.quantity) : 1,
       });
       form.resetFields();
       setUploadList([]);
@@ -136,16 +159,11 @@ const CompleteExecutionModal = ({
                 style={{ width: '100%' }}
                 min={1}
                 step={1}
-                stringMode
                 disabled={submitting}
               />
             </Form.Item>
             <div style={{ marginTop: -8, marginBottom: 16 }}>
-              <Typography.Text type="secondary">
-                {additionalCovered > 0
-                  ? `This completion will cover ${additionalCovered} additional execution${additionalCovered === 1 ? '' : 's'}.`
-                  : 'This completion will only apply to this execution.'}
-              </Typography.Text>
+              <Typography.Text type="secondary">{coverageHint}</Typography.Text>
             </div>
           </>
         )}

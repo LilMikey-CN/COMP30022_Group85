@@ -6,9 +6,7 @@ import TaskSchedulingPage from '../pages/TaskSchedulingPage';
 import Budget from '../pages/Budget';
 import ClientProfile from '../pages/ClientProfile';
 import Settings from '../pages/Settings';
-import {
-  PatientCalendar
-} from '../pages/PatientPlaceholders';
+import CalendarPage from '../pages/CalendarPage';
 
 // Route configuration
 export const routes = [
@@ -35,7 +33,7 @@ export const routes = [
       },
       {
         path: 'calendar',
-        element: PatientCalendar,
+        element: CalendarPage,
         name: 'Patient Calendar'
       },
       {
