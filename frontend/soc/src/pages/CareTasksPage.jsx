@@ -170,76 +170,76 @@ const CareTasksPage = () => {
   }, [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
 
   const sortedTasks = useMemo(() => {
-  const { field, order } = sortConfig;
+    const { field, order } = sortConfig;
 
-  const getValue = (task) => {
-    switch (field) {
-      case 'name':
-        return (task.name || '').toLowerCase();
-      case 'task_type':
-        return task.task_type || '';
-      case 'estimated_unit_cost':
-        return task.task_type === 'PURCHASE'
-          ? Number(task.estimated_unit_cost ?? -Infinity)
-          : -Infinity;
-      case 'recurrence_interval_days':
-        return Number(task.recurrence_interval_days ?? 0);
-      case 'start_date':
-        return task.start_date ? dayjs(task.start_date).valueOf() : -Infinity;
-      case 'end_date':
-        return task.end_date ? dayjs(task.end_date).valueOf() : Number.MAX_SAFE_INTEGER;
-      case 'status':
-        return task.is_active === false ? 0 : 1;
-      case 'created_at':
-      default:
-        return task.created_at ? dayjs(task.created_at).valueOf() : -Infinity;
-    }
-  };
+    const getValue = (task) => {
+      switch (field) {
+        case 'name':
+          return (task.name || '').toLowerCase();
+        case 'task_type':
+          return task.task_type || '';
+        case 'estimated_unit_cost':
+          return task.task_type === 'PURCHASE'
+            ? Number(task.estimated_unit_cost ?? -Infinity)
+            : -Infinity;
+        case 'recurrence_interval_days':
+          return Number(task.recurrence_interval_days ?? 0);
+        case 'start_date':
+          return task.start_date ? dayjs(task.start_date).valueOf() : -Infinity;
+        case 'end_date':
+          return task.end_date ? dayjs(task.end_date).valueOf() : Number.MAX_SAFE_INTEGER;
+        case 'status':
+          return task.is_active === false ? 0 : 1;
+        case 'created_at':
+        default:
+          return task.created_at ? dayjs(task.created_at).valueOf() : -Infinity;
+      }
+    };
 
     return [...filteredTasks].sort((a, b) => {
-    const valueA = getValue(a);
-    const valueB = getValue(b);
+      const valueA = getValue(a);
+      const valueB = getValue(b);
 
-    if (valueA === valueB) {
-      return 0;
-    }
+      if (valueA === valueB) {
+        return 0;
+      }
 
-    if (order === 'ascend') {
-      return valueA > valueB ? 1 : -1;
-    }
-    return valueA > valueB ? -1 : 1;
-  });
+      if (order === 'ascend') {
+        return valueA > valueB ? 1 : -1;
+      }
+      return valueA > valueB ? -1 : 1;
+    });
   }, [filteredTasks, sortConfig]);
 
   const handleSort = useCallback((field) => {
     setSortConfig((prev) => {
-    if (prev.field === field) {
-      return {
-        field,
-        order: prev.order === 'ascend' ? 'descend' : 'ascend'
-      };
-    }
-    return { field, order: 'ascend' };
-  });
+      if (prev.field === field) {
+        return {
+          field,
+          order: prev.order === 'ascend' ? 'descend' : 'ascend'
+        };
+      }
+      return { field, order: 'ascend' };
+    });
   }, []);
 
   const renderSortTitle = useCallback((label, field) => {
-  const isActive = sortConfig.field === field;
-  const isAsc = isActive && sortConfig.order === 'ascend';
-  const isDesc = isActive && sortConfig.order === 'descend';
+    const isActive = sortConfig.field === field;
+    const isAsc = isActive && sortConfig.order === 'ascend';
+    const isDesc = isActive && sortConfig.order === 'descend';
 
-  return (
-    <span
-      onClick={() => handleSort(field)}
-      style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-    >
-      {label}
-      <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
-        <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
-        <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+    return (
+      <span
+        onClick={() => handleSort(field)}
+        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        {label}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
+          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
+          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+        </span>
       </span>
-    </span>
-  );
+    );
   }, [handleSort, sortConfig]);
 
   useEffect(() => {

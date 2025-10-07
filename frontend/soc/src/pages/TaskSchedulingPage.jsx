@@ -193,14 +193,14 @@ const TaskSchedulingPage = () => {
     closeRefundModal();
   }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
 
-const filteredExecutions = useMemo(() => {
-  const lowered = searchTerm.trim().toLowerCase();
+  const filteredExecutions = useMemo(() => {
+    const lowered = searchTerm.trim().toLowerCase();
 
     const [from, to] = startDateRange || [];
     const fromBoundary = from ? dayjs(from) : null;
     const toBoundary = to ? dayjs(to) : null;
 
-  return executions.filter((execution) => {
+    return executions.filter((execution) => {
       const parentTask = careTasksById[execution.care_task_id];
       const taskName = parentTask?.name?.toLowerCase() || '';
       const notes = execution.notes?.toLowerCase() || '';
@@ -220,77 +220,77 @@ const filteredExecutions = useMemo(() => {
       }
 
       return true;
-  });
-}, [executions, careTasksById, searchTerm, startDateRange]);
+    });
+  }, [executions, careTasksById, searchTerm, startDateRange]);
 
-const sortedExecutions = useMemo(() => {
-  const data = [...filteredExecutions];
-  const { field, order } = sortConfig;
+  const sortedExecutions = useMemo(() => {
+    const data = [...filteredExecutions];
+    const { field, order } = sortConfig;
 
-  const getValue = (execution) => {
-    switch (field) {
-      case 'task_name':
-        return careTasksById[execution.care_task_id]?.name?.toLowerCase() || '';
-      case 'status':
-        return execution.status || '';
-      case 'scheduled_date':
-        return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
-      case 'execution_date':
-        return execution.execution_date ? dayjs(execution.execution_date).valueOf() : Number.MAX_SAFE_INTEGER;
-      case 'created_at':
-        return execution.created_at ? dayjs(execution.created_at).valueOf() : -Infinity;
-      case 'updated_at':
-        return execution.updated_at ? dayjs(execution.updated_at).valueOf() : -Infinity;
-      default:
-        return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
-    }
-  };
+    const getValue = (execution) => {
+      switch (field) {
+        case 'task_name':
+          return careTasksById[execution.care_task_id]?.name?.toLowerCase() || '';
+        case 'status':
+          return execution.status || '';
+        case 'scheduled_date':
+          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+        case 'execution_date':
+          return execution.execution_date ? dayjs(execution.execution_date).valueOf() : Number.MAX_SAFE_INTEGER;
+        case 'created_at':
+          return execution.created_at ? dayjs(execution.created_at).valueOf() : -Infinity;
+        case 'updated_at':
+          return execution.updated_at ? dayjs(execution.updated_at).valueOf() : -Infinity;
+        default:
+          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+      }
+    };
 
-  return data.sort((a, b) => {
-    const valueA = getValue(a);
-    const valueB = getValue(b);
+    return data.sort((a, b) => {
+      const valueA = getValue(a);
+      const valueB = getValue(b);
 
-    if (valueA === valueB) {
-      return 0;
-    }
+      if (valueA === valueB) {
+        return 0;
+      }
 
-    if (order === 'ascend') {
-      return valueA > valueB ? 1 : -1;
-    }
-    return valueA > valueB ? -1 : 1;
-  });
-}, [filteredExecutions, sortConfig, careTasksById]);
+      if (order === 'ascend') {
+        return valueA > valueB ? 1 : -1;
+      }
+      return valueA > valueB ? -1 : 1;
+    });
+  }, [filteredExecutions, sortConfig, careTasksById]);
 
-const handleSort = useCallback((field) => {
-  setSortConfig((prev) => {
-    if (prev.field === field) {
-      return {
-        field,
-        order: prev.order === 'ascend' ? 'descend' : 'ascend'
-      };
-    }
-    return { field, order: 'ascend' };
-  });
-}, []);
+  const handleSort = useCallback((field) => {
+    setSortConfig((prev) => {
+      if (prev.field === field) {
+        return {
+          field,
+          order: prev.order === 'ascend' ? 'descend' : 'ascend'
+        };
+      }
+      return { field, order: 'ascend' };
+    });
+  }, []);
 
-const renderSortTitle = useCallback((label, field) => {
-  const isActive = sortConfig.field === field;
-  const isAsc = isActive && sortConfig.order === 'ascend';
-  const isDesc = isActive && sortConfig.order === 'descend';
+  const renderSortTitle = useCallback((label, field) => {
+    const isActive = sortConfig.field === field;
+    const isAsc = isActive && sortConfig.order === 'ascend';
+    const isDesc = isActive && sortConfig.order === 'descend';
 
-  return (
-    <span
-      onClick={() => handleSort(field)}
-      style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-    >
-      {label}
-      <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
-        <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
-        <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+    return (
+      <span
+        onClick={() => handleSort(field)}
+        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      >
+        {label}
+        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
+          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
+          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+        </span>
       </span>
-    </span>
-  );
-}, [handleSort, sortConfig]);
+    );
+  }, [handleSort, sortConfig]);
 
   useEffect(() => {
     setExecutionPagination((prev) => ({ ...prev, current: 1 }));
@@ -383,7 +383,7 @@ const renderSortTitle = useCallback((label, field) => {
     setDetailsExecution(null);
   }, []);
 
-  const handleCompleteSubmit = async ({ actualCost, notes, file }) => {
+  const handleCompleteSubmit = async ({ actualCost, notes, file, quantity }) => {
     if (!completeModalState.execution) {
       return;
     }
@@ -402,6 +402,10 @@ const renderSortTitle = useCallback((label, field) => {
 
       if (notes !== undefined) {
         payload.notes = notes;
+      }
+
+      if (quantity !== undefined) {
+        payload.quantity = Number(quantity) || 1;
       }
 
       if (evidenceUrl) {
