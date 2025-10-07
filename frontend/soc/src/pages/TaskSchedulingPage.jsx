@@ -301,7 +301,7 @@ const TaskSchedulingPage = () => {
     if (executionPagination.current > maxPage) {
       setExecutionPagination((prev) => ({ ...prev, current: maxPage }));
     }
-  }, [sortedExecutions.length, executionPagination.pageSize, executionPagination.current]);
+  }, [sortedExecutions.length, executionPagination.pageSize, executionPagination]);
 
   const handleExecutionFormClose = useCallback(() => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });

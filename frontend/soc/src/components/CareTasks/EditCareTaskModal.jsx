@@ -108,7 +108,7 @@ const EditCareTaskModal = ({
         // handled by mutation hook
       }
     }
-  }, [categories, form, onCreateCategory, onSubmit, resetAndClose, task?.category_id, task?.id]);
+  }, [categories, form, onCreateCategory, onSubmit, resetAndClose, task?.category_id]);
 
   return (
     <Modal

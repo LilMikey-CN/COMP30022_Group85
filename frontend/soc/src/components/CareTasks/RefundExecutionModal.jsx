@@ -180,7 +180,7 @@ const RefundExecutionModal = ({
           label="Refund amount"
           rules={[
             { required: true, message: 'Enter the refund amount' },
-            ({ getFieldValue }) => ({
+            {
               validator(_, value) {
                 if (value === undefined || value === null || value === '') {
                   return Promise.resolve();
@@ -194,7 +194,7 @@ const RefundExecutionModal = ({
                 }
                 return Promise.resolve();
               }
-            })
+            }
           ]}
         >
           <InputNumber

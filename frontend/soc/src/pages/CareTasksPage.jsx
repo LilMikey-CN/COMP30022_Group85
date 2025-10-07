@@ -251,7 +251,7 @@ const CareTasksPage = () => {
     if (taskPagination.current > maxPage) {
       setTaskPagination((prev) => ({ ...prev, current: maxPage }));
     }
-  }, [sortedTasks.length, taskPagination.pageSize, taskPagination.current]);
+  }, [sortedTasks.length, taskPagination.pageSize, taskPagination]);
 
   const handleCreateTask = useCallback(async (payload) => {
     await createCareTask.mutateAsync(payload);

@@ -140,7 +140,7 @@ const TaskDetailsDrawer = ({
   const [drawerWidth, setDrawerWidth] = useState(DEFAULT_DRAWER_WIDTH);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const executions = executionsResponse?.executions || [];
+  const executions = useMemo(() => executionsResponse?.executions || [], [executionsResponse]);
   const taskStatus = computeTaskStatus(task);
   const selectedExecutionId = selectedExecution?.id || null;
 
