@@ -97,3 +97,5 @@ test_*.js
 
 # API documentation (if auto-generated)
 # client-profile-api-docs.md
+
+AGENTS.md
