@@ -147,6 +147,7 @@ const formatExecution = (doc) => {
     execution_date: serializeTimestamp(data.execution_date),
     created_at: serializeTimestamp(data.created_at),
     updated_at: serializeTimestamp(data.updated_at),
+    quantity: data.quantity ?? 1,
     refund: data.refund
       ? {
         ...data.refund,
@@ -345,7 +346,7 @@ router.post('/', async (req, res) => {
         user_id: req.user.uid,
         status: 'TODO',
         quantity_purchased: parsedQuantityPerPurchase || 1,
-      quantity_unit: quantity_unit || (task_type === 'PURCHASE' ? DEFAULT_PURCHASE_QUANTITY_UNIT : ''),
+        quantity_unit: quantity_unit || (task_type === 'PURCHASE' ? DEFAULT_PURCHASE_QUANTITY_UNIT : ''),
         actual_cost: null,
         evidence_url: null,
         scheduled_date: startOfDay(parsedStartDate),
@@ -354,6 +355,7 @@ router.post('/', async (req, res) => {
         executed_by_uid: null,
         notes: '',
         refund: null,
+        quantity: 1,
         created_at: now,
         updated_at: now
       };
@@ -557,6 +559,7 @@ router.post('/:id/executions', async (req, res) => {
       executed_by_uid: parsedExecutionDate ? req.user.uid : null,
       notes: notes || '',
       refund: null,
+      quantity: 1,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -648,8 +651,12 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
       scheduled_date,
       execution_date,
       notes,
-      evidence_url
+      evidence_url,
+      quantity
     } = req.body;
+
+    const executionData = executionDoc.data();
+    const executionsCollection = getTaskExecutionsCollection(req.user.uid, req.params.taskId);
 
     const updateData = {
       updated_at: new Date()
@@ -662,15 +669,13 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
         });
       }
 
-      const currentData = executionDoc.data();
-
-      if (['REFUNDED', 'PARTIALLY_REFUNDED'].includes(status) && !currentData.refund) {
+      if (['REFUNDED', 'PARTIALLY_REFUNDED'].includes(status) && !executionData.refund) {
         return res.status(400).json({
           error: 'Use the refund endpoint to mark executions as refunded'
         });
       }
 
-      if (currentData.refund && status !== currentData.status) {
+      if (executionData.refund && status !== executionData.status) {
         return res.status(400).json({
           error: 'Status cannot be changed after a refund has been recorded'
         });
@@ -691,8 +696,16 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
       updateData.quantity_unit = quantity_unit;
     }
 
+    let parsedQuantity = null;
+    if (quantity !== undefined) {
+      parsedQuantity = parseOptionalInteger(quantity, 'quantity', { min: 1 });
+    }
+
+    let actualCostProvided = false;
+    let parsedActualCost = null;
     if (actual_cost !== undefined) {
-      updateData.actual_cost = parseOptionalNumber(actual_cost, 'actual_cost', { min: 0 });
+      actualCostProvided = true;
+      parsedActualCost = parseOptionalNumber(actual_cost, 'actual_cost', { min: 0 });
     }
 
     if (scheduled_date !== undefined) {
@@ -712,7 +725,85 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
       updateData.evidence_url = evidence_url;
     }
 
+    const targetStatus = updateData.status || executionData.status;
+    const existingQuantity = Number(executionData.quantity || 1);
+    const desiredQuantity = Math.max(parsedQuantity || existingQuantity || 1, 1);
+
+    let coverCandidates = [];
+    if (targetStatus === 'DONE' && desiredQuantity > 1) {
+      let coverQuery = executionsCollection.where('status', '==', 'TODO').orderBy('scheduled_date');
+      const scheduledDateValue = executionData.scheduled_date ? toDate(executionData.scheduled_date) : null;
+
+      if (scheduledDateValue) {
+        coverQuery = coverQuery.startAfter(scheduledDateValue);
+      }
+
+      const snapshot = await coverQuery.limit(desiredQuantity - 1).get();
+      coverCandidates = snapshot.docs;
+
+      if (!scheduledDateValue) {
+        coverCandidates = coverCandidates
+          .filter((doc) => doc.id !== executionRef.id)
+          .slice(0, desiredQuantity - 1);
+      }
+    }
+
+    const appliedQuantity = targetStatus === 'DONE'
+      ? Math.max(1, Math.min(desiredQuantity, 1 + coverCandidates.length))
+      : desiredQuantity;
+
+    updateData.quantity = appliedQuantity;
+
+    if (actualCostProvided) {
+      if (parsedActualCost === null) {
+        updateData.actual_cost = null;
+      } else if (executionData.task_type === 'PURCHASE') {
+        updateData.actual_cost = Number((parsedActualCost / appliedQuantity).toFixed(2));
+      } else {
+        updateData.actual_cost = parsedActualCost;
+      }
+    }
+
+    if (targetStatus === 'DONE' && updateData.execution_date === undefined) {
+      updateData.execution_date = new Date();
+      updateData.executed_by_uid = req.user.uid;
+    }
+
     await executionRef.update(updateData);
+
+    if (executionData.task_type === 'PURCHASE' && targetStatus === 'DONE' && coverCandidates.length > 0) {
+      const sharedExecutionDate = toDate(updateData.execution_date ?? executionData.execution_date ?? new Date());
+      const sharedEvidenceUrl = updateData.evidence_url !== undefined
+        ? updateData.evidence_url
+        : executionData.evidence_url ?? null;
+      const sharedExecutedBy = updateData.executed_by_uid ?? executionData.executed_by_uid ?? req.user.uid;
+      const perExecutionCostForCover = actualCostProvided
+        ? updateData.actual_cost
+        : executionData.actual_cost ?? null;
+      const now = new Date();
+
+      for (const doc of coverCandidates) {
+        const coverUpdate = {
+          status: 'COVERED',
+          covered_by_execution_ref: executionRef.id,
+          quantity: 1,
+          updated_at: now,
+          actual_cost: perExecutionCostForCover,
+          evidence_url: sharedEvidenceUrl ?? null
+        };
+
+        if (sharedExecutionDate) {
+          coverUpdate.execution_date = sharedExecutionDate;
+        }
+
+        if (sharedExecutedBy) {
+          coverUpdate.executed_by_uid = sharedExecutedBy;
+        }
+
+        await doc.ref.update(coverUpdate);
+      }
+    }
+
     const updatedDoc = await executionRef.get();
 
     res.json({
@@ -1059,6 +1150,7 @@ const generateTaskExecution = async (uid, taskId, taskData, options = {}) => {
       executed_by_uid: null,
       notes: '',
       refund: null,
+      quantity: 1,
       created_at: new Date(),
       updated_at: new Date()
     };
