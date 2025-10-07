@@ -221,6 +221,102 @@ Creates the next scheduled execution for recurring tasks.
 
 Allows editing status, quantities, cost, evidence URL, execution date, and notes for a specific execution belonging to the supplied task. Ownership checks are enforced on both the task and execution identifiers.
 
+- Status transitions to `REFUNDED` / `PARTIALLY_REFUNDED` must be performed through the refund endpoint. Attempts to set those statuses directly are rejected.
+- Executions with an existing refund cannot have their status changed.
+
+### Execution Payload Structure
+
+Every execution returned by the API contains the following shape (fields omitted when `null`):
+
+```json
+{
+  "id": "exec-123",
+  "care_task_id": "task-123",
+  "user_id": "user-uid",
+  "status": "TODO" | "DONE" | "CANCELLED" | "COVERED" | "PARTIALLY_REFUNDED" | "REFUNDED",
+  "quantity_purchased": 1,
+  "quantity_unit": "piece",
+  "actual_cost": 45.5,
+  "evidence_url": "https://example.com/receipt.jpg",
+  "scheduled_date": "2024-05-01T00:00:00.000Z",
+  "execution_date": "2024-05-05T00:00:00.000Z",
+  "covered_by_execution_ref": "exec-456",
+  "executed_by_uid": "user-uid",
+  "notes": "",
+  "refund": {
+    "refund_amount": 20,
+    "refund_reason": "Damaged item",
+    "refund_evidence_url": "https://example.com/refund.pdf",
+    "refund_date": "2024-05-10T00:00:00.000Z",
+    "refunded_by_uid": "user-uid",
+    "created_at": "2024-05-15T08:30:00.000Z"
+  },
+  "created_at": "2024-04-15T08:30:00.000Z",
+  "updated_at": "2024-05-15T08:30:00.000Z"
+}
+```
+
+### Record Execution Refund
+
+**POST** `/api/care-tasks/{taskId}/executions/{executionId}/refund`
+
+Records a refund for a purchase execution. Each execution supports at most one refund and the refund entry becomes immutable once stored.
+
+#### Request Body
+
+```json
+{
+  "refund_amount": 12.5,                  // Required, > 0 and ≤ execution.actual_cost
+  "refund_reason": "Damaged goods",       // Optional string
+  "refund_evidence_url": "https://...",   // Optional string
+  "refund_date": "2024-05-12"             // Optional ISO date (defaults to today)
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `refund_amount` | number | Yes | Must be greater than `0` and less than or equal to the execution’s recorded `actual_cost`. |
+| `refund_reason` | string | No | Free-form message explaining why the refund was issued. |
+| `refund_evidence_url` | string | No | Link to supporting documentation (receipt, credit note, etc.). |
+| `refund_date` | date string | No | When omitted, the API defaults to the current date (normalised to midnight). |
+
+#### Behaviour
+
+- Only `PURCHASE` tasks may be refunded.
+- The execution must have a positive `actual_cost`.
+- When the refund amount equals the recorded cost, the execution status becomes `REFUNDED`; lower amounts set the status to `PARTIALLY_REFUNDED`.
+- Subsequent requests are rejected if a refund already exists.
+
+#### Success Response (`201 Created`)
+
+```json
+{
+  "message": "Refund recorded successfully",
+  "data": {
+    "id": "exec-123",
+    "status": "PARTIALLY_REFUNDED",
+    "refund": {
+      "refund_amount": 12.5,
+      "refund_reason": "Damaged goods",
+      "refund_evidence_url": null,
+      "refund_date": "2024-05-12T00:00:00.000Z",
+      "refunded_by_uid": "user-uid",
+      "created_at": "2024-05-20T08:00:00.000Z"
+    },
+    "care_task_id": "task-123",
+    "user_id": "user-uid",
+    "quantity_purchased": 2,
+    "quantity_unit": "piece",
+    "actual_cost": 20,
+    "scheduled_date": "2024-05-01T00:00:00.000Z",
+    "execution_date": "2024-05-02T00:00:00.000Z",
+    "notes": "",
+    "created_at": "2024-04-20T08:00:00.000Z",
+    "updated_at": "2024-05-20T08:00:00.000Z"
+  }
+}
+```
+
 ## Error Handling Summary
 
 | Status | Scenario |

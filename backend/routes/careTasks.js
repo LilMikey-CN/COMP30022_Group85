@@ -61,6 +61,37 @@ const optionalDate = (value, fieldName) => {
   return parsed;
 };
 
+// Parse required numeric input while enforcing optional min/max boundaries.
+const requireNumber = (value, fieldName, { min, max } = {}) => {
+  if (value === undefined || value === null || value === '') {
+    const error = new Error(`${fieldName} is required`);
+    error.status = 400;
+    throw error;
+  }
+
+  const parsed = Number(value);
+
+  if (Number.isNaN(parsed)) {
+    const error = new Error(`${fieldName} must be a valid number`);
+    error.status = 400;
+    throw error;
+  }
+
+  if (min !== undefined && parsed < min) {
+    const error = new Error(`${fieldName} must be greater than or equal to ${min}`);
+    error.status = 400;
+    throw error;
+  }
+
+  if (max !== undefined && parsed > max) {
+    const error = new Error(`${fieldName} must be less than or equal to ${max}`);
+    error.status = 400;
+    throw error;
+  }
+
+  return parsed;
+};
+
 // Force the supplied date to midnight UTC so recurring generation behaves predictably.
 const startOfDay = (date) => {
   const normalized = new Date(date);
@@ -115,7 +146,14 @@ const formatExecution = (doc) => {
     scheduled_date: serializeTimestamp(data.scheduled_date),
     execution_date: serializeTimestamp(data.execution_date),
     created_at: serializeTimestamp(data.created_at),
-    updated_at: serializeTimestamp(data.updated_at)
+    updated_at: serializeTimestamp(data.updated_at),
+    refund: data.refund
+      ? {
+        ...data.refund,
+        refund_date: serializeTimestamp(data.refund.refund_date),
+        created_at: serializeTimestamp(data.refund.created_at)
+      }
+      : null
   };
 };
 
@@ -623,6 +661,21 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
           error: `status must be one of: ${EXECUTION_UPDATE_ALLOWED_STATUSES.join(', ')}`
         });
       }
+
+      const currentData = executionDoc.data();
+
+      if (['REFUNDED', 'PARTIALLY_REFUNDED'].includes(status) && !currentData.refund) {
+        return res.status(400).json({
+          error: 'Use the refund endpoint to mark executions as refunded'
+        });
+      }
+
+      if (currentData.refund && status !== currentData.status) {
+        return res.status(400).json({
+          error: 'Status cannot be changed after a refund has been recorded'
+        });
+      }
+
       updateData.status = status;
     }
 
@@ -670,6 +723,80 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
     console.error('Error updating task execution:', error);
     const status = error.status || 500;
     res.status(status).json({ error: status === 500 ? 'Failed to update task execution' : error.message });
+  }
+});
+
+// Record a refund against a purchase execution; refunds are immutable once stored.
+router.post('/:taskId/executions/:executionId/refund', async (req, res) => {
+  try {
+    const { data: taskData } = await getOwnedCareTask(req.user.uid, req.params.taskId);
+
+    if (taskData.task_type !== 'PURCHASE') {
+      return res.status(400).json({ error: 'Refunds are only supported for purchase tasks' });
+    }
+
+    const executionRef = getTaskExecutionRef(req.user.uid, req.params.taskId, req.params.executionId);
+    const executionDoc = await executionRef.get();
+
+    if (!executionDoc.exists) {
+      return res.status(404).json({ error: 'Task execution not found' });
+    }
+
+    const executionData = executionDoc.data();
+
+    if (executionData.refund) {
+      return res.status(400).json({ error: 'A refund has already been recorded for this execution' });
+    }
+
+    if (executionData.actual_cost === null || executionData.actual_cost === undefined) {
+      return res.status(400).json({ error: 'A recorded actual_cost is required before processing a refund' });
+    }
+
+    const actualCost = Number(executionData.actual_cost);
+
+    if (Number.isNaN(actualCost) || actualCost <= 0) {
+      return res.status(400).json({ error: 'Cannot process a refund without a positive actual_cost' });
+    }
+
+    const refundAmount = requireNumber(req.body.refund_amount, 'refund_amount', { min: 0, max: actualCost });
+
+    if (refundAmount <= 0) {
+      return res.status(400).json({ error: 'refund_amount must be greater than 0' });
+    }
+
+    const parsedRefundDate = optionalDate(req.body.refund_date, 'refund_date');
+    // Default the refund date to "today" if the caller omits it so reporting stays consistent.
+    const refundDate = startOfDay(parsedRefundDate || new Date());
+
+    const now = new Date();
+    const refundRecord = {
+      refund_amount: refundAmount,
+      refund_reason: req.body.refund_reason || '',
+      refund_evidence_url: req.body.refund_evidence_url || null,
+      refund_date: refundDate,
+      refunded_by_uid: req.user.uid,
+      created_at: now
+    };
+
+    const amountsEqual = Math.abs(refundAmount - actualCost) < 0.000001;
+    const nextStatus = amountsEqual ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+
+    await executionRef.update({
+      refund: refundRecord,
+      status: nextStatus,
+      updated_at: now
+    });
+
+    const updatedDoc = await executionRef.get();
+
+    res.status(201).json({
+      message: 'Refund recorded successfully',
+      data: formatExecution(updatedDoc)
+    });
+  } catch (error) {
+    console.error('Error recording task execution refund:', error);
+    const status = error.status || 500;
+    res.status(status).json({ error: status === 500 ? 'Failed to record refund' : error.message });
   }
 });
 
