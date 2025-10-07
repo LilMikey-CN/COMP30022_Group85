@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import {
   Drawer,
   Typography,
@@ -27,9 +27,26 @@ import {
   useCompleteTaskExecution,
   useTaskExecutionsForTask,
   useUpdateTaskExecution,
+  useRefundTaskExecution,
 } from '../../hooks/useTaskExecutions';
+import { useCategories } from '../../hooks/useCategories';
+import RefundExecutionModal from './RefundExecutionModal';
 
 const { Title, Text } = Typography;
+
+const DEFAULT_DRAWER_WIDTH = 640;
+
+const formatCurrency = (value) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
 
 const statusColorMap = {
   TODO: 'default',
@@ -115,10 +132,92 @@ const TaskDetailsDrawer = ({
 
   const completeExecution = useCompleteTaskExecution();
   const updateExecution = useUpdateTaskExecution();
+  const refundExecution = useRefundTaskExecution();
+  const { data: categoriesResponse } = useCategories({ is_active: 'all' });
+
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
+  const [drawerWidth, setDrawerWidth] = useState(DEFAULT_DRAWER_WIDTH);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const executions = executionsResponse?.executions || [];
   const taskStatus = computeTaskStatus(task);
   const selectedExecutionId = selectedExecution?.id || null;
+
+  const categoryDisplay = useMemo(() => {
+    if (!task) {
+      return '—';
+    }
+    const categories = categoriesResponse?.categories || [];
+    const match = categories.find((category) => category.id === task.category_id);
+    if (match?.name) {
+      return match.name;
+    }
+    return task.category_id || '—';
+  }, [categoriesResponse, task]);
+
+  const estimatedCostDisplay = useMemo(() => {
+    if (!task || task.task_type !== 'PURCHASE') {
+      return null;
+    }
+    const rawCost = task.estimated_unit_cost;
+    if (rawCost === null || rawCost === undefined) {
+      return null;
+    }
+    const formatted = formatCurrency(Number(rawCost));
+    const quantity = Number(task.quantity_per_purchase || 0);
+    const unit = task.quantity_unit ? task.quantity_unit.trim() : '';
+
+    if (quantity > 1) {
+      return `${formatted} for ${quantity}${unit ? ` ${unit}` : ''}`;
+    }
+    if (quantity === 1 && unit) {
+      return `${formatted} per ${unit}`;
+    }
+    return formatted;
+  }, [task]);
+
+  useEffect(() => {
+    if (!open) {
+      setDrawerWidth(DEFAULT_DRAWER_WIDTH);
+      setActiveTab('overview');
+      setRefundModalOpen(false);
+      setRefundExecutionTarget(null);
+    }
+  }, [open]);
+
+  const closeRefundModal = useCallback(() => {
+    setRefundModalOpen(false);
+    setRefundExecutionTarget(null);
+  }, []);
+
+  const handleRefundSubmit = useCallback(async (payload) => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+
+    await refundExecution.mutateAsync({
+      taskId,
+      executionId: refundExecutionTarget.id,
+      payload,
+    });
+
+    closeRefundModal();
+  }, [closeRefundModal, refundExecution, refundExecutionTarget, taskId]);
+
+  useEffect(() => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+
+    const latest = executions.find((execution) => execution.id === refundExecutionTarget.id);
+    if (latest && latest !== refundExecutionTarget) {
+      setRefundExecutionTarget(latest);
+    }
+    if (!latest) {
+      closeRefundModal();
+    }
+  }, [closeRefundModal, executions, refundExecutionTarget]);
 
   const handleCancelExecution = useCallback((execution) => {
     updateExecution.mutate({ id: execution.id, payload: { status: 'CANCELLED' }, taskId });
@@ -157,6 +256,15 @@ const TaskDetailsDrawer = ({
       render: (value) => (value !== null && value !== undefined ? `$${Number(value).toFixed(2)}` : '—'),
     },
     {
+      title: 'Refund',
+      dataIndex: 'refund',
+      render: (value) => (
+        value && value.refund_amount !== undefined && value.refund_amount !== null
+          ? `$${Number(value.refund_amount).toFixed(2)}`
+          : '—'
+      ),
+    },
+    {
       title: 'Notes',
       dataIndex: 'notes',
       ellipsis: true,
@@ -166,13 +274,22 @@ const TaskDetailsDrawer = ({
       title: 'Actions',
       key: 'actions',
       render: (_, record) => {
-        const disabled = completeExecution.isLoading || updateExecution.isLoading;
+        const disabled = completeExecution.isLoading || updateExecution.isLoading || refundExecution.isLoading;
+        const isTodo = record.status === 'TODO';
         const isDone = record.status === 'DONE';
         const isCancelled = record.status === 'CANCELLED';
+        const hasRefund = Boolean(record.refund);
+        const hasRecordedCost = record.actual_cost !== null && record.actual_cost !== undefined && Number(record.actual_cost) > 0;
+        const canRefund =
+          isDone &&
+          !isCancelled &&
+          !hasRefund &&
+          hasRecordedCost &&
+          task?.task_type === 'PURCHASE';
 
         return (
           <Space size="middle">
-            {!isDone && !isCancelled && onCompleteExecution && (
+            {isTodo && onCompleteExecution && (
               <Tooltip title="Mark as done">
                 <Button
                   size="small"
@@ -185,7 +302,21 @@ const TaskDetailsDrawer = ({
                 </Button>
               </Tooltip>
             )}
-            {!isCancelled && (
+            {canRefund && (
+              <Tooltip title="Record refund">
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setRefundExecutionTarget(record);
+                    setRefundModalOpen(true);
+                  }}
+                  disabled={disabled}
+                >
+                  Refund
+                </Button>
+              </Tooltip>
+            )}
+            {isTodo && (
               <Tooltip title="Cancel execution">
                 <Button
                   size="small"
@@ -204,7 +335,14 @@ const TaskDetailsDrawer = ({
         );
       },
     },
-  ]), [completeExecution.isLoading, updateExecution.isLoading, handleCancelExecution, onCompleteExecution, task]);
+  ]), [
+    completeExecution.isLoading,
+    updateExecution.isLoading,
+    refundExecution.isLoading,
+    handleCancelExecution,
+    onCompleteExecution,
+    task,
+  ]);
 
   const drawerTitle = (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
@@ -235,112 +373,140 @@ const TaskDetailsDrawer = ({
 
   return (
     <Drawer
-      width={640}
+      width={drawerWidth}
       title={drawerTitle}
       open={open}
       onClose={onClose}
       destroyOnClose
     >
-      <Spin spinning={isTaskLoading || isTaskFetching}>
-        {task ? (
-          <>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              <Text type="secondary">
-                Recurrence: <Text strong>{describeRecurrence(task.recurrence_interval_days)}</Text>
-              </Text>
-            </Space>
+      <div style={{ position: 'relative', height: '100%' }}>
+        <Spin spinning={isTaskLoading || isTaskFetching}>
+          {task ? (
+            <>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Text type="secondary">
+                  Recurrence: <Text strong>{describeRecurrence(task.recurrence_interval_days)}</Text>
+                </Text>
+              </Space>
 
-            <Divider />
+              <Divider />
 
-            <Tabs
-              items={[
-                {
-                  key: 'overview',
-                  label: 'Overview',
-                  children: (
-                    <Descriptions
-                      column={1}
-                      size="small"
-                      labelStyle={{ fontWeight: 600 }}
-                      contentStyle={{ marginBottom: 8 }}
-                    >
-                      <Descriptions.Item label="Description">
-                        {task.description || '—'}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Start date">
-                        {formatDate(task.start_date)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="End date">
-                        {formatDate(task.end_date)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Created">
-                        {formatDate(task.created_at)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label="Updated">
-                        {formatDate(task.updated_at)}
-                      </Descriptions.Item>
-                    </Descriptions>
-                  ),
-                },
-                {
-                  key: 'executions',
-                  label: 'Executions',
-                  children: (
-                    <Spin spinning={isExecutionsLoading || isExecutionsFetching}>
-                      {executions.length === 0 ? (
-                        <Empty description="No executions yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                      ) : (
-                        <>
-                          <Table
-                            dataSource={executions}
-                            columns={executionColumns}
-                            pagination={false}
-                            rowKey="id"
-                            size="small"
-                            rowClassName={(record) => record.id === selectedExecutionId ? 'selected-execution-row' : ''}
-                          />
-                          <style>{`
-                            .selected-execution-row {
-                              background-color: #e6f7ff !important;
-                            }
-                          `}</style>
-                        </>
-                      )}
-                    </Spin>
-                  ),
-                },
-              ]}
-            />
+              <Tabs
+                activeKey={activeTab}
+                onChange={(key) => {
+                  setActiveTab(key);
+                  if (key === 'executions') {
+                    const halfWidth = Math.round(window.innerWidth / 2);
+                    setDrawerWidth(Math.min(halfWidth, window.innerWidth - 80));
+                  } else {
+                    setDrawerWidth(DEFAULT_DRAWER_WIDTH);
+                  }
+                }}
+                items={[
+                  {
+                    key: 'overview',
+                    label: 'Overview',
+                    children: (
+                      <Descriptions
+                        column={1}
+                        size="small"
+                        labelStyle={{ fontWeight: 600 }}
+                        contentStyle={{ marginBottom: 8 }}
+                      >
+                        <Descriptions.Item label="Description">
+                          {task.description || '—'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Category">
+                          {categoryDisplay}
+                        </Descriptions.Item>
+                        {estimatedCostDisplay && (
+                          <Descriptions.Item label="Estimated cost">
+                            {estimatedCostDisplay}
+                          </Descriptions.Item>
+                        )}
+                        <Descriptions.Item label="Start date">
+                          {formatDate(task.start_date)}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="End date">
+                          {formatDate(task.end_date)}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Created">
+                          {formatDate(task.created_at)}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Updated">
+                          {formatDate(task.updated_at)}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    ),
+                  },
+                  {
+                    key: 'executions',
+                    label: 'Executions',
+                    children: (
+                      <Spin spinning={isExecutionsLoading || isExecutionsFetching}>
+                        {executions.length === 0 ? (
+                          <Empty description="No executions yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        ) : (
+                          <>
+                            <Table
+                              dataSource={executions}
+                              columns={executionColumns}
+                              pagination={false}
+                              rowKey="id"
+                              size="small"
+                              rowClassName={(record) => record.id === selectedExecutionId ? 'selected-execution-row' : ''}
+                            />
+                            <style>{`
+                              .selected-execution-row {
+                                background-color: #e6f7ff !important;
+                              }
+                            `}</style>
+                          </>
+                        )}
+                      </Spin>
+                    ),
+                  },
+                ]}
+              />
 
-            <Divider />
+              <Divider />
 
-            <Space>
-              {task?.is_active === false ? (
-                <Popconfirm
-                  title="Reactivate task"
-                  description="This will allow the task to generate executions again."
-                  onConfirm={() => onReactivate?.(task)}
-                  okText="Reactivate"
-                >
-                  <Button type="primary">Reactivate task</Button>
-                </Popconfirm>
-              ) : (
-                <Popconfirm
-                  title="Deactivate task"
-                  description="Future executions will stop generating until reactivated."
-                  onConfirm={() => onDeactivate?.(task)}
-                  okText="Deactivate"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger>Deactivate task</Button>
-                </Popconfirm>
-              )}
-            </Space>
-          </>
-        ) : (
-          <Empty description="Select a task to see details" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        )}
-      </Spin>
+              <Space>
+                {task?.is_active === false ? (
+                  <Popconfirm
+                    title="Reactivate task"
+                    description="This will allow the task to generate executions again."
+                    onConfirm={() => onReactivate?.(task)}
+                    okText="Reactivate"
+                  >
+                    <Button type="primary">Reactivate task</Button>
+                  </Popconfirm>
+                ) : (
+                  <Popconfirm
+                    title="Deactivate task"
+                    description="Future executions will stop generating until reactivated."
+                    onConfirm={() => onDeactivate?.(task)}
+                    okText="Deactivate"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button danger>Deactivate task</Button>
+                  </Popconfirm>
+                )}
+              </Space>
+            </>
+          ) : (
+            <Empty description="Select a task to see details" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          )}
+        </Spin>
+      </div>
+      <RefundExecutionModal
+        open={refundModalOpen}
+        execution={refundExecutionTarget}
+        submitting={refundExecution.isLoading}
+        maxAmount={refundExecutionTarget?.actual_cost ?? null}
+        onClose={closeRefundModal}
+        onSubmit={handleRefundSubmit}
+      />
     </Drawer>
   );
 };

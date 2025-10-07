@@ -29,10 +29,12 @@ import {
   useTaskExecutions,
   useCompleteTaskExecution,
   useUpdateTaskExecution,
+  useRefundTaskExecution,
 } from '../hooks/useTaskExecutions';
 import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
 import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionModal';
 import ExecutionDetailsDrawer from '../components/CareTasks/ExecutionDetailsDrawer';
+import RefundExecutionModal from '../components/CareTasks/RefundExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
 
 const { Title } = Typography;
@@ -102,6 +104,8 @@ const TaskSchedulingPage = () => {
     initialValues: null
   });
   const [completeModalState, setCompleteModalState] = useState({ open: false, task: null, execution: null });
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
 
   const {
     data: careTasksResponse,
@@ -137,6 +141,7 @@ const TaskSchedulingPage = () => {
   const updateExecution = useUpdateTaskExecution();
   const completeExecution = useCompleteTaskExecution();
   const createManualExecution = useCreateManualExecution();
+  const refundExecutionMutation = useRefundTaskExecution();
 
   const executions = useMemo(() => executionsResponse?.executions || [], [executionsResponse]);
 
@@ -152,6 +157,44 @@ const TaskSchedulingPage = () => {
       setDetailsExecution(null);
     }
   }, [executions, detailsExecution]);
+
+  useEffect(() => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+    const latest = executions.find(exec => exec.id === refundExecutionTarget.id);
+    if (latest && latest !== refundExecutionTarget) {
+      setRefundExecutionTarget(latest);
+    }
+    if (!latest) {
+      setRefundExecutionTarget(null);
+      setRefundModalOpen(false);
+    }
+  }, [executions, refundExecutionTarget]);
+
+  const openRefundModal = useCallback((execution) => {
+    setRefundExecutionTarget(execution);
+    setRefundModalOpen(true);
+  }, []);
+
+  const closeRefundModal = useCallback(() => {
+    setRefundModalOpen(false);
+    setRefundExecutionTarget(null);
+  }, []);
+
+  const handleRefundSubmit = useCallback(async (payload) => {
+    if (!refundExecutionTarget) {
+      return;
+    }
+
+    await refundExecutionMutation.mutateAsync({
+      taskId: refundExecutionTarget.care_task_id,
+      executionId: refundExecutionTarget.id,
+      payload,
+    });
+
+    closeRefundModal();
+  }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
 
   const filteredExecutions = useMemo(() => {
     const lowered = searchTerm.trim().toLowerCase();
@@ -366,6 +409,10 @@ const TaskSchedulingPage = () => {
         const parentTask = careTasksById[record.care_task_id];
         const canComplete = record.status === 'TODO';
         const loading = completeExecution.isLoading || updateExecution.isLoading;
+        const isPurchaseTask = parentTask?.task_type === 'PURCHASE';
+        const hasRecordedCost = record.actual_cost !== null && record.actual_cost !== undefined && Number(record.actual_cost) > 0;
+        const canRefund = record.status === 'DONE' && !record.refund && isPurchaseTask && hasRecordedCost;
+        const refundLoading = refundExecutionMutation.isLoading;
         return (
           <Space size="small">
             <Tooltip title="View details">
@@ -404,11 +451,31 @@ const TaskSchedulingPage = () => {
                 Mark done
               </Button>
             )}
+            {canRefund && (
+              <Button
+                size="small"
+                onClick={() => openRefundModal(record)}
+                disabled={refundLoading}
+                loading={refundLoading}
+              >
+                Refund
+              </Button>
+            )}
           </Space>
         );
       }
     }
-  ]), [careTasksById, completeExecution.isLoading, updateExecution.isLoading, openDetailsDrawer, openEditExecutionForm, openCompleteModal, openCreateExecutionForm]);
+  ]), [
+    careTasksById,
+    completeExecution.isLoading,
+    updateExecution.isLoading,
+    refundExecutionMutation.isLoading,
+    openDetailsDrawer,
+    openEditExecutionForm,
+    openCompleteModal,
+    openCreateExecutionForm,
+    openRefundModal,
+  ]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -548,6 +615,14 @@ const TaskSchedulingPage = () => {
         }}
         isUpdating={updateExecution.isLoading}
         isCompleting={completeExecution.isLoading}
+      />
+      <RefundExecutionModal
+        open={refundModalOpen}
+        execution={refundExecutionTarget}
+        submitting={refundExecutionMutation.isLoading}
+        maxAmount={refundExecutionTarget?.actual_cost ?? null}
+        onClose={closeRefundModal}
+        onSubmit={handleRefundSubmit}
       />
     </div>
   );

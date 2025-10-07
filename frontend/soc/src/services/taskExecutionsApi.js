@@ -105,6 +105,20 @@ export const taskExecutionsService = {
     });
   },
 
+  async refundTaskExecution(taskId, id, payload = {}) {
+    if (!taskId) {
+      throw new Error('Care task id is required to refund an execution');
+    }
+    if (!id) {
+      throw new Error('Task execution id is required');
+    }
+
+    return await authenticatedApiCall(`/api/care-tasks/${taskId}/executions/${id}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   async coverExecutions(executionId, executionIds = []) {
     if (!executionId) {
       throw new Error('Covering execution id is required');

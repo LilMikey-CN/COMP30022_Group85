@@ -141,3 +141,34 @@ export const useCoverTaskExecutions = () => {
     },
   });
 };
+
+export const useRefundTaskExecution = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, executionId, payload }) => {
+      if (!taskId) {
+        throw new Error('Care task id is required to record a refund');
+      }
+      if (!executionId) {
+        throw new Error('Execution id is required to record a refund');
+      }
+      return await taskExecutionsService.refundTaskExecution(taskId, executionId, payload);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
+      if (variables?.taskId) {
+        queryClient.invalidateQueries({
+          queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', variables.taskId],
+          exact: false
+        });
+        queryClient.invalidateQueries({ queryKey: ['careTasks', 'detail', variables.taskId] });
+      }
+      message.success('Refund recorded');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to record refund';
+      message.error(reason);
+    }
+  });
+};

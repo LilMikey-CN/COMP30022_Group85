@@ -29,6 +29,7 @@ import {
   useGenerateTaskExecution,
   useCreateManualExecution,
 } from '../hooks/useCareTasks';
+import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
 import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
@@ -101,6 +102,22 @@ const CareTasksPage = () => {
     error: careTasksError,
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  const {
+    data: categoriesResponse,
+    isFetching: isCategoriesFetching,
+    refetch: refetchCategories
+  } = useCategories();
+  const createCategory = useCreateCategory();
+  const categories = useMemo(() => categoriesResponse?.categories || [], [categoriesResponse]);
+
+  const handleCreateCategory = useCallback(
+    async ({ name }) => {
+      const response = await createCategory.mutateAsync({ name });
+      await refetchCategories();
+      return response?.data;
+    },
+    [createCategory, refetchCategories]
+  );
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
 
@@ -190,6 +207,14 @@ const CareTasksPage = () => {
       title: 'Type',
       dataIndex: 'task_type',
       render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
+    },
+    {
+      title: 'Estimated cost',
+      key: 'estimated_unit_cost',
+      render: (_, task) =>
+        task.task_type === 'PURCHASE' && task.estimated_unit_cost !== null && task.estimated_unit_cost !== undefined
+          ? `$${Number(task.estimated_unit_cost).toFixed(2)}`
+          : '—',
     },
     {
       title: 'Recurrence',
@@ -347,7 +372,10 @@ const CareTasksPage = () => {
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateTask}
-        submitting={createCareTask.isLoading}
+        submitting={createCareTask.isLoading || createCategory.isLoading}
+        categories={categories}
+        categoriesLoading={isCategoriesFetching || createCategory.isLoading}
+        onCreateCategory={handleCreateCategory}
       />
 
       <EditCareTaskModal
@@ -355,7 +383,10 @@ const CareTasksPage = () => {
         task={editTask}
         onClose={() => setEditTask(null)}
         onSubmit={(values) => handleUpdateTask(editTask.id, values)}
-        submitting={updateCareTask.isLoading}
+        submitting={updateCareTask.isLoading || createCategory.isLoading}
+        categories={categories}
+        categoriesLoading={isCategoriesFetching || createCategory.isLoading}
+        onCreateCategory={handleCreateCategory}
       />
 
       <ManualExecutionModal
