@@ -17,7 +17,9 @@ import {
 import {
   ReloadOutlined,
   FileSearchOutlined,
-  PlusOutlined
+  PlusOutlined,
+  CaretUpOutlined,
+  CaretDownOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -51,12 +53,7 @@ const executionStatusFilters = [
   { label: 'Cancelled', value: 'CANCELLED' },
 ];
 
-const sortOptions = [
-  { label: 'Scheduled date', value: 'scheduled_date' },
-  { label: 'Created', value: 'created_at' },
-  { label: 'Updated', value: 'updated_at' },
-  { label: 'Task name', value: 'task_name' },
-];
+const DEFAULT_SORT = { field: 'scheduled_date', order: 'ascend' };
 
 const formatDate = (value) => {
   if (!value) {
@@ -92,8 +89,7 @@ const TaskSchedulingPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [startDateRange, setStartDateRange] = useState(null);
-  const [sortField, setSortField] = useState('scheduled_date');
-  const [sortOrder, setSortOrder] = useState('ascend');
+  const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
 
   const [detailsExecution, setDetailsExecution] = useState(null);
   const [executionFormState, setExecutionFormState] = useState({
@@ -106,6 +102,7 @@ const TaskSchedulingPage = () => {
   const [completeModalState, setCompleteModalState] = useState({ open: false, task: null, execution: null });
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
+  const [executionPagination, setExecutionPagination] = useState({ current: 1, pageSize: 10 });
 
   const {
     data: careTasksResponse,
@@ -196,14 +193,14 @@ const TaskSchedulingPage = () => {
     closeRefundModal();
   }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
 
-  const filteredExecutions = useMemo(() => {
-    const lowered = searchTerm.trim().toLowerCase();
+const filteredExecutions = useMemo(() => {
+  const lowered = searchTerm.trim().toLowerCase();
 
     const [from, to] = startDateRange || [];
     const fromBoundary = from ? dayjs(from) : null;
     const toBoundary = to ? dayjs(to) : null;
 
-    const filtered = executions.filter((execution) => {
+  return executions.filter((execution) => {
       const parentTask = careTasksById[execution.care_task_id];
       const taskName = parentTask?.name?.toLowerCase() || '';
       const notes = execution.notes?.toLowerCase() || '';
@@ -223,44 +220,88 @@ const TaskSchedulingPage = () => {
       }
 
       return true;
-    });
+  });
+}, [executions, careTasksById, searchTerm, startDateRange]);
 
-    const sorted = [...filtered].sort((a, b) => {
-      let valueA;
-      let valueB;
+const sortedExecutions = useMemo(() => {
+  const data = [...filteredExecutions];
+  const { field, order } = sortConfig;
 
-      switch (sortField) {
-        case 'created_at':
-          valueA = dayjs(a.created_at).valueOf();
-          valueB = dayjs(b.created_at).valueOf();
-          break;
-        case 'updated_at':
-          valueA = dayjs(a.updated_at).valueOf();
-          valueB = dayjs(b.updated_at).valueOf();
-          break;
-        case 'task_name': {
-          valueA = careTasksById[a.care_task_id]?.name?.toLowerCase() || '';
-          valueB = careTasksById[b.care_task_id]?.name?.toLowerCase() || '';
-          break;
-        }
-        case 'scheduled_date':
-        default:
-          valueA = dayjs(a.scheduled_date).valueOf();
-          valueB = dayjs(b.scheduled_date).valueOf();
-          break;
-      }
+  const getValue = (execution) => {
+    switch (field) {
+      case 'task_name':
+        return careTasksById[execution.care_task_id]?.name?.toLowerCase() || '';
+      case 'status':
+        return execution.status || '';
+      case 'scheduled_date':
+        return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+      case 'execution_date':
+        return execution.execution_date ? dayjs(execution.execution_date).valueOf() : Number.MAX_SAFE_INTEGER;
+      case 'created_at':
+        return execution.created_at ? dayjs(execution.created_at).valueOf() : -Infinity;
+      case 'updated_at':
+        return execution.updated_at ? dayjs(execution.updated_at).valueOf() : -Infinity;
+      default:
+        return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
+    }
+  };
 
-      if (valueA === valueB) {
-        return 0;
-      }
-      if (sortOrder === 'ascend') {
-        return valueA > valueB ? 1 : -1;
-      }
-      return valueA > valueB ? -1 : 1;
-    });
+  return data.sort((a, b) => {
+    const valueA = getValue(a);
+    const valueB = getValue(b);
 
-    return sorted;
-  }, [executions, careTasksById, searchTerm, sortField, sortOrder, startDateRange]);
+    if (valueA === valueB) {
+      return 0;
+    }
+
+    if (order === 'ascend') {
+      return valueA > valueB ? 1 : -1;
+    }
+    return valueA > valueB ? -1 : 1;
+  });
+}, [filteredExecutions, sortConfig, careTasksById]);
+
+const handleSort = useCallback((field) => {
+  setSortConfig((prev) => {
+    if (prev.field === field) {
+      return {
+        field,
+        order: prev.order === 'ascend' ? 'descend' : 'ascend'
+      };
+    }
+    return { field, order: 'ascend' };
+  });
+}, []);
+
+const renderSortTitle = useCallback((label, field) => {
+  const isActive = sortConfig.field === field;
+  const isAsc = isActive && sortConfig.order === 'ascend';
+  const isDesc = isActive && sortConfig.order === 'descend';
+
+  return (
+    <span
+      onClick={() => handleSort(field)}
+      style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+    >
+      {label}
+      <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
+        <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
+        <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
+      </span>
+    </span>
+  );
+}, [handleSort, sortConfig]);
+
+  useEffect(() => {
+    setExecutionPagination((prev) => ({ ...prev, current: 1 }));
+  }, [searchTerm, statusFilter, startDateRange, sortConfig, executions.length]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(sortedExecutions.length / executionPagination.pageSize));
+    if (executionPagination.current > maxPage) {
+      setExecutionPagination((prev) => ({ ...prev, current: maxPage }));
+    }
+  }, [sortedExecutions.length, executionPagination.pageSize, executionPagination.current]);
 
   const handleExecutionFormClose = useCallback(() => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });
@@ -383,22 +424,22 @@ const TaskSchedulingPage = () => {
 
   const columns = useMemo(() => ([
     {
-      title: 'Task',
+      title: renderSortTitle('Task', 'task_name'),
       dataIndex: 'care_task_id',
       render: (taskId) => careTasksById[taskId]?.name || 'Care task',
     },
     {
-      title: 'Status',
+      title: renderSortTitle('Status', 'status'),
       dataIndex: 'status',
       render: (status) => <Tag color={status === 'DONE' ? 'green' : status === 'CANCELLED' ? 'red' : 'blue'}>{status}</Tag>,
     },
     {
-      title: 'Scheduled date',
+      title: renderSortTitle('Scheduled date', 'scheduled_date'),
       dataIndex: 'scheduled_date',
       render: (date) => formatDate(date),
     },
     {
-      title: 'Completed',
+      title: renderSortTitle('Completed', 'execution_date'),
       dataIndex: 'execution_date',
       render: (date) => formatDate(date),
     },
@@ -470,6 +511,7 @@ const TaskSchedulingPage = () => {
     completeExecution.isLoading,
     updateExecution.isLoading,
     refundExecutionMutation.isLoading,
+    renderSortTitle,
     openDetailsDrawer,
     openEditExecutionForm,
     openCompleteModal,
@@ -540,39 +582,36 @@ const TaskSchedulingPage = () => {
                   format="YYYY-MM-DD"
                 />
                 <Select
-                  value={`${sortField}:${sortOrder}`}
-                  style={{ width: 190 }}
-                  onChange={(value) => {
-                    const [field, order] = value.split(':');
-                    setSortField(field);
-                    setSortOrder(order);
-                  }}
+                  value={String(executionPagination.pageSize)}
+                  style={{ width: 140 }}
+                  onChange={(value) =>
+                    setExecutionPagination({ current: 1, pageSize: Number(value) })
+                  }
                 >
-                  {sortOptions.map((option) => (
-                    <React.Fragment key={option.value}>
-                      <Option value={`${option.value}:ascend`}>
-                        {option.label} ↑
-                      </Option>
-                      <Option value={`${option.value}:descend`}>
-                        {option.label} ↓
-                      </Option>
-                    </React.Fragment>
-                  ))}
+                  <Option value="10">10 / page</Option>
+                  <Option value="20">20 / page</Option>
+                  <Option value="50">50 / page</Option>
                 </Select>
               </Space>
             </Space>
 
             <Spin spinning={isExecutionsLoading}>
-              {filteredExecutions.length === 0 ? (
+              {sortedExecutions.length === 0 ? (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No task executions found" />
               ) : (
                 <Table
-                  dataSource={filteredExecutions}
+                  dataSource={sortedExecutions}
                   columns={columns}
                   rowKey="id"
                   size="middle"
                   scroll={{ x: true }}
-                  pagination={false}
+                  pagination={{
+                    current: executionPagination.current,
+                    pageSize: executionPagination.pageSize,
+                    total: sortedExecutions.length,
+                    onChange: (page, pageSize) => setExecutionPagination({ current: page, pageSize }),
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+                  }}
                 />
               )}
             </Spin>
