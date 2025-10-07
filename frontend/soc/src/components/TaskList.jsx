@@ -3,11 +3,11 @@ import { List, Typography, Empty } from 'antd';
 
 const { Text } = Typography;
 
-const CareItemsList = ({ items, type = 'upcoming' }) => {
+const TaskList = ({ items, variant = 'upcoming', emptyLabel }) => {
   if (!items || items.length === 0) {
     return (
       <Empty
-        description={`No ${type} items`}
+        description={emptyLabel || (variant === 'overdue' ? 'No overdue tasks' : 'No upcoming tasks')}
         image={Empty.PRESENTED_IMAGE_SIMPLE}
       />
     );
@@ -21,9 +21,9 @@ const CareItemsList = ({ items, type = 'upcoming' }) => {
           style={{
             padding: '12px 16px',
             marginBottom: '8px',
-            backgroundColor: type === 'overdue' ? '#fff2f0' : '#e6f7ff',
+            backgroundColor: variant === 'overdue' ? '#fff2f0' : '#e6f7ff',
             borderRadius: '6px',
-            border: type === 'overdue' ? '1px solid #ffccc7' : '1px solid #91d5ff'
+            border: variant === 'overdue' ? '1px solid #ffccc7' : '1px solid #91d5ff'
           }}
         >
           <div style={{
@@ -41,8 +41,8 @@ const CareItemsList = ({ items, type = 'upcoming' }) => {
             </Text>
             <Text style={{
               fontSize: '14px',
-              color: type === 'overdue' ? '#ff4d4f' : '#8c8c8c',
-              fontWeight: type === 'overdue' ? '600' : 'normal'
+              color: variant === 'overdue' ? '#ff4d4f' : '#8c8c8c',
+              fontWeight: variant === 'overdue' ? '600' : 'normal'
             }}>
               {item.date}
             </Text>
@@ -53,4 +53,4 @@ const CareItemsList = ({ items, type = 'upcoming' }) => {
   );
 };
 
-export default CareItemsList;
+export default TaskList;

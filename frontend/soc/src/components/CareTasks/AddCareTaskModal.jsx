@@ -8,8 +8,6 @@ const AddCareTaskModal = ({
   onClose,
   onSubmit,
   submitting = false,
-  careItems = [],
-  careItemsLoading = false,
 }) => {
   const [form] = Form.useForm();
 
@@ -30,10 +28,6 @@ const AddCareTaskModal = ({
         start_date: values.start_date ? dayjs(values.start_date).format('YYYY-MM-DD') : undefined,
         end_date: values.end_date ? dayjs(values.end_date).format('YYYY-MM-DD') : null,
       };
-
-      if (values.task_type === 'PURCHASE') {
-        payload.care_item_id = values.care_item_id;
-      }
 
       await onSubmit(payload);
       resetAndClose();
@@ -59,12 +53,9 @@ const AddCareTaskModal = ({
       <CareTaskForm
         form={form}
         mode="create"
-        careItems={careItems}
-        careItemsLoading={careItemsLoading}
       />
     </Modal>
   );
 };
 
 export default AddCareTaskModal;
-

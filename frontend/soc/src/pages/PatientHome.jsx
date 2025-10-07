@@ -2,9 +2,8 @@ import React from 'react';
 import { Typography, Card, Row, Col } from 'antd';
 import { useParams } from 'react-router-dom';
 import SummaryCard from '../components/SummaryCard';
-import CareItemsList from '../components/CareItemsList';
-//import { patientsData } from '../data/mockData';
-import { careScheduleData } from '../data/careScheduleData';
+import TaskList from '../components/TaskList';
+import { taskScheduleData } from '../data/taskScheduleData';
 
 const { Title, Text } = Typography;
 
@@ -14,7 +13,7 @@ const PatientHome = () => {
   // Get patient data (in real app, this would be an API call)
 
   //const patient = patientsData.find(p => p.id === patientId) || patientsData[0];
-  const scheduleData = careScheduleData[patientId] || careScheduleData.default;
+  const scheduleData = taskScheduleData[patientId] || taskScheduleData.default;
 
   return (
     <div style={{ padding: '24px' }}>
@@ -24,7 +23,7 @@ const PatientHome = () => {
           Home
         </Title>
         <Text type="secondary" style={{ fontSize: '16px' }}>
-          Overview of care requirements
+          Overview of upcoming and overdue care tasks
         </Text>
       </div>
 
@@ -34,7 +33,7 @@ const PatientHome = () => {
           <SummaryCard
             title="Today"
             value={scheduleData.todayCount}
-            subtitle="Care items due"
+            subtitle="Tasks due today"
             valueColor="#5a7a9a"
           />
         </Col>
@@ -58,7 +57,7 @@ const PatientHome = () => {
         </Col>
       </Row>
 
-      {/* Care Items Lists */}
+      {/* Task Lists */}
       <Row gutter={[20, 20]}>
         <Col xs={24} lg={12}>
           <Card
@@ -72,9 +71,9 @@ const PatientHome = () => {
             }
             style={{ height: '100%' }}
           >
-            <CareItemsList
-              items={scheduleData.upcomingItems}
-              type="upcoming"
+            <TaskList
+              items={scheduleData.upcomingTasks}
+              variant="upcoming"
             />
           </Card>
         </Col>
@@ -83,9 +82,9 @@ const PatientHome = () => {
             title="Overdue"
             style={{ height: '100%' }}
           >
-            <CareItemsList
-              items={scheduleData.overdueItems}
-              type="overdue"
+            <TaskList
+              items={scheduleData.overdueTasks}
+              variant="overdue"
             />
           </Card>
         </Col>

@@ -20,7 +20,6 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useCareItems } from '../hooks/useCareItems';
 import {
   useCareTasks,
   useCreateCareTask,
@@ -96,19 +95,12 @@ const CareTasksPage = () => {
     }
   }, [location, navigate]);
 
-  const { data: careItemsResponse, isLoading: isCareItemsLoading } = useCareItems({ is_active: 'all' });
   const {
     data: careTasksResponse,
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
-
-  const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
-  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  }, {}), [careItems]);
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
 
@@ -126,8 +118,7 @@ const CareTasksPage = () => {
       if (lowered) {
         const name = task.name?.toLowerCase() || '';
         const description = task.description?.toLowerCase() || '';
-        const careItemName = task.care_item_id ? (careItemsById[task.care_item_id]?.name?.toLowerCase() || '') : '';
-        if (!name.includes(lowered) && !description.includes(lowered) && !careItemName.includes(lowered)) {
+        if (!name.includes(lowered) && !description.includes(lowered)) {
           return false;
         }
       }
@@ -155,7 +146,7 @@ const CareTasksPage = () => {
 
       return true;
     });
-  }, [careTasks, careItemsById, searchTerm, statusFilter, typeFilter, startRange]);
+  }, [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
 
   const handleCreateTask = useCallback(async (payload) => {
     await createCareTask.mutateAsync(payload);
@@ -305,7 +296,7 @@ const CareTasksPage = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
               <Input
-                placeholder="Search by name, description, or care item"
+                placeholder="Search by name or description"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 allowClear
@@ -338,7 +329,7 @@ const CareTasksPage = () => {
             rowKey="id"
             dataSource={filteredTasks}
             columns={columns}
-            loading={isCareItemsLoading && careItems.length === 0}
+            loading={isCareTasksFetching}
             pagination={{ pageSize: 10 }}
             locale={{
               emptyText: (
@@ -357,8 +348,6 @@ const CareTasksPage = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreateTask}
         submitting={createCareTask.isLoading}
-        careItems={careItems}
-        careItemsLoading={isCareItemsLoading}
       />
 
       <EditCareTaskModal
@@ -367,8 +356,6 @@ const CareTasksPage = () => {
         onClose={() => setEditTask(null)}
         onSubmit={(values) => handleUpdateTask(editTask.id, values)}
         submitting={updateCareTask.isLoading}
-        careItems={careItems}
-        careItemsLoading={isCareItemsLoading}
       />
 
       <ManualExecutionModal
@@ -387,7 +374,6 @@ const CareTasksPage = () => {
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
         onGenerateExecution={handleGenerateExecution}
-        careItemsById={careItemsById}
       />
     </div>
   );

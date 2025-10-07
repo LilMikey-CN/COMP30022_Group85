@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { Form, Input, Select, DatePicker, InputNumber, Divider, Alert } from 'antd';
 import dayjs from 'dayjs';
 import { RECURRENCE_PRESETS } from './recurrencePresets';
@@ -8,13 +8,9 @@ const { Option } = Select;
 const CareTaskForm = ({
   form,
   mode = 'create',
-  careItems = [],
-  careItemsLoading = false,
   initialTask,
 }) => {
   const recurrencePresetValue = Form.useWatch('recurrencePreset', form);
-  const taskTypeValue = Form.useWatch('task_type', form);
-
   useEffect(() => {
     if (!recurrencePresetValue) {
       return;
@@ -31,14 +27,6 @@ const CareTaskForm = ({
       form.setFieldsValue({ end_date: null });
     }
   }, [recurrencePresetValue, form]);
-
-  const filteredCareItems = useMemo(() => {
-    return careItems
-      .filter((item) => item.is_active !== false)
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [careItems]);
-
-  const disableCareItemSelect = taskTypeValue !== 'PURCHASE';
 
   return (
     <Form
@@ -75,40 +63,6 @@ const CareTaskForm = ({
         <Select placeholder="Select type">
           <Option value="GENERAL">General</Option>
           <Option value="PURCHASE">Purchase</Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item
-        name="care_item_id"
-        label="Linked care item"
-        tooltip="Required for purchase tasks"
-        rules={[
-          ({ getFieldValue }) => ({
-            validator(_, value) {
-              if (getFieldValue('task_type') !== 'PURCHASE') {
-                return Promise.resolve();
-              }
-              if (!value) {
-                return Promise.reject(new Error('Please select a care item'));
-              }
-              return Promise.resolve();
-            },
-          }),
-        ]}
-      >
-        <Select
-          placeholder={disableCareItemSelect ? 'Select task type to choose care item' : 'Select care item'}
-          loading={careItemsLoading}
-          disabled={disableCareItemSelect}
-          showSearch
-          optionFilterProp="children"
-          allowClear
-        >
-          {filteredCareItems.map((item) => (
-            <Option key={item.id} value={item.id}>
-              {item.name}
-            </Option>
-          ))}
         </Select>
       </Form.Item>
 

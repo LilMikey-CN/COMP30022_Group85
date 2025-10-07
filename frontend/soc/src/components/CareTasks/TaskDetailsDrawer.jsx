@@ -98,7 +98,6 @@ const TaskDetailsDrawer = ({
   onDeactivate,
   onReactivate,
   onGenerateExecution,
-  careItemsById = {},
   selectedExecution,
   onCompleteExecution,
 }) => {
@@ -119,7 +118,6 @@ const TaskDetailsDrawer = ({
 
   const executions = executionsResponse?.executions || [];
   const taskStatus = computeTaskStatus(task);
-  const linkedCareItem = task?.care_item_id ? careItemsById[task.care_item_id] : undefined;
   const selectedExecutionId = selectedExecution?.id || null;
 
   const handleCancelExecution = useCallback((execution) => {
@@ -247,11 +245,6 @@ const TaskDetailsDrawer = ({
         {task ? (
           <>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
-              {task?.care_item_id && (
-                <Text type="secondary">
-                  Linked care item: <Text strong>{linkedCareItem?.name || task.care_item_id}</Text>
-                </Text>
-              )}
               <Text type="secondary">
                 Recurrence: <Text strong>{describeRecurrence(task.recurrence_interval_days)}</Text>
               </Text>

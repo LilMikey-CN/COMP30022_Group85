@@ -1,6 +1,6 @@
 /**
  * Categories API Service
- * Handles fetching categories for care items
+ * Handles fetching categories for budgeting features
  */
 
 import { auth } from '../firebase/config';

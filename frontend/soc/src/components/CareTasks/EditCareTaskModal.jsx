@@ -17,8 +17,6 @@ const EditCareTaskModal = ({
   onClose,
   onSubmit,
   submitting = false,
-  careItems = [],
-  careItemsLoading = false,
   task,
 }) => {
   const [form] = Form.useForm();
@@ -30,7 +28,6 @@ const EditCareTaskModal = ({
         name: task.name,
         description: task.description || '',
         task_type: task.task_type,
-        care_item_id: task.care_item_id || undefined,
         recurrencePreset,
         recurrence_interval_days: Number(task.recurrence_interval_days ?? 0),
         start_date: task.start_date ? dayjs(task.start_date) : undefined,
@@ -59,12 +56,6 @@ const EditCareTaskModal = ({
         end_date: values.end_date ? dayjs(values.end_date).format('YYYY-MM-DD') : null,
       };
 
-      if (values.task_type === 'PURCHASE') {
-        payload.care_item_id = values.care_item_id;
-      } else {
-        payload.care_item_id = null;
-      }
-
       await onSubmit(task.id, payload);
       resetAndClose();
     } catch (error) {
@@ -89,8 +80,6 @@ const EditCareTaskModal = ({
       <CareTaskForm
         form={form}
         mode="edit"
-        careItems={careItems}
-        careItemsLoading={careItemsLoading}
         initialTask={task}
       />
     </Modal>

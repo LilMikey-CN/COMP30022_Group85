@@ -1,13 +1,9 @@
-import React, { useState } from 'react';
-import { Card, Button, Dropdown, Collapse, Typography, Space } from 'antd';
-import { MoreOutlined, PlusOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import React from 'react';
+import { Card, Button, Dropdown, Typography, Space } from 'antd';
+import { MoreOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { formatCurrency } from '../../data/budgetCalculations';
-// eslint-disable-next-line no-unused-vars
-import { getCareItemsByCategory } from '../../data/dataHelpers';
-import CareItemCard from './CareItemCard';
 
 const { Text } = Typography;
-const { Panel } = Collapse;
 
 const CategoryBudgetCard = ({
   category,
@@ -19,8 +15,6 @@ const CategoryBudgetCard = ({
   onDeleteSubcategory,
   allTasks = []
 }) => {
-  const [showCareItems, setShowCareItems] = useState(false);
-
   const menuItems = [
     {
       key: 'edit',
@@ -44,6 +38,8 @@ const CategoryBudgetCard = ({
   ];
 
   const categoryTasks = allTasks.filter(task => task.budgetCategoryId === category.id);
+  const completedTasks = categoryTasks.filter(task => task.status === 'completed').length;
+  const pendingTasks = categoryTasks.length - completedTasks;
 
   return (
     <Card
@@ -143,9 +139,9 @@ const CategoryBudgetCard = ({
 
           {/* Quick Stats */}
           <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#7f8c8d' }}>
-            <span>{category.careItems?.length || 0} care items</span>
             <span>{category.subcategoryBreakdown?.length || 0} subcategories</span>
-            <span>{categoryTasks.filter(t => t.status === 'completed').length} completed tasks</span>
+            <span>{completedTasks} completed tasks</span>
+            <span>{pendingTasks} open tasks</span>
           </div>
         </div>
 
@@ -157,56 +153,6 @@ const CategoryBudgetCard = ({
             disabled={loading}
           />
         </Dropdown>
-      </div>
-
-      {/* Care Items Section */}
-      <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e9ecef' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <Button
-            type="text"
-            onClick={() => setShowCareItems(!showCareItems)}
-            style={{ padding: 0, height: 'auto', color: '#5e72e4', fontWeight: 500 }}
-            icon={showCareItems ? <DownOutlined /> : <RightOutlined />}
-          >
-            Care Tasks ({category.careItems?.length || 0})
-          </Button>
-          {/*
-            Maybe not needed here?
-          <Button
-            type="link"
-            size="small"
-            icon={<PlusOutlined />}
-            style={{ fontSize: '12px', color: '#5e72e4', padding: 0 }}
-          >
-            Add care task
-          </Button>
-          */}
-        </div>
-
-        {showCareItems && (
-          <div style={{ marginTop: '12px' }}>
-            {category.careItems && category.careItems.length > 0 ? (
-              <Space direction="vertical" style={{ width: '100%' }}>
-                {category.careItems.map(careItem => (
-                  <CareItemCard
-                    key={careItem.id}
-                    careItem={careItem}
-                    tasks={categoryTasks.filter(task => task.careItemId === careItem.id)}
-                  />
-                ))}
-              </Space>
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                padding: '24px',
-                color: '#8c8c8c',
-                fontSize: '14px'
-              }}>
-                No care items in this category yet
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Subcategories Section */}
@@ -290,7 +236,7 @@ const SubcategoryItem = ({ subcategory, loading, onEdit, onDelete }) => {
               Spent: <span style={{ fontWeight: 600, color: '#2c3e50' }}>{formatCurrency(subcategory.actualSpent)}</span>
             </span>
             <span style={{ color: '#7f8c8d' }}>
-              Items: <span style={{ fontWeight: 600, color: '#2c3e50' }}>{subcategory.careItems?.length || 0}</span>
+              Utilisation: <span style={{ fontWeight: 600, color: '#2c3e50' }}>{subcategory.utilization}%</span>
             </span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>

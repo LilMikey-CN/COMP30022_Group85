@@ -167,7 +167,7 @@ const BudgetContent = () => {
           Budget Management
         </Typography.Title>
         <Typography.Text type="secondary" style={{ fontSize: '16px' }}>
-          Track spending and budget allocation for care items with real-time analytics
+          Track spending and budget allocation across care categories with real-time analytics
         </Typography.Text>
       </div>
 

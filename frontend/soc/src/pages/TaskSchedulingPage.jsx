@@ -21,7 +21,6 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
-import { useCareItems } from '../hooks/useCareItems';
 import {
   useCareTasks,
   useCreateManualExecution,
@@ -104,7 +103,6 @@ const TaskSchedulingPage = () => {
   });
   const [completeModalState, setCompleteModalState] = useState({ open: false, task: null, execution: null });
 
-  const { data: careItemsResponse } = useCareItems({ is_active: 'all' });
   const {
     data: careTasksResponse,
     isFetching: isCareTasksFetching,
@@ -112,23 +110,18 @@ const TaskSchedulingPage = () => {
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
 
-  const executionParams = useMemo(() => {
-    const params = {
-      limit: 300,
-      offset: 0,
-    };
+  const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
+  const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
+    acc[task.id] = task;
+    return acc;
+  }, {}), [careTasks]);
+  const taskIds = useMemo(() => careTasks.map((task) => task.id).filter(Boolean), [careTasks]);
 
-    if (statusFilter !== 'all') {
-      params.status = statusFilter;
-    }
-
-    if (startDateRange && startDateRange.length === 2) {
-      params.date_from = startDateRange[0] ? dayjs(startDateRange[0]).format('YYYY-MM-DD') : undefined;
-      params.date_to = startDateRange[1] ? dayjs(startDateRange[1]).format('YYYY-MM-DD') : undefined;
-    }
-
-    return params;
-  }, [statusFilter, startDateRange]);
+  const executionQueryParams = useMemo(() => ({
+    limit: 300,
+    offset: 0,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+  }), [statusFilter]);
 
   const {
     data: executionsResponse,
@@ -136,19 +129,10 @@ const TaskSchedulingPage = () => {
     isFetching: isExecutionsFetching,
     error: executionsError,
     refetch: refetchExecutions,
-  } = useTaskExecutions(executionParams);
-
-  const careItems = useMemo(() => careItemsResponse?.care_items || [], [careItemsResponse]);
-  const careItemsById = useMemo(() => careItems.reduce((acc, item) => {
-    acc[item.id] = item;
-    return acc;
-  }, {}), [careItems]);
-
-  const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
-  const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
-    acc[task.id] = task;
-    return acc;
-  }, {}), [careTasks]);
+  } = useTaskExecutions({
+    taskIds,
+    params: executionQueryParams,
+  });
 
   const updateExecution = useUpdateTaskExecution();
   const completeExecution = useCompleteTaskExecution();
@@ -172,15 +156,30 @@ const TaskSchedulingPage = () => {
   const filteredExecutions = useMemo(() => {
     const lowered = searchTerm.trim().toLowerCase();
 
+    const [from, to] = startDateRange || [];
+    const fromBoundary = from ? dayjs(from) : null;
+    const toBoundary = to ? dayjs(to) : null;
+
     const filtered = executions.filter((execution) => {
-      if (!lowered) {
-        return true;
-      }
       const parentTask = careTasksById[execution.care_task_id];
       const taskName = parentTask?.name?.toLowerCase() || '';
       const notes = execution.notes?.toLowerCase() || '';
-      const careItemName = parentTask?.care_item_id ? (careItemsById[parentTask.care_item_id]?.name?.toLowerCase() || '') : '';
-      return taskName.includes(lowered) || notes.includes(lowered) || careItemName.includes(lowered);
+
+      if (lowered && !taskName.includes(lowered) && !notes.includes(lowered)) {
+        return false;
+      }
+
+      if (fromBoundary || toBoundary) {
+        const scheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
+        if (fromBoundary && scheduled && scheduled.isBefore(fromBoundary, 'day')) {
+          return false;
+        }
+        if (toBoundary && scheduled && scheduled.isAfter(toBoundary, 'day')) {
+          return false;
+        }
+      }
+
+      return true;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -218,7 +217,7 @@ const TaskSchedulingPage = () => {
     });
 
     return sorted;
-  }, [executions, careTasksById, careItemsById, searchTerm, sortField, sortOrder]);
+  }, [executions, careTasksById, searchTerm, sortField, sortOrder, startDateRange]);
 
   const handleExecutionFormClose = useCallback(() => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });
@@ -409,11 +408,13 @@ const TaskSchedulingPage = () => {
         );
       }
     }
-  ]), [careTasksById, completeExecution.isLoading, updateExecution.isLoading, openDetailsDrawer, openEditExecutionForm, openCompleteModal]);
+  ]), [careTasksById, completeExecution.isLoading, updateExecution.isLoading, openDetailsDrawer, openEditExecutionForm, openCompleteModal, openCreateExecutionForm]);
 
   const handleRefresh = () => {
     refetchCareTasks();
-    refetchExecutions();
+    if (taskIds.length > 0) {
+      refetchExecutions();
+    }
   };
 
   return (
@@ -447,7 +448,7 @@ const TaskSchedulingPage = () => {
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
               <Input
-                placeholder="Search by task, care item, or notes"
+                placeholder="Search by task or notes"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 allowClear
