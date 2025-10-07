@@ -203,111 +203,6 @@ function validateUserProfileData(data) {
   return { isValid: true };
 }
 
-/**
- * Default categories configuration
- */
-const DEFAULT_CATEGORIES = [
-  {
-    name: 'Clothing',
-    description: 'Clothing and apparel items',
-    color_code: '#8B5CF6',
-    display_order: 0
-  },
-  {
-    name: 'Hygiene',
-    description: 'Personal hygiene and care products',
-    color_code: '#10B981',
-    display_order: 1
-  },
-  {
-    name: 'Food',
-    description: 'Food and nutrition items',
-    color_code: '#F59E0B',
-    display_order: 2
-  },
-  {
-    name: 'Medical',
-    description: 'Medical supplies and healthcare items',
-    color_code: '#EF4444',
-    display_order: 3
-  }
-];
-
-/**
- * Validate category name for duplicates
- * @param {Object} db - Firestore database instance
- * @param {string} name - Category name to validate
- * @param {string} userId - User ID to check duplicates within user's categories
- * @param {string} excludeId - Category ID to exclude from check (for updates)
- * @returns {Promise<Object>} Validation result with isValid and error message
- */
-async function validateCategoryName(db, name, userId, excludeId = null) {
-  if (!name || typeof name !== 'string' || name.trim() === '') {
-    return {
-      isValid: false,
-      error: 'Category name is required and must be a non-empty string'
-    };
-  }
-
-  // Check for duplicate name within user's categories only
-  const snapshot = await db.collection('categories')
-    .where('name', '==', name.trim())
-    .where('created_by', '==', userId)
-    .where('is_active', '==', true)
-    .get();
-
-  // If we find any documents
-  if (!snapshot.empty) {
-    // If excludeId is provided, check if the found document is the one being updated
-    if (excludeId) {
-      const isDuplicate = snapshot.docs.some(doc => doc.id !== excludeId);
-      if (isDuplicate) {
-        return {
-          isValid: false,
-          error: 'A category with this name already exists'
-        };
-      }
-    } else {
-      // No excludeId means we're creating a new category
-      return {
-        isValid: false,
-        error: 'A category with this name already exists'
-      };
-    }
-  }
-
-  return { isValid: true };
-}
-
-/**
- * Initialize default categories in the database
- * @param {Object} db - Firestore database instance
- * @param {string} userId - User ID to create categories for
- * @returns {Promise<Array>} Array of created category objects
- */
-async function initializeDefaultCategories(db, userId) {
-  const createdCategories = [];
-  const now = new Date();
-
-  for (const category of DEFAULT_CATEGORIES) {
-    const categoryData = {
-      ...category,
-      is_active: true,
-      created_by: userId,
-      created_at: now,
-      updated_at: now
-    };
-
-    const docRef = await db.collection('categories').add(categoryData);
-    createdCategories.push({
-      id: docRef.id,
-      ...categoryData
-    });
-  }
-
-  return createdCategories;
-}
-
 module.exports = {
   VALID_SEX_OPTIONS,
   validateSex,
@@ -316,8 +211,5 @@ module.exports = {
   validateVitalsData,
   validateClientProfileData,
   validateDateOfBirth,
-  validateUserProfileData,
-  DEFAULT_CATEGORIES,
-  validateCategoryName,
-  initializeDefaultCategories
+  validateUserProfileData
 };

@@ -6,32 +6,18 @@ const {
   prepareClientProfileData,
   updateClientProfileData,
   formatClientProfileResponse,
-  initializeClientProfile,
   filterUsersBySearch
 } = require('../utils/clientProfile');
 const {
   formatUserProfileResponse,
   prepareUserProfileData,
-  initializeUserDocument
+  ensureUserDocumentInitialized
 } = require('../utils/userProfile');
 
 const router = express.Router();
 
-// Debug logging
-console.log('Users router created');
-
-// Debug route WITHOUT auth (before middleware)
-router.get('/test-no-auth', (req, res) => {
-  res.json({ message: 'Users route is working without auth!' });
-});
-
 // Apply auth middleware to remaining routes
 router.use(verifyToken);
-
-// Debug route WITH auth
-router.get('/test', (req, res) => {
-  res.json({ message: 'Users route is working with auth!', user: req.user });
-});
 
 // USER PROFILE ROUTES
 
@@ -39,38 +25,12 @@ router.get('/test', (req, res) => {
 router.get('/profile', async (req, res) => {
   try {
     const userId = req.user.uid;
+    const { userData } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (!userDoc.exists) {
-      // Get Firebase Auth user data (if available)
-      let userRecord = null;
-      try {
-        userRecord = await auth.getUser(userId);
-      } catch (error) {
-        console.log('Could not fetch user record from Firebase Auth, using token data');
-      }
-
-      // Create new user document with default values
-      const userDocData = initializeUserDocument(userId, userRecord, req.user);
-      await userDocRef.set(userDocData);
-
-      const response = {
-        message: 'User profile retrieved successfully',
-        data: formatUserProfileResponse(userDocData)
-      };
-
-      return res.json(response);
-    }
-
-    const userData = userDoc.data();
-    const response = {
+    res.json({
       message: 'User profile retrieved successfully',
       data: formatUserProfileResponse(userData)
-    };
-
-    res.json(response);
+    });
   } catch (error) {
     console.error('Error fetching user profile:', error);
     res.status(500).json({ error: 'Failed to fetch user profile' });
@@ -82,40 +42,17 @@ router.patch('/profile', async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    // Validate input data
     const validation = validateUserProfileData(req.body);
     if (!validation.isValid) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Prepare user profile data for update
     const profileUpdateData = prepareUserProfileData(req.body);
+    const { userRef } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    // Get Firebase Auth user data (if available)
-    let userRecord = null;
-    try {
-      userRecord = await auth.getUser(userId);
-    } catch (error) {
-      console.log('Could not fetch user record from Firebase Auth, using token data');
-    }
+    await userRef.update(profileUpdateData);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (userDoc.exists) {
-      // Update existing user document
-      await userDocRef.update(profileUpdateData);
-    } else {
-      // Create new user document with profile data
-      const userDocData = {
-        ...initializeUserDocument(userId, userRecord, req.user),
-        ...profileUpdateData
-      };
-      await userDocRef.set(userDocData);
-    }
-
-    // Fetch the updated document to return
-    const updatedUserDoc = await userDocRef.get();
+    const updatedUserDoc = await userRef.get();
     const updatedUserData = updatedUserDoc.data();
 
     res.json({
@@ -135,54 +72,24 @@ router.put('/client-profile', async (req, res) => {
   try {
     const userId = req.user.uid;
 
-    // Validate input data
     const validation = validateClientProfileData(req.body);
     if (!validation.isValid) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Prepare client profile data
     const clientProfileData = prepareClientProfileData(req.body);
+    const { userRef } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    // Get Firebase Auth user data (if available)
-    let userRecord = null;
-    try {
-      userRecord = await auth.getUser(userId);
-    } catch (error) {
-      console.log('Could not fetch user record from Firebase Auth, using token data');
-    }
-
-    // Prepare user document data
-    const userDocData = {
-      ...initializeUserDocument(userId, userRecord, req.user),
-      client_profile: clientProfileData
-    };
-
-    // Check if user document exists
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (userDoc.exists) {
-      // Update existing user document with new client profile
-      await userDocRef.update({
-        client_profile: clientProfileData,
-        updated_at: new Date()
-      });
-    } else {
-      // Create new user document with client profile
-      await userDocRef.set(userDocData);
-    }
+    await userRef.update({
+      client_profile: clientProfileData,
+      updated_at: new Date()
+    });
 
     res.status(200).json({
       message: 'Client profile updated successfully',
       data: {
         user_id: userId,
-        client_profile: {
-          ...clientProfileData,
-          date_of_birth: clientProfileData.date_of_birth.toISOString(),
-          created_at: clientProfileData.created_at.toISOString(),
-          updated_at: clientProfileData.updated_at.toISOString()
-        }
+        client_profile: formatClientProfileResponse(clientProfileData)
       }
     });
   } catch (error) {
@@ -195,58 +102,16 @@ router.put('/client-profile', async (req, res) => {
 router.get('/client-profile', async (req, res) => {
   try {
     const userId = req.user.uid;
+    const { userData } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
+    const profile = userData.client_profile
+      ? formatClientProfileResponse(userData.client_profile)
+      : null;
 
-    if (!userDoc.exists) {
-      // Get Firebase Auth user data (if available)
-      let userRecord = null;
-      try {
-        userRecord = await auth.getUser(userId);
-      } catch (error) {
-        console.log('Could not fetch user record from Firebase Auth, using token data');
-      }
-
-      // Create new user document with empty client profile
-      const userDocData = {
-        ...initializeUserDocument(userId, userRecord, req.user),
-        client_profile: initializeClientProfile()
-      };
-      await userDocRef.set(userDocData);
-
-      const response = {
-        user_id: userId,
-        client_profile: formatClientProfileResponse(userDocData.client_profile)
-      };
-
-      return res.json(response);
-    }
-
-    const userData = userDoc.data();
-
-    // If user document exists but client_profile is missing, create it
-    if (!userData.client_profile) {
-      const clientProfile = initializeClientProfile();
-      await userDocRef.update({
-        client_profile: clientProfile,
-        updated_at: new Date()
-      });
-
-      const response = {
-        user_id: userId,
-        client_profile: formatClientProfileResponse(clientProfile)
-      };
-
-      return res.json(response);
-    }
-
-    const response = {
+    res.json({
       user_id: userId,
-      client_profile: formatClientProfileResponse(userData.client_profile)
-    };
-
-    res.json(response);
+      client_profile: profile
+    });
   } catch (error) {
     console.error('Error fetching client profile:', error);
     res.status(500).json({ error: 'Failed to fetch client profile' });
@@ -257,29 +122,20 @@ router.get('/client-profile', async (req, res) => {
 router.patch('/client-profile', async (req, res) => {
   try {
     const userId = req.user.uid;
+    const { userRef, userData } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
-
-    const userData = userDoc.data();
     if (!userData.client_profile) {
       return res.status(404).json({ error: 'Client profile not found' });
     }
 
-    // Validate input data
     const validation = validateClientProfileData(req.body);
     if (!validation.isValid) {
       return res.status(400).json({ error: validation.error });
     }
 
-    // Update client profile data
     const updatedClientProfile = updateClientProfileData(userData.client_profile, req.body);
 
-    await userDocRef.update({
+    await userRef.update({
       client_profile: updatedClientProfile,
       updated_at: new Date()
     });
@@ -302,15 +158,8 @@ router.patch('/client-profile', async (req, res) => {
 router.delete('/client-profile', async (req, res) => {
   try {
     const userId = req.user.uid;
+    const { userRef, userData } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
-
-    const userData = userDoc.data();
     if (!userData.client_profile) {
       return res.status(404).json({ error: 'Client profile not found' });
     }
@@ -319,7 +168,7 @@ router.delete('/client-profile', async (req, res) => {
     updatedClientProfile.is_active = false;
     updatedClientProfile.updated_at = new Date();
 
-    await userDocRef.update({
+    await userRef.update({
       client_profile: updatedClientProfile,
       updated_at: new Date()
     });
@@ -338,15 +187,8 @@ router.delete('/client-profile', async (req, res) => {
 router.patch('/client-profile/reactivate', async (req, res) => {
   try {
     const userId = req.user.uid;
+    const { userRef, userData } = await ensureUserDocumentInitialized(db, auth, userId, req.user);
 
-    const userDocRef = db.collection('users').doc(userId);
-    const userDoc = await userDocRef.get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
-
-    const userData = userDoc.data();
     if (!userData.client_profile) {
       return res.status(404).json({ error: 'Client profile not found' });
     }
@@ -355,7 +197,7 @@ router.patch('/client-profile/reactivate', async (req, res) => {
     updatedClientProfile.is_active = true;
     updatedClientProfile.updated_at = new Date();
 
-    await userDocRef.update({
+    await userRef.update({
       client_profile: updatedClientProfile,
       updated_at: new Date()
     });

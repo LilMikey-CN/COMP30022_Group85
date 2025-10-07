@@ -99,3 +99,4 @@ test_*.js
 # client-profile-api-docs.md
 
 AGENTS.md
+.test-credentials

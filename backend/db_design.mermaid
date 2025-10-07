@@ -57,17 +57,30 @@ erDiagram
         number estimated_unit_cost "Cost per unit"
         int quantity_per_purchase "Default purchase quantity"
         string quantity_unit "piece, pack, bottle, etc"
-        map category "Embedded category data"
+        string category_id "Reference to category entry by ID"
         timestamp deactivated_at "Soft delete timestamp"
         timestamp created_at "Creation timestamp"
         timestamp updated_at "Last update timestamp"
     }
     
-    CATEGORY_MAP {
+    USER_CATEGORIES_SUBCOLLECTION {
+        string description "Subcollection under each user for reusable categories"
+    }
+    
+    CATEGORY_OPTIONS_DOCUMENT {
+        string id PK "Document ID (options)"
+        array categories "Array of category entries"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
+    }
+    
+    CATEGORY_ENTRY {
+        string id PK "Category identifier referenced by care tasks"
         string name "Category name"
         string description "Category description"
         string color_code "UI display color"
-        int display_order "Sort order"
+        timestamp created_at "Creation timestamp"
+        timestamp updated_at "Last update timestamp"
     }
     
     TASK_EXECUTIONS_SUBCOLLECTION {
@@ -109,3 +122,7 @@ erDiagram
     TASK_EXECUTIONS_SUBCOLLECTION ||--o{ TASK_EXECUTION_DOCUMENT : contains
     TASK_EXECUTION_DOCUMENT ||--o| REFUND_MAP : "optionally embeds"
     TASK_EXECUTION_DOCUMENT ||..|| TASK_EXECUTION_DOCUMENT : "references via covered_by_execution_ref"
+    USER_DOCUMENT ||--o{ USER_CATEGORIES_SUBCOLLECTION : "has"
+    USER_CATEGORIES_SUBCOLLECTION ||--|| CATEGORY_OPTIONS_DOCUMENT : "contains"
+    CATEGORY_OPTIONS_DOCUMENT ||--o{ CATEGORY_ENTRY : "lists entries"
+    CARE_TASK_DOCUMENT }o--|| CATEGORY_ENTRY : "references via category_id"
