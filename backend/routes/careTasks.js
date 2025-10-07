@@ -634,7 +634,7 @@ router.get('/:taskId/executions/:executionId', async (req, res) => {
 
 router.patch('/:taskId/executions/:executionId', async (req, res) => {
   try {
-    await getOwnedCareTask(req.user.uid, req.params.taskId);
+    const { data: taskData } = await getOwnedCareTask(req.user.uid, req.params.taskId);
 
     const executionRef = getTaskExecutionRef(req.user.uid, req.params.taskId, req.params.executionId);
     const executionDoc = await executionRef.get();
@@ -728,24 +728,31 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
     const targetStatus = updateData.status || executionData.status;
     const existingQuantity = Number(executionData.quantity || 1);
     const desiredQuantity = Math.max(parsedQuantity || existingQuantity || 1, 1);
+    const isPurchaseTask = taskData.task_type === 'PURCHASE';
 
     let coverCandidates = [];
-    if (targetStatus === 'DONE' && desiredQuantity > 1) {
-      let coverQuery = executionsCollection.where('status', '==', 'TODO').orderBy('scheduled_date');
+    if (isPurchaseTask && targetStatus === 'DONE' && desiredQuantity > 1) {
       const scheduledDateValue = executionData.scheduled_date ? toDate(executionData.scheduled_date) : null;
+      const snapshot = await executionsCollection
+        .where('status', '==', 'TODO')
+        .orderBy('scheduled_date')
+        .get();
 
-      if (scheduledDateValue) {
-        coverQuery = coverQuery.startAfter(scheduledDateValue);
-      }
+      coverCandidates = snapshot.docs
+        .filter((doc) => doc.id !== executionRef.id)
+        .filter((doc) => {
+          if (!scheduledDateValue) {
+            return true;
+          }
+          const candidateData = doc.data() || {};
+          const candidateDate = candidateData.scheduled_date ? toDate(candidateData.scheduled_date) : null;
+          if (!candidateDate) {
+            return false;
+          }
+          return candidateDate.getTime() >= scheduledDateValue.getTime();
+        })
+        .slice(0, Math.max(desiredQuantity - 1, 0));
 
-      const snapshot = await coverQuery.limit(desiredQuantity - 1).get();
-      coverCandidates = snapshot.docs;
-
-      if (!scheduledDateValue) {
-        coverCandidates = coverCandidates
-          .filter((doc) => doc.id !== executionRef.id)
-          .slice(0, desiredQuantity - 1);
-      }
     }
 
     const appliedQuantity = targetStatus === 'DONE'
@@ -757,7 +764,7 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
     if (actualCostProvided) {
       if (parsedActualCost === null) {
         updateData.actual_cost = null;
-      } else if (executionData.task_type === 'PURCHASE') {
+      } else if (isPurchaseTask) {
         updateData.actual_cost = Number((parsedActualCost / appliedQuantity).toFixed(2));
       } else {
         updateData.actual_cost = parsedActualCost;
@@ -771,7 +778,7 @@ router.patch('/:taskId/executions/:executionId', async (req, res) => {
 
     await executionRef.update(updateData);
 
-    if (executionData.task_type === 'PURCHASE' && targetStatus === 'DONE' && coverCandidates.length > 0) {
+    if (isPurchaseTask && targetStatus === 'DONE' && coverCandidates.length > 0) {
       const sharedExecutionDate = toDate(updateData.execution_date ?? executionData.execution_date ?? new Date());
       const sharedEvidenceUrl = updateData.evidence_url !== undefined
         ? updateData.evidence_url

@@ -99,7 +99,12 @@ const TaskSchedulingPage = () => {
     execution: null,
     initialValues: null
   });
-  const [completeModalState, setCompleteModalState] = useState({ open: false, task: null, execution: null });
+  const [completeModalState, setCompleteModalState] = useState({
+    open: false,
+    task: null,
+    execution: null,
+    coverableCount: 0
+  });
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
   const [executionPagination, setExecutionPagination] = useState({ current: 1, pageSize: 10 });
@@ -307,14 +312,45 @@ const TaskSchedulingPage = () => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });
   }, []);
 
+  const computeCoverableExecutions = useCallback((execution, parentTask) => {
+    if (!execution || !parentTask || parentTask.task_type !== 'PURCHASE') {
+      return 0;
+    }
+
+    const baseScheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
+    const baseScheduledTime = baseScheduled ? baseScheduled.valueOf() : null;
+
+    return executions
+      .filter((candidate) => (
+        candidate.care_task_id === execution.care_task_id &&
+        candidate.id !== execution.id &&
+        candidate.status === 'TODO'
+      ))
+      .filter((candidate) => {
+        if (!baseScheduled) {
+          return true;
+        }
+        if (!candidate.scheduled_date) {
+          return false;
+        }
+        const candidateDate = dayjs(candidate.scheduled_date);
+        if (!candidateDate.isValid()) {
+          return false;
+        }
+        return candidateDate.valueOf() >= baseScheduledTime;
+      })
+      .length;
+  }, [executions]);
+
   const openCompleteModal = useCallback((execution, providedTask) => {
     const parentTask = providedTask || careTasksById[execution.care_task_id];
     if (!parentTask) {
       showErrorMessage('Unable to locate parent task for this execution');
       return;
     }
-    setCompleteModalState({ open: true, task: parentTask, execution });
-  }, [careTasksById]);
+    const coverableCount = computeCoverableExecutions(execution, parentTask);
+    setCompleteModalState({ open: true, task: parentTask, execution, coverableCount });
+  }, [careTasksById, computeCoverableExecutions]);
 
   const openCreateExecutionForm = useCallback((task) => {
     setExecutionFormState({
@@ -418,7 +454,7 @@ const TaskSchedulingPage = () => {
         taskId: completeModalState.execution.care_task_id,
       });
 
-      setCompleteModalState({ open: false, task: null, execution: null });
+      setCompleteModalState({ open: false, task: null, execution: null, coverableCount: 0 });
       await refetchExecutions();
       await refetchCareTasks();
     } catch (error) {
@@ -636,11 +672,12 @@ const TaskSchedulingPage = () => {
 
       <CompleteExecutionModal
         open={completeModalState.open}
-        onClose={() => setCompleteModalState({ open: false, task: null, execution: null })}
+        onClose={() => setCompleteModalState({ open: false, task: null, execution: null, coverableCount: 0 })}
         onSubmit={handleCompleteSubmit}
         submitting={completeExecution.isLoading}
         task={completeModalState.task}
         execution={completeModalState.execution}
+        maxCoverableExecutions={completeModalState.coverableCount}
       />
 
       <ExecutionDetailsDrawer

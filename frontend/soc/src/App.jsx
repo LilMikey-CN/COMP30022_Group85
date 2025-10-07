@@ -14,9 +14,7 @@ import TaskSchedulingPage from './pages/TaskSchedulingPage';
 import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
-import {
-  PatientCalendar
-} from './pages/PatientPlaceholders';
+import CalendarPage from './pages/CalendarPage';
 import useAuthStore from './store/authStore';
 import './styles/global.css';
 
@@ -93,7 +91,7 @@ const App = () => {
             <PatientLayout />
           </ProtectedRoute>
         }>
-          <Route index element={<PatientCalendar />} />
+          <Route index element={<CalendarPage />} />
         </Route>
         <Route path="/care-tasks" element={
           <ProtectedRoute>
