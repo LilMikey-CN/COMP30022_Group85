@@ -410,8 +410,8 @@ const CareTasksPage = () => {
       <Space direction="vertical" style={{ width: '100%' }} size={24}>
         <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
           <div>
-            <Title level={2} style={{ marginBottom: 0 }}>Care tasks</Title>
-            <Text type="secondary">
+            <Title level={2} style={{ marginBottom: 0, color: '#5a7a9a' }}>Care tasks</Title>
+            <Text type="secondary" style={{ fontSize: 16 }}>
               Manage recurring and one-off care tasks. Use task scheduling to view execution history and upcoming runs.
             </Text>
           </div>

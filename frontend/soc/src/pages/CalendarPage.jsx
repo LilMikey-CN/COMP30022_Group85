@@ -441,7 +441,7 @@ const CalendarPage = () => {
             Calendar
           </Title>
           <Text type="secondary" style={{ fontSize: '16px' }}>
-            View your scheduled items by date
+            View your scheduled tasks by date
           </Text>
         </div>
         <Button
