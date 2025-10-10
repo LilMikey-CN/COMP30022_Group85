@@ -186,6 +186,58 @@ const registerExecutionRoutes = (router) => {
         updated_at: new Date()
       };
 
+      let refundUpdateRequested = false;
+      let shouldRecalculateRefundStatus = false;
+
+      if (req.body.refund !== undefined) {
+        if (!executionData.refund) {
+          return res.status(400).json({ error: 'No refund has been recorded for this execution' });
+        }
+
+        const incomingRefund = req.body.refund || {};
+        const nextRefund = { ...executionData.refund };
+
+        if (incomingRefund.refund_amount !== undefined) {
+          const parsedRefundAmount = parseOptionalNumber(
+            incomingRefund.refund_amount,
+            'refund.refund_amount',
+            { min: 0 }
+          );
+
+          if (parsedRefundAmount === null || parsedRefundAmount <= 0) {
+            return res.status(400).json({ error: 'refund_amount must be greater than 0 when updating a refund' });
+          }
+
+          nextRefund.refund_amount = parsedRefundAmount;
+          refundUpdateRequested = true;
+        }
+
+        if (incomingRefund.refund_reason !== undefined) {
+          nextRefund.refund_reason = incomingRefund.refund_reason || '';
+          refundUpdateRequested = true;
+        }
+
+        if (incomingRefund.refund_evidence_url !== undefined) {
+          nextRefund.refund_evidence_url = incomingRefund.refund_evidence_url || null;
+          refundUpdateRequested = true;
+        }
+
+        if (incomingRefund.refund_date !== undefined) {
+          const parsedRefundDate = incomingRefund.refund_date
+            ? optionalDate(incomingRefund.refund_date, 'refund.refund_date')
+            : null;
+          nextRefund.refund_date = parsedRefundDate ? startOfDay(parsedRefundDate) : null;
+          refundUpdateRequested = true;
+        }
+
+        if (refundUpdateRequested) {
+          nextRefund.updated_at = new Date();
+        }
+
+        updateData.refund = nextRefund;
+        shouldRecalculateRefundStatus = true;
+      }
+
       if (status !== undefined) {
         if (!EXECUTION_UPDATE_ALLOWED_STATUSES.includes(status)) {
           return res.status(400).json({
@@ -253,7 +305,7 @@ const registerExecutionRoutes = (router) => {
         parsedQuantity = parseOptionalInteger(quantity, 'quantity', { min: 1 });
       }
 
-      const targetStatus = updateData.status || executionData.status;
+      let targetStatus = updateData.status || executionData.status;
       const existingQuantity = Number(executionData.quantity || 1);
       const desiredQuantity = Math.max(parsedQuantity || existingQuantity || 1, 1);
       const isPurchaseTask = taskData.task_type === 'PURCHASE';
@@ -296,7 +348,41 @@ const registerExecutionRoutes = (router) => {
         } else {
           updateData.actual_cost = parsedActualCost;
         }
+
+        if (executionData.refund || updateData.refund) {
+          shouldRecalculateRefundStatus = true;
+        }
       }
+
+      if (shouldRecalculateRefundStatus) {
+        const refundData = updateData.refund || executionData.refund;
+
+        if (!refundData) {
+          return res.status(400).json({ error: 'No refund has been recorded for this execution' });
+        }
+
+        const refundAmountValue = Number(refundData.refund_amount);
+        if (!Number.isFinite(refundAmountValue) || refundAmountValue < 0) {
+          return res.status(400).json({ error: 'refund_amount must be a valid number' });
+        }
+
+        const actualCostValue = updateData.actual_cost !== undefined && updateData.actual_cost !== null
+          ? Number(updateData.actual_cost)
+          : Number(executionData.actual_cost ?? 0);
+
+        if (!Number.isFinite(actualCostValue) || actualCostValue <= 0) {
+          return res.status(400).json({ error: 'A positive actual_cost is required to update a refund' });
+        }
+
+        if (refundAmountValue > actualCostValue) {
+          return res.status(400).json({ error: 'Refund amount cannot exceed actual cost' });
+        }
+
+        const amountsEqual = Math.abs(refundAmountValue - actualCostValue) < 0.000001;
+        updateData.status = amountsEqual ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+      }
+
+      targetStatus = updateData.status || executionData.status;
 
       if (targetStatus === 'DONE' && updateData.execution_date === undefined) {
         updateData.execution_date = new Date();
