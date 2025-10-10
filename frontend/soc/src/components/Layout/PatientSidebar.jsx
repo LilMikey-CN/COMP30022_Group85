@@ -140,7 +140,11 @@ const PatientSidebar = () => {
         alignItems: 'center',
         gap: '8px'
       }}>
-        <SettingOutlined style={{ fontSize: '20px', color: '#595959' }} />
+        <img
+          src="/logo-small.jpeg"
+          alt="Scheduling of Care"
+          style={{ width: 24, height: 24, borderRadius: '50%' }}
+        />
         <Text strong style={{ fontSize: '16px', color: '#595959' }}>
           Scheduling of Care
         </Text>
