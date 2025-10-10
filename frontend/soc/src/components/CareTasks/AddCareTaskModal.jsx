@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Modal, Form, message } from 'antd';
 import dayjs from 'dayjs';
 import CareTaskForm from './CareTaskForm';
@@ -11,8 +11,24 @@ const AddCareTaskModal = ({
   categories = [],
   categoriesLoading = false,
   onCreateCategory,
+  defaultTaskType = 'GENERAL',
+  isTaskTypeEditable = true,
+  isFrequencyEditable = true,
+  isStartDateEditable = true,
+  initialCategoryId = null,
+  initialCategoryName = '',
 }) => {
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (open) {
+      form.setFieldsValue({
+        task_type: defaultTaskType,
+        category_id: initialCategoryId || null,
+        category_input: initialCategoryName || ''
+      });
+    }
+  }, [defaultTaskType, form, initialCategoryId, initialCategoryName, open]);
 
   const resetAndClose = useCallback(() => {
     form.resetFields();
@@ -52,11 +68,11 @@ const AddCareTaskModal = ({
         return;
       }
 
-      const rawEstimatedCost = values.estimated_unit_cost;
-      const estimatedUnitCost =
-        rawEstimatedCost === null || rawEstimatedCost === undefined || rawEstimatedCost === ''
+      const rawYearlyBudget = values.yearly_budget;
+      const yearlyBudget =
+        rawYearlyBudget === null || rawYearlyBudget === undefined || rawYearlyBudget === ''
           ? null
-          : Number(rawEstimatedCost);
+          : Number(rawYearlyBudget);
 
       const payload = {
         name: values.name.trim(),
@@ -66,7 +82,7 @@ const AddCareTaskModal = ({
         start_date: values.start_date ? dayjs(values.start_date).format('YYYY-MM-DD') : undefined,
         end_date: values.end_date ? dayjs(values.end_date).format('YYYY-MM-DD') : null,
         category_id: categoryId,
-        estimated_unit_cost: estimatedUnitCost,
+        yearly_budget: yearlyBudget,
       };
 
       await onSubmit(payload);
@@ -95,6 +111,10 @@ const AddCareTaskModal = ({
         mode="create"
         categories={categories}
         categoriesLoading={categoriesLoading}
+        defaultTaskType={defaultTaskType}
+        isTaskTypeEditable={isTaskTypeEditable}
+        isFrequencyEditable={isFrequencyEditable}
+        isStartDateEditable={isStartDateEditable}
       />
     </Modal>
   );

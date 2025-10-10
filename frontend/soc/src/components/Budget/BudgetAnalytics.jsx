@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Row, Col, Typography, Space, Tag } from 'antd';
 import { LineChartOutlined, CalendarOutlined, ExclamationCircleOutlined, BarChartOutlined } from '@ant-design/icons';
-import { formatCurrency } from '../../data/budgetCalculations';
+import { formatCurrency } from '../../utils/budgetAnalytics';
 
 const { Text } = Typography;
 
@@ -192,6 +192,7 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
       </Col>
 
       {/* Monthly Spending Trend */}
+      {/*
       <Col xs={24}>
         <Card
           title={
@@ -231,6 +232,7 @@ const BudgetAnalytics = ({ budgetAnalytics }) => {
           </div>
         </Card>
       </Col>
+      */}
     </Row>
   );
 };

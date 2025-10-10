@@ -48,3 +48,37 @@ export const useCreateCategory = () => {
     },
   });
 };
+
+export const useUpdateCategory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }) => {
+      return await categoriesService.updateCategory(id, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CATEGORIES_QUERY_KEY], exact: false });
+      message.success('Category updated successfully');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to update category';
+      message.error(`Failed to update category: ${reason}`);
+    },
+  });
+};
+
+export const useDeleteCategory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => await categoriesService.deleteCategory(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: [CATEGORIES_QUERY_KEY], exact: false });
+      message.success('Category deleted successfully');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to delete category';
+      message.error(`Failed to delete category: ${reason}`);
+    },
+  });
+};

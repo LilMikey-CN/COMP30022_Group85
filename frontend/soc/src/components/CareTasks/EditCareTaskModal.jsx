@@ -39,7 +39,7 @@ const EditCareTaskModal = ({
         end_date: task.end_date ? dayjs(task.end_date) : null,
         category_input: categoryName,
         category_id: task.category_id || null,
-        estimated_unit_cost: task.estimated_unit_cost ?? null,
+        yearly_budget: task.yearly_budget ?? null,
       });
     } else {
       form.resetFields();
@@ -84,11 +84,15 @@ const EditCareTaskModal = ({
         return;
       }
 
-      const rawEstimatedCost = values.estimated_unit_cost;
-      const estimatedUnitCost =
-        rawEstimatedCost === null || rawEstimatedCost === undefined || rawEstimatedCost === ''
-          ? null
-          : Number(rawEstimatedCost);
+      const rawYearlyBudget = values.yearly_budget;
+      let yearlyBudget;
+      if (rawYearlyBudget === undefined) {
+        yearlyBudget = task?.yearly_budget ?? null;
+      } else if (rawYearlyBudget === null || rawYearlyBudget === '') {
+        yearlyBudget = null;
+      } else {
+        yearlyBudget = Number(rawYearlyBudget);
+      }
 
       const payload = {
         name: values.name.trim(),
@@ -98,7 +102,7 @@ const EditCareTaskModal = ({
         start_date: values.start_date ? dayjs(values.start_date).format('YYYY-MM-DD') : undefined,
         end_date: values.end_date ? dayjs(values.end_date).format('YYYY-MM-DD') : null,
         category_id: categoryId,
-        estimated_unit_cost: estimatedUnitCost,
+        yearly_budget: yearlyBudget,
       };
 
       await onSubmit(payload);
@@ -131,6 +135,7 @@ const EditCareTaskModal = ({
         isTaskTypeEditable={false}
         isFrequencyEditable={false}
         isStartDateEditable={false}
+        defaultTaskType="PURCHASE"
       />
     </Modal>
   );

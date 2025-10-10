@@ -41,6 +41,7 @@ Creates a new care task and generates the first execution.
   "category_id": "string",               // Required, must exist in category options
   "estimated_unit_cost": 12.5,             // Optional number ≥ 0
   "quantity_per_purchase": 1,              // Optional integer ≥ 1
+  "yearly_budget": 5000,                 // Optional number ≥ 0
   "quantity_unit": "bottle"              // Optional string
 }
 ```
@@ -52,6 +53,7 @@ Creates a new care task and generates the first execution.
 - `category_id` must exist in the user's category options document.
 - `estimated_unit_cost`, when provided, must be a number ≥ 0.
 - `quantity_per_purchase`, when provided, must be an integer ≥ 1.
+- `yearly_budget`, when provided, must be a number ≥ 0.
 
 #### Success Response (`201 Created`)
 
@@ -72,6 +74,7 @@ Creates a new care task and generates the first execution.
     "category_id": "hygiene",
     "estimated_unit_cost": 12.5,
     "quantity_per_purchase": 2,
+    "yearly_budget": 5000,
     "quantity_unit": "tubes",
     "user_id": "user-uid",
     "deactivated_at": null,
@@ -112,6 +115,7 @@ Returns care tasks owned by the authenticated user.
       "category_id": "hygiene",
       "estimated_unit_cost": 12.5,
       "quantity_per_purchase": 2,
+      "yearly_budget": 5000,
       "quantity_unit": "tubes",
       "user_id": "user-uid",
       "created_at": "2024-02-01T08:00:00.000Z",
@@ -153,6 +157,7 @@ Performs partial updates. Ownership checks are enforced.
 - `task_type`
 - `category_id`
 - `estimated_unit_cost`, `quantity_per_purchase`, `quantity_unit`
+- `yearly_budget`
 
 #### Notes
 - Switching task type does not change the requirement for `category_id`; it must continue to exist in the user's category options.
@@ -210,6 +215,64 @@ Creates the next scheduled execution for recurring tasks.
 
 - Query parameters: `status`, `limit`, `offset`.
 - Only returns executions owned by the authenticated user.
+
+---
+
+### 8. Transfer Budget Between Tasks
+
+**POST** `/api/care-tasks/transfer-budget`
+
+Moves part of the yearly allocation from one care task to another. The transfer runs inside a Firestore transaction so both budgets update atomically.
+
+#### Request Body
+```json
+{
+  "fromTaskId": "task-A",   // Required, source task owned by the caller
+  "toTaskId": "task-B",     // Required, destination task owned by the caller
+  "amount": 35.5            // Required, number > 0
+}
+```
+
+#### Validation Rules
+- `fromTaskId` and `toTaskId` must be different and belong to the authenticated user.
+- `amount` must be a positive number.
+- The source task must have enough available budget: `yearly_budget - (sum(actual_cost) - sum(refund_amount)) ≥ amount`.
+- Returns `400` when funds are insufficient and `404` when either task cannot be found.
+
+#### Success Response (`201 Created`)
+```json
+{
+  "message": "Budget transferred successfully",
+  "transfer_id": "transfer-42",
+  "data": {
+    "fromTaskId": "task-A",
+    "toTaskId": "task-B",
+    "amount": 35.5,
+    "net_spend_before_transfer": 120,
+    "source_budget_after_transfer": 65.5,
+    "destination_budget_after_transfer": 140.5
+  }
+}
+```
+
+Each transfer is recorded at `users/{uid}/care_task_budget_transfers/{transferId}`:
+
+```json
+{
+  "from_task_id": "task-A",
+  "to_task_id": "task-B",
+  "amount": 35.5,
+  "performed_by_uid": "user-uid",
+  "created_at": "2024-06-05T03:21:00.000Z",
+  "source_snapshot": {
+    "yearly_budget_before": 101,
+    "net_spend_to_date": 65.5,
+    "available_before_transfer": 35.5
+  }
+}
+```
+
+Use this subcollection to build budget history or audit trails.
 
 ---
 

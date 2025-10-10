@@ -31,65 +31,176 @@ const buildMockFirestore = ({
   taskId = 'task-123',
   taskData: initialTaskData = null,
   executionId = 'exec-1',
-  executionData: initialExecutionData = null
+  executionData: initialExecutionData = null,
+  extraTasks = [],
+  extraExecutions = []
 } = {}) => {
-  const storedTaskDocs = new Map();
+  const tasks = [];
   if (initialTaskData) {
-    storedTaskDocs.set(taskId, { ...initialTaskData });
+    tasks.push({ id: taskId, data: initialTaskData });
   }
+  tasks.push(...extraTasks.map(({ id, data }) => ({ id, data })));
 
-  const storedExecutionDocs = new Map();
+  const executions = [];
   if (initialExecutionData) {
-    storedExecutionDocs.set(executionId, { ...initialExecutionData });
+    executions.push({ taskId, id: executionId, data: initialExecutionData });
   }
-
-  const executionDocRefs = new Map();
-
-  const getExecutionDocsSnapshot = () =>
-    Array.from(storedExecutionDocs.entries()).map(([id, data]) => ({
-      id,
-      data: () => data
-    }));
-
-  const createExecutionDocRef = (id) => ({
+  executions.push(...extraExecutions.map(({ taskId: execTaskId, id, data }) => ({
+    taskId: execTaskId,
     id,
-    get: jest.fn(async () => {
-      const data = storedExecutionDocs.get(id);
-      return {
-        exists: !!data,
-        id,
-        data: () => data
-      };
-    }),
-    update: jest.fn(async (updateData) => {
-      const data = storedExecutionDocs.get(id);
-      if (!data) {
-        throw new Error(`Execution ${id} not found`);
-      }
-      Object.assign(data, updateData);
-    })
+    data
+  })));
+
+  const storedTaskDocs = new Map();
+  tasks.forEach(({ id, data }) => {
+    storedTaskDocs.set(id, { ...data });
   });
 
-  const executionQuery = {
-    limit: jest.fn().mockReturnThis(),
-    get: jest.fn().mockImplementation(async () => ({
-      empty: storedExecutionDocs.size === 0,
-      docs: getExecutionDocsSnapshot()
-    })),
-    orderBy: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    offset: jest.fn().mockReturnThis()
+  const taskExecutionStores = new Map();
+  executions.forEach(({ taskId: execTaskId, id, data }) => {
+    if (!taskExecutionStores.has(execTaskId)) {
+      taskExecutionStores.set(execTaskId, new Map());
+    }
+    taskExecutionStores.get(execTaskId).set(id, { ...data });
+  });
+
+  const executionCounters = new Map();
+  const ensureExecutionStore = (task) => {
+    if (!taskExecutionStores.has(task)) {
+      taskExecutionStores.set(task, new Map());
+    }
+    if (!executionCounters.has(task)) {
+      executionCounters.set(task, taskExecutionStores.get(task).size + 1);
+    }
+    return taskExecutionStores.get(task);
   };
 
-  let executionCounter = storedExecutionDocs.size + 1;
+  const taskDocRefs = new Map();
+  const executionDocRefs = new Map();
 
-  const executionsCollection = {
+  const makeExecutionDocRef = (task, execId) => {
+    const key = `${task}:${execId}`;
+    if (!executionDocRefs.has(key)) {
+      executionDocRefs.set(key, {
+        id: execId,
+        get: jest.fn(async () => {
+          const store = ensureExecutionStore(task);
+          const data = store.get(execId);
+          return {
+            exists: !!data,
+            id: execId,
+            data: () => data
+          };
+        }),
+        update: jest.fn(async (updateData) => {
+          const store = ensureExecutionStore(task);
+          const data = store.get(execId);
+          if (!data) {
+            throw new Error(`Execution ${execId} not found`);
+          }
+          Object.assign(data, updateData);
+        })
+      });
+    }
+    return executionDocRefs.get(key);
+  };
+
+  const executionsCollections = new Map();
+  const makeExecutionsCollection = (task) => {
+    const store = ensureExecutionStore(task);
+
+    const collection = {
+      add: jest.fn(async (data) => {
+        const counter = executionCounters.get(task) || (store.size + 1);
+        const newId = `exec-${counter}`;
+        executionCounters.set(task, counter + 1);
+        const storedData = { ...data };
+        store.set(newId, storedData);
+        return {
+          id: newId,
+          get: jest.fn().mockResolvedValue({
+            id: newId,
+            data: () => storedData
+          })
+        };
+      }),
+      doc: jest.fn((id) => makeExecutionDocRef(task, id)),
+      where: jest.fn(function () { return this; }),
+      orderBy: jest.fn(function () { return this; }),
+      limit: jest.fn(function () { return this; }),
+      offset: jest.fn(function () { return this; }),
+      get: jest.fn(async () => ({
+        docs: Array.from(store.entries()).map(([id, data]) => ({
+          id,
+          data: () => data
+        })),
+        empty: store.size === 0
+      }))
+    };
+
+    return collection;
+  };
+
+  const ensureExecutionsCollection = (task) => {
+    if (!executionsCollections.has(task)) {
+      executionsCollections.set(task, makeExecutionsCollection(task));
+    }
+    return executionsCollections.get(task);
+  };
+
+  const createTaskDocRef = (id) => {
+    if (!taskDocRefs.has(id)) {
+      taskDocRefs.set(id, {
+        id,
+        get: jest.fn(async () => {
+          const data = storedTaskDocs.get(id);
+          return {
+            exists: !!data,
+            id,
+            data: () => data
+          };
+        }),
+        update: jest.fn(async (updateData) => {
+          const data = storedTaskDocs.get(id);
+          if (!data) {
+            throw new Error(`Task ${id} not found`);
+          }
+          Object.assign(data, updateData);
+        }),
+        set: jest.fn(async (newData) => {
+          storedTaskDocs.set(id, { ...newData });
+        }),
+        collection: jest.fn((name) => {
+          if (name === 'task_executions') {
+            return ensureExecutionsCollection(id);
+          }
+          throw new Error(`Unexpected sub-collection ${name}`);
+        })
+      });
+    }
+    return taskDocRefs.get(id);
+  };
+
+  const existingTaskIds = new Set(tasks.map(({ id }) => id));
+  let defaultAddIdAvailable = initialTaskData === null;
+  let generatedTaskCounter = 200;
+
+  const careTasksCollection = {
     add: jest.fn(async (data) => {
-      const newId = `exec-${executionCounter}`;
-      executionCounter += 1;
+      let newId;
+      if (defaultAddIdAvailable) {
+        newId = taskId;
+        defaultAddIdAvailable = false;
+      } else {
+        do {
+          newId = `task-${generatedTaskCounter}`;
+          generatedTaskCounter += 1;
+        } while (storedTaskDocs.has(newId) || existingTaskIds.has(newId));
+      }
+
       const storedData = { ...data };
-      storedExecutionDocs.set(newId, storedData);
-      executionDocRefs.set(newId, createExecutionDocRef(newId));
+      storedTaskDocs.set(newId, storedData);
+      createTaskDocRef(newId);
       return {
         id: newId,
         get: jest.fn().mockResolvedValue({
@@ -98,79 +209,17 @@ const buildMockFirestore = ({
         })
       };
     }),
-    doc: jest.fn((id) => {
-      if (!executionDocRefs.has(id)) {
-        executionDocRefs.set(id, createExecutionDocRef(id));
-      }
-      return executionDocRefs.get(id);
-    }),
-    orderBy: jest.fn(() => executionQuery),
-    where: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    offset: jest.fn().mockReturnThis(),
-    get: jest.fn().mockResolvedValue({
-      docs: getExecutionDocsSnapshot(),
-      empty: storedExecutionDocs.size === 0
-    })
-  };
-
-  const taskDocRefs = new Map();
-
-  const createTaskDocRef = (id) => ({
-    id,
-    get: jest.fn(async () => {
-      const data = storedTaskDocs.get(id);
-      return {
-        exists: !!data,
-        id,
-        data: () => data
-      };
-    }),
-    update: jest.fn(async (updateData) => {
-      const data = storedTaskDocs.get(id);
-      if (!data) {
-        throw new Error(`Task ${id} not found`);
-      }
-      Object.assign(data, updateData);
-    }),
-    collection: jest.fn((name) => {
-      if (name === 'task_executions') {
-        return executionsCollection;
-      }
-      throw new Error(`Unexpected sub-collection ${name}`);
-    })
-  });
-
-  const careTasksCollection = {
-    add: jest.fn(async (data) => {
-      storedTaskDocs.set(taskId, data);
-      if (!taskDocRefs.has(taskId)) {
-        taskDocRefs.set(taskId, createTaskDocRef(taskId));
-      }
-      return {
-        id: taskId,
-        get: jest.fn().mockResolvedValue({
-          id: taskId,
-          data: () => data
-        })
-      };
-    }),
-    doc: jest.fn((id) => {
-      if (!taskDocRefs.has(id)) {
-        taskDocRefs.set(id, createTaskDocRef(id));
-      }
-      return taskDocRefs.get(id);
-    }),
-    where: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    offset: jest.fn().mockReturnThis(),
-    get: jest.fn().mockResolvedValue({
+    doc: jest.fn((id) => createTaskDocRef(id)),
+    where: jest.fn(function () { return this; }),
+    orderBy: jest.fn(function () { return this; }),
+    limit: jest.fn(function () { return this; }),
+    offset: jest.fn(function () { return this; }),
+    get: jest.fn(async () => ({
       docs: Array.from(storedTaskDocs.entries()).map(([id, data]) => ({
         id,
         data: () => data
       }))
-    })
+    }))
   };
 
   const categoriesDocRef = {
@@ -178,10 +227,41 @@ const buildMockFirestore = ({
     set: jest.fn()
   };
 
+  const storedTransfers = new Map();
+  const transferDocRefs = new Map();
+  let transferCounter = 1;
+
+  const ensureTransferDocRef = (id) => {
+    if (!transferDocRefs.has(id)) {
+      transferDocRefs.set(id, {
+        id,
+        get: jest.fn(async () => ({
+          exists: storedTransfers.has(id),
+          id,
+          data: () => storedTransfers.get(id)
+        })),
+        set: jest.fn(async (data) => {
+          storedTransfers.set(id, { ...data });
+        })
+      });
+    }
+    return transferDocRefs.get(id);
+  };
+
+  const transfersCollection = {
+    doc: jest.fn((id) => {
+      const docId = id || `transfer-${transferCounter++}`;
+      return ensureTransferDocRef(docId);
+    })
+  };
+
   const userDocRef = {
     collection: jest.fn((name) => {
       if (name === 'care_tasks') {
         return careTasksCollection;
+      }
+      if (name === 'care_task_budget_transfers') {
+        return transfersCollection;
       }
       if (name === 'categories') {
         return {
@@ -203,15 +283,44 @@ const buildMockFirestore = ({
     throw new Error(`Unexpected collection ${name}`);
   });
 
-  if (initialExecutionData) {
-    executionDocRefs.set(executionId, createExecutionDocRef(executionId));
-  }
+  const runTransaction = async (callback) => {
+    const transaction = {
+      get: jest.fn(async (target) => {
+        if (target && typeof target.get === 'function') {
+          return target.get();
+        }
+        throw new Error('Unsupported transaction.get target');
+      }),
+      update: jest.fn(async (ref, data) => {
+        if (ref && typeof ref.update === 'function') {
+          await ref.update(data);
+          return;
+        }
+        throw new Error('Unsupported transaction.update target');
+      }),
+      set: jest.fn(async (ref, data) => {
+        if (ref && typeof ref.set === 'function') {
+          await ref.set(data);
+          return;
+        }
+        throw new Error('Unsupported transaction.set target');
+      })
+    };
+
+    return callback(transaction);
+  };
+
+  mockDb.runTransaction.mockImplementation(runTransaction);
 
   return {
     careTasksCollection,
-    executionsCollection,
+    executionsCollection: ensureExecutionsCollection(taskId),
     taskDocRefs,
-    executionDocRefs
+    executionDocRefs,
+    transfersCollection,
+    storedTaskDocs,
+    storedTransfers,
+    runTransaction
   };
 };
 
@@ -234,6 +343,7 @@ describe('Care Tasks API', () => {
     });
 
     mockDb.collection.mockReset();
+    mockDb.runTransaction.mockReset();
   });
 
   it('creates a one-off care task and generates initial execution', async () => {
@@ -249,12 +359,14 @@ describe('Care Tasks API', () => {
         task_type: 'PURCHASE',
         category_id: 'hygiene',
         quantity_per_purchase: 2,
-        quantity_unit: 'pieces'
+        quantity_unit: 'pieces',
+        yearly_budget: 500
       });
 
     expect(response.status).toBe(201);
     expect(response.body.id).toBe('task-123');
     expect(response.body.generated_execution_id).toBe('exec-1');
+    expect(response.body.data.yearly_budget).toBe(500);
     expect(careTasksCollection.add).toHaveBeenCalled();
     expect(executionsCollection.add).toHaveBeenCalled();
   });
@@ -396,6 +508,75 @@ describe('Care Tasks API', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toMatch(/Status cannot be changed after a refund has been recorded/);
+  });
+
+  it('transfers budget between tasks when sufficient funds are available', async () => {
+    const { storedTaskDocs, storedTransfers } = buildMockFirestore({
+      taskData: null,
+      extraTasks: [
+        { id: 'task-A', data: { name: 'Task A', yearly_budget: 120 } },
+        { id: 'task-B', data: { name: 'Task B', yearly_budget: 30 } }
+      ],
+      extraExecutions: [
+        {
+          taskId: 'task-A',
+          id: 'exec-available',
+          data: {
+            actual_cost: 25,
+            refund: { refund_amount: 5 }
+          }
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/transfer-budget')
+      .send({
+        fromTaskId: 'task-A',
+        toTaskId: 'task-B',
+        amount: 50
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.transfer_id).toBeTruthy();
+    expect(storedTaskDocs.get('task-A').yearly_budget).toBeCloseTo(70);
+    expect(storedTaskDocs.get('task-B').yearly_budget).toBeCloseTo(80);
+
+    const transferEntries = Array.from(storedTransfers.values());
+    expect(transferEntries).toHaveLength(1);
+    expect(transferEntries[0].amount).toBe(50);
+    expect(transferEntries[0].source_snapshot.net_spend_to_date).toBeCloseTo(20);
+  });
+
+  it('prevents budget transfer when insufficient available funds', async () => {
+    buildMockFirestore({
+      taskData: null,
+      extraTasks: [
+        { id: 'task-A', data: { name: 'Task A', yearly_budget: 40 } },
+        { id: 'task-B', data: { name: 'Task B', yearly_budget: 10 } }
+      ],
+      extraExecutions: [
+        {
+          taskId: 'task-A',
+          id: 'exec-1',
+          data: {
+            actual_cost: 30,
+            refund: null
+          }
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/transfer-budget')
+      .send({
+        fromTaskId: 'task-A',
+        toTaskId: 'task-B',
+        amount: 20
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/Insufficient available budget/);
   });
 
   it('rejects refunds for non-purchase tasks', async () => {

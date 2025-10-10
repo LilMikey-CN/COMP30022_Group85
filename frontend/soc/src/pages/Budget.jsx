@@ -1,183 +1,279 @@
-import React, { useState } from 'react';
-import { Typography, Card, Button, Space, App, Modal, message } from 'antd';
-import { PlusOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useBudgetAnalytics, useCategories, useDeleteCategory, useDeleteSubcategory } from '../hooks/useBudgetQuery';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Typography, Card, Button, Space, App, message, Spin } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { useQueryClient } from '@tanstack/react-query';
 import useAuthStore from '../store/authStore';
 import BudgetSummaryCard from '../components/Budget/BudgetSummaryCard';
 import CategoryBudgetCard from '../components/Budget/CategoryBudgetCard';
 import BudgetAnalytics from '../components/Budget/BudgetAnalytics';
 import CategoryModal from '../components/Budget/CategoryModal';
-import SubcategoryModal from '../components/Budget/SubcategoryModal';
-
-const { Title, Text } = Typography;
+import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
+import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
+import {
+  useCategories,
+  useDeleteCategory,
+  useCreateCategory
+} from '../hooks/useCategories';
+import {
+  CARE_TASKS_QUERY_KEY,
+  useCareTasks,
+  useCreateCareTask,
+  useUpdateCareTask
+} from '../hooks/useCareTasks';
+import { useTaskExecutions } from '../hooks/useTaskExecutions';
+import { buildBudgetAnalytics } from '../utils/budgetAnalytics';
 
 const BudgetContent = () => {
-  const { user } = useAuthStore();
-  const userId = user?.uid;
+  //const { user } = useAuthStore();
+  //const userId = user?.uid;
+  const queryClient = useQueryClient();
 
-  // Modal state
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
+  const [categoryModalMode, setCategoryModalMode] = useState('create');
+  const [activeCategory, setActiveCategory] = useState(null);
 
-  // Use App hooks for React 19 compatibility
-  const { modal } = App.useApp();
+  const [careTaskModalOpen, setCareTaskModalOpen] = useState(false);
+  const [careTaskModalMode, setCareTaskModalMode] = useState('create');
+  const [careTaskCategory, setCareTaskCategory] = useState(null);
+  const [activeCareTask, setActiveCareTask] = useState(null);
 
-  // TanStack Query hooks
-  const { data: budgetAnalytics, isLoading: analyticsLoading, error: analyticsError } = useBudgetAnalytics(userId);
-  // eslint-disable-next-line no-unused-vars
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories(userId);
-  const deleteCategoryMutation = useDeleteCategory(userId);
-  const deleteSubcategoryMutation = useDeleteSubcategory(userId);
+  //const { modal } = App.useApp();
 
-  const isLoading = analyticsLoading || categoriesLoading;
+  const { data: categoriesResponse, isLoading: categoriesLoading, error: categoriesError } = useCategories();
+  const categories = useMemo(
+    () => (categoriesResponse?.categories ?? []).map((category) => ({
+      ...category,
+      color: category.color_code
+    })),
+    [categoriesResponse]
+  );
 
-  // Early return if loading or error
+  const {
+    data: careTasksResponse,
+    isLoading: careTasksLoading,
+    error: careTasksError,
+    refetch: refetchCareTasks,
+  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+
+  const careTasks = careTasksResponse?.care_tasks ?? [];
+
+  const purchaseTasks = useMemo(
+    () => careTasks.filter((task) => task.task_type === 'PURCHASE'),
+    [careTasks]
+  );
+
+  const taskIds = useMemo(
+    () => purchaseTasks.map((task) => task.id).filter(Boolean),
+    [purchaseTasks]
+  );
+
+  const {
+    data: executionsResponse,
+    isLoading: executionsLoading,
+    error: executionsError,
+    refetch: refetchExecutions
+  } = useTaskExecutions({
+    taskIds,
+    params: { limit: 200, offset: 0 }
+  });
+
+  const executions = executionsResponse?.executions ?? [];
+
+  const budgetAnalytics = useMemo(() => buildBudgetAnalytics({
+    categories,
+    careTasks: purchaseTasks,
+    executions
+  }), [categories, purchaseTasks, executions]);
+
+  const createCareTask = useCreateCareTask();
+  const updateCareTask = useUpdateCareTask();
+  const deleteCategoryMutation = useDeleteCategory();
+  const createCategoryMutation = useCreateCategory();
+
+  const isLoading = categoriesLoading || careTasksLoading || (taskIds.length > 0 && executionsLoading);
+
+  const error = categoriesError || careTasksError || executionsError;
+
+  const careTasksById = useMemo(() => {
+    const map = new Map();
+    careTasks.forEach((task) => map.set(task.id, task));
+    return map;
+  }, [careTasks]);
+
+  const closeCategoryModal = useCallback(() => {
+    setCategoryModalOpen(false);
+    setCategoryModalMode('create');
+    setActiveCategory(null);
+  }, []);
+
+  const closeCareTaskModal = useCallback(() => {
+    setCareTaskModalOpen(false);
+    setCareTaskModalMode('create');
+    setCareTaskCategory(null);
+    setActiveCareTask(null);
+  }, []);
+
+  const handleAddCategory = () => {
+    setCategoryModalMode('create');
+    setActiveCategory(null);
+    setCategoryModalOpen(true);
+  };
+
+  const handleEditCategory = (category) => {
+    setCategoryModalMode('edit');
+    setActiveCategory(category);
+    setCategoryModalOpen(true);
+  };
+
+  const handleAddCareTask = (category) => {
+    setCareTaskCategory(category);
+    setCareTaskModalMode('create');
+    setActiveCareTask(null);
+    setCareTaskModalOpen(true);
+  };
+
+  const handleEditCareTask = (taskSummary) => {
+    const fullTask = careTasksById.get(taskSummary.id);
+    if (!fullTask) {
+      message.error('Unable to load care task details');
+      return;
+    }
+    setCareTaskCategory(categories.find((category) => category.id === fullTask.category_id) || null);
+    setActiveCareTask(fullTask);
+    setCareTaskModalMode('edit');
+    setCareTaskModalOpen(true);
+  };
+
+  const handleCreateCareTask = useCallback(async (payload) => {
+    try {
+      const result = await createCareTask.mutateAsync({
+        ...payload,
+        task_type: 'PURCHASE',
+        yearly_budget:
+          payload.yearly_budget !== undefined
+            ? payload.yearly_budget
+            : null
+      });
+      const createdTask = result?.data;
+      if (createdTask?.id) {
+        queryClient.setQueriesData({ queryKey: [CARE_TASKS_QUERY_KEY] }, (oldData) => {
+          if (!oldData) {
+            return oldData;
+          }
+
+          if (Array.isArray(oldData.care_tasks)) {
+            return {
+              ...oldData,
+              care_tasks: [createdTask, ...oldData.care_tasks]
+            };
+          }
+
+          if (Array.isArray(oldData)) {
+            return [createdTask, ...oldData];
+          }
+
+          return oldData;
+        });
+      }
+      await refetchCareTasks();
+      await refetchExecutions();
+    } catch (err) {
+      message.error(err?.message || 'Failed to create care task');
+      throw err;
+    }
+  }, [createCareTask, queryClient, refetchCareTasks, refetchExecutions]);
+
+  const handleUpdateCareTask = useCallback(async (payload) => {
+    if (!activeCareTask) {
+      return;
+    }
+    try {
+      const finalPayload = {
+        ...payload,
+        task_type: 'PURCHASE',
+        yearly_budget:
+          payload.yearly_budget !== undefined
+            ? payload.yearly_budget
+            : activeCareTask.yearly_budget ?? null
+      };
+
+      const result = await updateCareTask.mutateAsync({
+        id: activeCareTask.id,
+        payload: finalPayload
+      });
+      const updatedTask = result?.data;
+      if (updatedTask?.id) {
+        queryClient.setQueriesData({ queryKey: [CARE_TASKS_QUERY_KEY] }, (oldData) => {
+          if (!oldData) {
+            return oldData;
+          }
+
+          if (Array.isArray(oldData.care_tasks)) {
+            return {
+              ...oldData,
+              care_tasks: oldData.care_tasks.map((task) =>
+                task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+              )
+            };
+          }
+
+          if (Array.isArray(oldData)) {
+            return oldData.map((task) =>
+              task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+            );
+          }
+
+          return oldData;
+        });
+      }
+      await refetchCareTasks();
+      await refetchExecutions();
+    } catch (err) {
+      message.error(err?.message || 'Failed to update care task');
+      throw err;
+    }
+  }, [activeCareTask, queryClient, updateCareTask, refetchCareTasks, refetchExecutions]);
+
   if (isLoading) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Typography.Text>Loading budget data...</Typography.Text>
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Spin />
       </div>
     );
   }
 
-  if (analyticsError) {
+  if (error) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <Typography.Text type="danger">Error loading budget data: {analyticsError.message}</Typography.Text>
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Typography.Text type="danger">
+          {error.message || 'Failed to load budget data'}
+        </Typography.Text>
       </div>
     );
   }
 
   if (!budgetAnalytics) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
+      <div style={{ padding: 24, textAlign: 'center' }}>
         <Typography.Text>No budget data available</Typography.Text>
       </div>
     );
   }
 
-  // Modal handlers
-  const openCategoryModal = (mode, category = null) => {
-    setModalMode(mode);
-    setSelectedCategory(category);
-    setCategoryModalOpen(true);
-  };
-
-  const openSubcategoryModal = (mode, category, subcategory = null) => {
-    setModalMode(mode);
-    setSelectedCategory(category);
-    setSelectedSubcategory(subcategory);
-    setSubcategoryModalOpen(true);
-  };
-
-  const closeCategoryModal = () => {
-    setCategoryModalOpen(false);
-    setSelectedCategory(null);
-    setModalMode('create');
-  };
-
-  const closeSubcategoryModal = () => {
-    setSubcategoryModalOpen(false);
-    setSelectedCategory(null);
-    setSelectedSubcategory(null);
-    setModalMode('create');
-  };
-
-  // CRUD handlers
-  const handleAddCategory = () => {
-    openCategoryModal('create');
-  };
-
-  const handleEditCategory = (category) => {
-    openCategoryModal('edit', category);
-  };
-
-  const handleDeleteCategory = (category) => {
-    modal.confirm({
-      title: 'Delete Category',
-      icon: <ExclamationCircleOutlined />,
-      content: (
-        <div>
-          <p>Are you sure you want to delete "{category.name}"?</p>
-          <p style={{ color: '#ff4d4f', fontSize: '12px' }}>
-            This will permanently remove the category and cannot be undone.
-          </p>
-        </div>
-      ),
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          const result = await deleteCategoryMutation.mutateAsync(category.id);
-          message.success(result.message);
-        } catch (error) {
-          message.error(error.message || 'Failed to delete category');
-        }
-      },
-    });
-  };
-
-  const handleAddSubcategory = (category) => {
-    openSubcategoryModal('create', category);
-  };
-
-  const handleEditSubcategory = (category, subcategory) => {
-    openSubcategoryModal('edit', category, subcategory);
-  };
-
-  const handleDeleteSubcategory = (category, subcategory) => {
-    modal.confirm({
-      title: 'Delete Subcategory',
-      icon: <ExclamationCircleOutlined />,
-      content: (
-        <div>
-          <p>Are you sure you want to delete "{subcategory.name}"?</p>
-          <p style={{ color: '#8c8c8c', fontSize: '12px' }}>
-            This subcategory will be removed from "{category.name}".
-          </p>
-        </div>
-      ),
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          const result = await deleteSubcategoryMutation.mutateAsync({
-            categoryId: category.id,
-            subcategoryId: subcategory.id
-          });
-          message.success(result.message);
-        } catch (error) {
-          message.error(error.message || 'Failed to delete subcategory');
-        }
-      },
-    });
-  };
-
-  // Main render function
   return (
-    <div style={{ padding: '24px' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
+    <div style={{ padding: 24 }}>
+      <div style={{ marginBottom: 24 }}>
         <Typography.Title level={2} style={{ margin: 0, color: '#5a7a9a' }}>
           Budget Management
         </Typography.Title>
-        <Typography.Text type="secondary" style={{ fontSize: '16px' }}>
+        <Typography.Text type="secondary" style={{ fontSize: 16 }}>
           Track spending and budget allocation across care categories with real-time analytics
         </Typography.Text>
       </div>
 
-      {/* Budget Summary Card */}
       <BudgetSummaryCard budgetAnalytics={budgetAnalytics} />
-
-      {/* Budget Analytics */}
       <BudgetAnalytics budgetAnalytics={budgetAnalytics} />
 
-      {/* Category Budgets */}
       <Card
         className="budget-page-card"
         style={{
@@ -190,9 +286,9 @@ const BudgetContent = () => {
           borderBottom: '1px solid #e1e8ed'
         }}
         bodyStyle={{ backgroundColor: '#fafbfc' }}
-        title={
+        title={(
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '20px', fontWeight: 600, color: '#2c3e50' }}>
+            <span style={{ fontSize: 20, fontWeight: 600, color: '#2c3e50' }}>
               Category Budgets
             </span>
             <Button
@@ -200,58 +296,87 @@ const BudgetContent = () => {
               icon={<PlusOutlined />}
               onClick={handleAddCategory}
               style={{ backgroundColor: '#5e72e4', borderColor: '#5e72e4' }}
+              loading={createCategoryMutation.isPending}
             >
               Add category
             </Button>
           </div>
-        }
+        )}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {budgetAnalytics.categoryBreakdown.map(category => (
+          {budgetAnalytics.categoryBreakdown.map((category) => (
             <CategoryBudgetCard
               key={category.id}
               category={category}
-              loading={deleteCategoryMutation.isPending || deleteSubcategoryMutation.isPending}
-              onEdit={() => handleEditCategory(category)}
-              onDelete={() => handleDeleteCategory(category)}
-              onAddSubcategory={() => handleAddSubcategory(category)}
-              onEditSubcategory={(subcategory) => handleEditSubcategory(category, subcategory)}
-              onDeleteSubcategory={(subcategory) => handleDeleteSubcategory(category, subcategory)}
-              allTasks={[]}
+              loading={deleteCategoryMutation.isPending || createCareTask.isPending || updateCareTask.isPending}
+              onEditCategory={() => handleEditCategory(category)}
+              onAddCareTask={() => handleAddCareTask(category)}
+              onEditCareTask={handleEditCareTask}
             />
           ))}
+          {budgetAnalytics.categoryBreakdown.length === 0 && (
+            <Typography.Text type="secondary">
+              Create a category to start tracking budgets.
+            </Typography.Text>
+          )}
         </Space>
       </Card>
 
-      {/* Category Modal */}
       <CategoryModal
         open={categoryModalOpen}
         onCancel={closeCategoryModal}
-        mode={modalMode}
-        category={selectedCategory}
-        patientId={userId}
+        mode={categoryModalMode}
+        category={activeCategory}
       />
 
-      {/* Subcategory Modal */}
-      <SubcategoryModal
-        open={subcategoryModalOpen}
-        onCancel={closeSubcategoryModal}
-        mode={modalMode}
-        category={selectedCategory}
-        subcategory={selectedSubcategory}
-        patientId={userId}
+      <AddCareTaskModal
+        open={careTaskModalOpen && careTaskModalMode === 'create'}
+        onClose={closeCareTaskModal}
+        onSubmit={handleCreateCareTask}
+        submitting={createCareTask.isPending}
+        categories={categories}
+        categoriesLoading={categoriesLoading}
+        onCreateCategory={async ({ name }) => {
+          const trimmedName = (name || '').trim();
+          const result = await createCategoryMutation.mutateAsync({
+            name: trimmedName,
+            description: trimmedName ? `${trimmedName} category` : '',
+            color_code: '#1890ff'
+          });
+          return result?.data;
+        }}
+        defaultTaskType="PURCHASE"
+        isTaskTypeEditable={false}
+        initialCategoryId={careTaskCategory?.id || null}
+        initialCategoryName={careTaskCategory?.name || ''}
+      />
+
+      <EditCareTaskModal
+        open={careTaskModalOpen && careTaskModalMode === 'edit'}
+        onClose={closeCareTaskModal}
+        onSubmit={handleUpdateCareTask}
+        submitting={updateCareTask.isPending}
+        task={activeCareTask}
+        categories={categories}
+        categoriesLoading={categoriesLoading}
+        onCreateCategory={async ({ name }) => {
+          const trimmedName = (name || '').trim();
+          const result = await createCategoryMutation.mutateAsync({
+            name: trimmedName,
+            description: trimmedName ? `${trimmedName} category` : '',
+            color_code: '#1890ff'
+          });
+          return result?.data;
+        }}
       />
     </div>
   );
 };
 
-// Wrap with App component for React 19 compatibility
-const Budget = () => {
-  return (
-    <App>
-      <BudgetContent />
-    </App>
-  );
-};
+const Budget = () => (
+  <App>
+    <BudgetContent />
+  </App>
+);
 
 export default Budget;

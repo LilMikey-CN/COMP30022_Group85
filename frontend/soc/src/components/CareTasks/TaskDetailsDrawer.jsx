@@ -36,18 +36,6 @@ const { Title, Text } = Typography;
 
 const DEFAULT_DRAWER_WIDTH = 640;
 
-const formatCurrency = (value) => {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
-
 const statusColorMap = {
   TODO: 'default',
   DONE: 'green',
@@ -155,27 +143,6 @@ const TaskDetailsDrawer = ({
     }
     return task.category_id || '—';
   }, [categoriesResponse, task]);
-
-  const estimatedCostDisplay = useMemo(() => {
-    if (!task || task.task_type !== 'PURCHASE') {
-      return null;
-    }
-    const rawCost = task.estimated_unit_cost;
-    if (rawCost === null || rawCost === undefined) {
-      return null;
-    }
-    const formatted = formatCurrency(Number(rawCost));
-    const quantity = Number(task.quantity_per_purchase || 0);
-    const unit = task.quantity_unit ? task.quantity_unit.trim() : '';
-
-    if (quantity > 1) {
-      return `${formatted} for ${quantity}${unit ? ` ${unit}` : ''}`;
-    }
-    if (quantity === 1 && unit) {
-      return `${formatted} per ${unit}`;
-    }
-    return formatted;
-  }, [task]);
 
   useEffect(() => {
     if (!open) {
@@ -419,11 +386,6 @@ const TaskDetailsDrawer = ({
                         <Descriptions.Item label="Category">
                           {categoryDisplay}
                         </Descriptions.Item>
-                        {estimatedCostDisplay && (
-                          <Descriptions.Item label="Estimated cost">
-                            {estimatedCostDisplay}
-                          </Descriptions.Item>
-                        )}
                         <Descriptions.Item label="Start date">
                           {formatDate(task.start_date)}
                         </Descriptions.Item>

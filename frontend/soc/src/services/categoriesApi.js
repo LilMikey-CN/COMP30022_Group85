@@ -67,6 +67,23 @@ export const categoriesService = {
       body: JSON.stringify(payload),
     });
   },
+  async updateCategory(id, payload = {}) {
+    if (!id) {
+      throw new Error('Category id is required');
+    }
+    return await authenticatedApiCall(`/api/categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+  async deleteCategory(id) {
+    if (!id) {
+      throw new Error('Category id is required');
+    }
+    return await authenticatedApiCall(`/api/categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export default categoriesService;
