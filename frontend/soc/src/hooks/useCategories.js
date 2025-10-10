@@ -72,7 +72,7 @@ export const useDeleteCategory = () => {
 
   return useMutation({
     mutationFn: async (id) => await categoriesService.deleteCategory(id),
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CATEGORIES_QUERY_KEY], exact: false });
       message.success('Category deleted successfully');
     },

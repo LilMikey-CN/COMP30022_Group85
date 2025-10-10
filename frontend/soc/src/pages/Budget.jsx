@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Typography, Card, Button, Space, App, message, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
-import useAuthStore from '../store/authStore';
 import BudgetSummaryCard from '../components/Budget/BudgetSummaryCard';
 import CategoryBudgetCard from '../components/Budget/CategoryBudgetCard';
 import BudgetAnalytics from '../components/Budget/BudgetAnalytics';
@@ -11,7 +10,6 @@ import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
 import {
   useCategories,
-  useDeleteCategory,
   useCreateCategory
 } from '../hooks/useCategories';
 import {
@@ -24,8 +22,6 @@ import { useTaskExecutions } from '../hooks/useTaskExecutions';
 import { buildBudgetAnalytics } from '../utils/budgetAnalytics';
 
 const BudgetContent = () => {
-  //const { user } = useAuthStore();
-  //const userId = user?.uid;
   const queryClient = useQueryClient();
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -36,8 +32,6 @@ const BudgetContent = () => {
   const [careTaskModalMode, setCareTaskModalMode] = useState('create');
   const [careTaskCategory, setCareTaskCategory] = useState(null);
   const [activeCareTask, setActiveCareTask] = useState(null);
-
-  //const { modal } = App.useApp();
 
   const { data: categoriesResponse, isLoading: categoriesLoading, error: categoriesError } = useCategories();
   const categories = useMemo(
@@ -55,7 +49,10 @@ const BudgetContent = () => {
     refetch: refetchCareTasks,
   } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
 
-  const careTasks = careTasksResponse?.care_tasks ?? [];
+  const careTasks = useMemo(
+    () => careTasksResponse?.care_tasks ?? [],
+    [careTasksResponse]
+  );
 
   const purchaseTasks = useMemo(
     () => careTasks.filter((task) => task.task_type === 'PURCHASE'),
@@ -77,7 +74,10 @@ const BudgetContent = () => {
     params: { limit: 200, offset: 0 }
   });
 
-  const executions = executionsResponse?.executions ?? [];
+  const executions = useMemo(
+    () => executionsResponse?.executions ?? [],
+    [executionsResponse]
+  );
 
   const budgetAnalytics = useMemo(() => buildBudgetAnalytics({
     categories,
@@ -87,7 +87,6 @@ const BudgetContent = () => {
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
-  const deleteCategoryMutation = useDeleteCategory();
   const createCategoryMutation = useCreateCategory();
 
   const isLoading = categoriesLoading || careTasksLoading || (taskIds.length > 0 && executionsLoading);
@@ -308,7 +307,7 @@ const BudgetContent = () => {
             <CategoryBudgetCard
               key={category.id}
               category={category}
-              loading={deleteCategoryMutation.isPending || createCareTask.isPending || updateCareTask.isPending}
+              loading={createCareTask.isPending || updateCareTask.isPending}
               onEditCategory={() => handleEditCategory(category)}
               onAddCareTask={() => handleAddCareTask(category)}
               onEditCareTask={handleEditCareTask}
