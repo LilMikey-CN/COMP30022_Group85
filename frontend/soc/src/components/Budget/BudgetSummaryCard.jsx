@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, Progress, Typography } from 'antd';
-import { EditOutlined } from '@ant-design/icons';
-import { formatCurrency } from '../../data/budgetCalculations';
+import { formatCurrency } from '../../utils/budgetAnalytics';
 
 const { Title, Text } = Typography;
 
@@ -32,12 +31,9 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
       }}
       bodyStyle={{ backgroundColor: '#fafbfc' }}
       title={
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '18px', fontWeight: 600, color: '#2c3e50' }}>
-            Total Budget Summary
-          </span>
-          <EditOutlined style={{ fontSize: '16px', color: '#5a7a9a', cursor: 'pointer' }} />
-        </div>
+        <span style={{ fontSize: '18px', fontWeight: 600, color: '#2c3e50' }}>
+          Total Budget Summary
+        </span>
       }
     >
       {/* Budget Summary Numbers */}
@@ -101,7 +97,7 @@ const BudgetSummaryCard = ({ budgetAnalytics }) => {
       <div style={{ marginBottom: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <Text style={{ fontSize: '14px', color: '#2c3e50' }}>
-            Budget Utilization
+            Budget Utilisation
           </Text>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {alertStatus.message && (

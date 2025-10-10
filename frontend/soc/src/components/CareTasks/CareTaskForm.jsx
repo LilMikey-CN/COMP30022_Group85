@@ -14,6 +14,7 @@ const CareTaskForm = ({
   isTaskTypeEditable = true,
   isFrequencyEditable = true,
   isStartDateEditable = true,
+  defaultTaskType = 'GENERAL',
 }) => {
   const [categorySearch, setCategorySearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -79,7 +80,7 @@ const CareTaskForm = ({
 
   const handleTaskTypeChange = useCallback((value) => {
     if (value !== 'PURCHASE') {
-      form.setFieldsValue({ estimated_unit_cost: null });
+      form.setFieldsValue({ yearly_budget: null });
     }
   }, [form]);
 
@@ -126,18 +127,28 @@ const CareTaskForm = ({
     }
   }, [categories, form, initialTask]);
 
+  useEffect(() => {
+    if (initialTask) {
+      return;
+    }
+    const currentType = form.getFieldValue('task_type');
+    if (!currentType) {
+      form.setFieldsValue({ task_type: defaultTaskType });
+    }
+  }, [defaultTaskType, form, initialTask]);
+
   return (
     <Form
       layout="vertical"
       form={form}
       initialValues={{
-        task_type: 'GENERAL',
+        task_type: initialTask?.task_type || defaultTaskType,
         recurrencePreset: '0',
         recurrence_interval_days: 0,
         start_date: dayjs(),
         category_id: initialTask?.category_id || null,
         category_input: initialTask?.category_name || initialTask?.category_id || '',
-        estimated_unit_cost: initialTask?.estimated_unit_cost ?? null
+        yearly_budget: initialTask?.yearly_budget ?? null
       }}
     >
       <Form.Item
@@ -200,8 +211,8 @@ const CareTaskForm = ({
 
       {taskTypeValue === 'PURCHASE' && (
         <Form.Item
-          name="estimated_unit_cost"
-          label="Estimated unit cost"
+          name="yearly_budget"
+          label="Yearly budget"
           rules={[
             {
               validator: (_, value) => {
@@ -210,7 +221,7 @@ const CareTaskForm = ({
                 }
                 const numeric = Number(value);
                 if (Number.isNaN(numeric) || numeric < 0) {
-                  return Promise.reject(new Error('Estimated unit cost must be a number greater than or equal to 0'));
+                  return Promise.reject(new Error('Yearly budget must be a number greater than or equal to 0'));
                 }
                 return Promise.resolve();
               }

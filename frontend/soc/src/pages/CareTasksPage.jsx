@@ -113,6 +113,18 @@ const CareTasksPage = () => {
   } = useCategories();
   const createCategory = useCreateCategory();
   const categories = useMemo(() => categoriesResponse?.categories || [], [categoriesResponse]);
+  const categoryMap = useMemo(() => {
+    const map = new Map();
+    categories.forEach((category) => {
+      if (category?.id) {
+        map.set(category.id, {
+          name: category.name,
+          color: category.color_code || category.color || undefined,
+        });
+      }
+    });
+    return map;
+  }, [categories]);
 
   const handleCreateCategory = useCallback(
     async ({ name }) => {
@@ -178,10 +190,12 @@ const CareTasksPage = () => {
           return (task.name || '').toLowerCase();
         case 'task_type':
           return task.task_type || '';
-        case 'estimated_unit_cost':
-          return task.task_type === 'PURCHASE'
-            ? Number(task.estimated_unit_cost ?? -Infinity)
-            : -Infinity;
+        case 'category': {
+          const category = categoryMap.get(task.category_id);
+          return category?.name?.toLowerCase?.() || '';
+        }
+        case 'yearly_budget':
+          return Number(task.yearly_budget ?? -Infinity);
         case 'recurrence_interval_days':
           return Number(task.recurrence_interval_days ?? 0);
         case 'start_date':
@@ -209,7 +223,7 @@ const CareTasksPage = () => {
       }
       return valueA > valueB ? -1 : 1;
     });
-  }, [filteredTasks, sortConfig]);
+  }, [categoryMap, filteredTasks, sortConfig]);
 
   const handleSort = useCallback((field) => {
     setSortConfig((prev) => {
@@ -285,6 +299,13 @@ const CareTasksPage = () => {
     generateExecution.mutate(task.id);
   }, [generateExecution]);
 
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }), []);
+
   const columns = useMemo(() => ([
     {
       title: renderSortTitle('Name', 'name'),
@@ -297,12 +318,30 @@ const CareTasksPage = () => {
       render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
     },
     {
-      title: renderSortTitle('Estimated cost', 'estimated_unit_cost'),
-      key: 'estimated_unit_cost',
-      render: (_, task) =>
-        task.task_type === 'PURCHASE' && task.estimated_unit_cost !== null && task.estimated_unit_cost !== undefined
-          ? `$${Number(task.estimated_unit_cost).toFixed(2)}`
-          : '—',
+      title: renderSortTitle('Category', 'category'),
+      key: 'category',
+      render: (_, task) => {
+        const category = categoryMap.get(task.category_id);
+        if (!category) {
+          return <Tag>Uncategorised</Tag>;
+        }
+        return (
+          <Tag color={category.color || 'default'}>
+            {category.name || 'Uncategorised'}
+          </Tag>
+        );
+      }
+    },
+    {
+      title: renderSortTitle('Yearly budget', 'yearly_budget'),
+      key: 'yearly_budget',
+      align: 'right',
+      render: (_, task) => {
+        if (task.yearly_budget === null || task.yearly_budget === undefined) {
+          return '—';
+        }
+        return currencyFormatter.format(Number(task.yearly_budget));
+      },
     },
     {
       title: renderSortTitle('Recurrence', 'recurrence_interval_days'),
@@ -360,7 +399,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [handleDeactivate, handleReactivate, renderSortTitle]);
+  ]), [categoryMap, currencyFormatter, handleDeactivate, handleReactivate, renderSortTitle]);
 
   const handleRefresh = () => {
     refetchCareTasks();

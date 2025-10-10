@@ -209,11 +209,6 @@ const ExecutionDetailsDrawer = ({
                     ? `$${Number(execution.actual_cost).toFixed(2)}`
                     : '—'}
                 </Descriptions.Item>
-                <Descriptions.Item label="Estimated unit cost">
-                  {task?.estimated_unit_cost !== null && task?.estimated_unit_cost !== undefined
-                    ? `$${Number(task.estimated_unit_cost).toFixed(2)}`
-                    : '—'}
-                </Descriptions.Item>
               </>
             )}
 
