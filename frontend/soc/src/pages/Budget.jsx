@@ -1,237 +1,36 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Typography, Card, Button, Space, App, message, Spin } from 'antd';
+import React from 'react';
+import { Typography, Card, Button, Space, App, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useQueryClient } from '@tanstack/react-query';
 import BudgetSummaryCard from '../components/Budget/BudgetSummaryCard';
 import CategoryBudgetCard from '../components/Budget/CategoryBudgetCard';
 import BudgetAnalytics from '../components/Budget/BudgetAnalytics';
 import CategoryModal from '../components/Budget/CategoryModal';
 import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
-import {
-  useCategories,
-  useCreateCategory
-} from '../hooks/useCategories';
-import {
-  CARE_TASKS_QUERY_KEY,
-  useCareTasks,
-  useCreateCareTask,
-  useUpdateCareTask
-} from '../hooks/useCareTasks';
-import { useTaskExecutions } from '../hooks/useTaskExecutions';
-import { buildBudgetAnalytics } from '../utils/budgetAnalytics';
+import useBudgetManagement from '../hooks/useBudgetManagement';
 
 const BudgetContent = () => {
-  const queryClient = useQueryClient();
-
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [categoryModalMode, setCategoryModalMode] = useState('create');
-  const [activeCategory, setActiveCategory] = useState(null);
-
-  const [careTaskModalOpen, setCareTaskModalOpen] = useState(false);
-  const [careTaskModalMode, setCareTaskModalMode] = useState('create');
-  const [careTaskCategory, setCareTaskCategory] = useState(null);
-  const [activeCareTask, setActiveCareTask] = useState(null);
-
-  const { data: categoriesResponse, isLoading: categoriesLoading, error: categoriesError } = useCategories();
-  const categories = useMemo(
-    () => (categoriesResponse?.categories ?? []).map((category) => ({
-      ...category,
-      color: category.color_code
-    })),
-    [categoriesResponse]
-  );
-
   const {
-    data: careTasksResponse,
-    isLoading: careTasksLoading,
-    error: careTasksError,
-    refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
-
-  const careTasks = useMemo(
-    () => careTasksResponse?.care_tasks ?? [],
-    [careTasksResponse]
-  );
-
-  const purchaseTasks = useMemo(
-    () => careTasks.filter((task) => task.task_type === 'PURCHASE'),
-    [careTasks]
-  );
-
-  const taskIds = useMemo(
-    () => purchaseTasks.map((task) => task.id).filter(Boolean),
-    [purchaseTasks]
-  );
-
-  const {
-    data: executionsResponse,
-    isLoading: executionsLoading,
-    error: executionsError,
-    refetch: refetchExecutions
-  } = useTaskExecutions({
-    taskIds,
-    params: { limit: 200, offset: 0 }
-  });
-
-  const executions = useMemo(
-    () => executionsResponse?.executions ?? [],
-    [executionsResponse]
-  );
-
-  const budgetAnalytics = useMemo(() => buildBudgetAnalytics({
+    isLoading,
+    error,
     categories,
-    careTasks: purchaseTasks,
-    executions
-  }), [categories, purchaseTasks, executions]);
-
-  const createCareTask = useCreateCareTask();
-  const updateCareTask = useUpdateCareTask();
-  const createCategoryMutation = useCreateCategory();
-
-  const isLoading = categoriesLoading || careTasksLoading || (taskIds.length > 0 && executionsLoading);
-
-  const error = categoriesError || careTasksError || executionsError;
-
-  const careTasksById = useMemo(() => {
-    const map = new Map();
-    careTasks.forEach((task) => map.set(task.id, task));
-    return map;
-  }, [careTasks]);
-
-  const closeCategoryModal = useCallback(() => {
-    setCategoryModalOpen(false);
-    setCategoryModalMode('create');
-    setActiveCategory(null);
-  }, []);
-
-  const closeCareTaskModal = useCallback(() => {
-    setCareTaskModalOpen(false);
-    setCareTaskModalMode('create');
-    setCareTaskCategory(null);
-    setActiveCareTask(null);
-  }, []);
-
-  const handleAddCategory = () => {
-    setCategoryModalMode('create');
-    setActiveCategory(null);
-    setCategoryModalOpen(true);
-  };
-
-  const handleEditCategory = (category) => {
-    setCategoryModalMode('edit');
-    setActiveCategory(category);
-    setCategoryModalOpen(true);
-  };
-
-  const handleAddCareTask = (category) => {
-    setCareTaskCategory(category);
-    setCareTaskModalMode('create');
-    setActiveCareTask(null);
-    setCareTaskModalOpen(true);
-  };
-
-  const handleEditCareTask = (taskSummary) => {
-    const fullTask = careTasksById.get(taskSummary.id);
-    if (!fullTask) {
-      message.error('Unable to load care task details');
-      return;
-    }
-    setCareTaskCategory(categories.find((category) => category.id === fullTask.category_id) || null);
-    setActiveCareTask(fullTask);
-    setCareTaskModalMode('edit');
-    setCareTaskModalOpen(true);
-  };
-
-  const handleCreateCareTask = useCallback(async (payload) => {
-    try {
-      const result = await createCareTask.mutateAsync({
-        ...payload,
-        task_type: 'PURCHASE',
-        yearly_budget:
-          payload.yearly_budget !== undefined
-            ? payload.yearly_budget
-            : null
-      });
-      const createdTask = result?.data;
-      if (createdTask?.id) {
-        queryClient.setQueriesData({ queryKey: [CARE_TASKS_QUERY_KEY] }, (oldData) => {
-          if (!oldData) {
-            return oldData;
-          }
-
-          if (Array.isArray(oldData.care_tasks)) {
-            return {
-              ...oldData,
-              care_tasks: [createdTask, ...oldData.care_tasks]
-            };
-          }
-
-          if (Array.isArray(oldData)) {
-            return [createdTask, ...oldData];
-          }
-
-          return oldData;
-        });
-      }
-      await refetchCareTasks();
-      await refetchExecutions();
-    } catch (err) {
-      message.error(err?.message || 'Failed to create care task');
-      throw err;
-    }
-  }, [createCareTask, queryClient, refetchCareTasks, refetchExecutions]);
-
-  const handleUpdateCareTask = useCallback(async (payload) => {
-    if (!activeCareTask) {
-      return;
-    }
-    try {
-      const finalPayload = {
-        ...payload,
-        task_type: 'PURCHASE',
-        yearly_budget:
-          payload.yearly_budget !== undefined
-            ? payload.yearly_budget
-            : activeCareTask.yearly_budget ?? null
-      };
-
-      const result = await updateCareTask.mutateAsync({
-        id: activeCareTask.id,
-        payload: finalPayload
-      });
-      const updatedTask = result?.data;
-      if (updatedTask?.id) {
-        queryClient.setQueriesData({ queryKey: [CARE_TASKS_QUERY_KEY] }, (oldData) => {
-          if (!oldData) {
-            return oldData;
-          }
-
-          if (Array.isArray(oldData.care_tasks)) {
-            return {
-              ...oldData,
-              care_tasks: oldData.care_tasks.map((task) =>
-                task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-              )
-            };
-          }
-
-          if (Array.isArray(oldData)) {
-            return oldData.map((task) =>
-              task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-            );
-          }
-
-          return oldData;
-        });
-      }
-      await refetchCareTasks();
-      await refetchExecutions();
-    } catch (err) {
-      message.error(err?.message || 'Failed to update care task');
-      throw err;
-    }
-  }, [activeCareTask, queryClient, updateCareTask, refetchCareTasks, refetchExecutions]);
+    categoriesLoading,
+    budgetAnalytics,
+    categoryModalState,
+    careTaskModalState,
+    createCategoryMutation,
+    createCareTask,
+    updateCareTask,
+    handleAddCategory,
+    handleEditCategory,
+    handleAddCareTask,
+    handleEditCareTask,
+    handleCreateCareTask,
+    handleUpdateCareTask,
+    handleCreateCategory,
+    closeCategoryModal,
+    closeCareTaskModal,
+  } = useBudgetManagement();
 
   if (isLoading) {
     return (
@@ -322,51 +121,35 @@ const BudgetContent = () => {
       </Card>
 
       <CategoryModal
-        open={categoryModalOpen}
+        open={categoryModalState.open}
         onCancel={closeCategoryModal}
-        mode={categoryModalMode}
-        category={activeCategory}
+        mode={categoryModalState.mode}
+        category={categoryModalState.category}
       />
 
       <AddCareTaskModal
-        open={careTaskModalOpen && careTaskModalMode === 'create'}
+        open={careTaskModalState.open && careTaskModalState.mode === 'create'}
         onClose={closeCareTaskModal}
         onSubmit={handleCreateCareTask}
         submitting={createCareTask.isPending}
         categories={categories}
-        categoriesLoading={categoriesLoading}
-        onCreateCategory={async ({ name }) => {
-          const trimmedName = (name || '').trim();
-          const result = await createCategoryMutation.mutateAsync({
-            name: trimmedName,
-            description: trimmedName ? `${trimmedName} category` : '',
-            color_code: '#1890ff'
-          });
-          return result?.data;
-        }}
+        categoriesLoading={categoriesLoading || createCategoryMutation.isPending}
+        onCreateCategory={handleCreateCategory}
         defaultTaskType="PURCHASE"
         isTaskTypeEditable={false}
-        initialCategoryId={careTaskCategory?.id || null}
-        initialCategoryName={careTaskCategory?.name || ''}
+        initialCategoryId={careTaskModalState.category?.id || null}
+        initialCategoryName={careTaskModalState.category?.name || ''}
       />
 
       <EditCareTaskModal
-        open={careTaskModalOpen && careTaskModalMode === 'edit'}
+        open={careTaskModalState.open && careTaskModalState.mode === 'edit'}
         onClose={closeCareTaskModal}
         onSubmit={handleUpdateCareTask}
         submitting={updateCareTask.isPending}
-        task={activeCareTask}
+        task={careTaskModalState.task}
         categories={categories}
-        categoriesLoading={categoriesLoading}
-        onCreateCategory={async ({ name }) => {
-          const trimmedName = (name || '').trim();
-          const result = await createCategoryMutation.mutateAsync({
-            name: trimmedName,
-            description: trimmedName ? `${trimmedName} category` : '',
-            color_code: '#1890ff'
-          });
-          return result?.data;
-        }}
+        categoriesLoading={categoriesLoading || createCategoryMutation.isPending}
+        onCreateCategory={handleCreateCategory}
       />
     </div>
   );

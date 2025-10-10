@@ -17,8 +17,6 @@ import {
   ReloadOutlined,
   FileSearchOutlined,
   CalendarOutlined,
-  CaretUpOutlined,
-  CaretDownOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -37,36 +35,17 @@ import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
 import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
+import SortableColumnTitle from '../components/common/SortableColumnTitle';
+import {
+  buildCategoryMap,
+  describeRecurrence,
+  filterCareTasks,
+  sortCareTasks
+} from '../utils/careTasks';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-const describeRecurrence = (interval) => {
-  const numeric = Number(interval ?? 0);
-  if (numeric === 0) {
-    return 'One-off';
-  }
-  if (numeric === 1) {
-    return 'Every day';
-  }
-  if (numeric === 7) {
-    return 'Every week';
-  }
-  if (numeric === 14) {
-    return 'Every 2 weeks';
-  }
-  if (numeric === 30) {
-    return 'Every month';
-  }
-  if (numeric === 90) {
-    return 'Every quarter';
-  }
-  if (numeric === 365) {
-    return 'Every year';
-  }
-  return `Every ${numeric} days`;
-};
 
 const statusTag = (task) => {
   if (task.is_active === false) {
@@ -113,18 +92,7 @@ const CareTasksPage = () => {
   } = useCategories();
   const createCategory = useCreateCategory();
   const categories = useMemo(() => categoriesResponse?.categories || [], [categoriesResponse]);
-  const categoryMap = useMemo(() => {
-    const map = new Map();
-    categories.forEach((category) => {
-      if (category?.id) {
-        map.set(category.id, {
-          name: category.name,
-          color: category.color_code || category.color || undefined,
-        });
-      }
-    });
-    return map;
-  }, [categories]);
+  const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);
 
   const handleCreateCategory = useCallback(
     async ({ name }) => {
@@ -144,86 +112,17 @@ const CareTasksPage = () => {
   const generateExecution = useGenerateTaskExecution();
   const createManualExecution = useCreateManualExecution();
 
-  const filteredTasks = useMemo(() => {
-    const lowered = searchTerm.trim().toLowerCase();
+  const filteredTasks = useMemo(() => filterCareTasks(careTasks, {
+    searchTerm,
+    statusFilter,
+    typeFilter,
+    startRange
+  }), [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
 
-    return careTasks.filter((task) => {
-      if (lowered) {
-        const name = task.name?.toLowerCase() || '';
-        const description = task.description?.toLowerCase() || '';
-        if (!name.includes(lowered) && !description.includes(lowered)) {
-          return false;
-        }
-      }
-
-      if (statusFilter === 'active' && task.is_active === false) {
-        return false;
-      }
-      if (statusFilter === 'inactive' && task.is_active !== false) {
-        return false;
-      }
-
-      if (typeFilter !== 'all' && task.task_type !== typeFilter) {
-        return false;
-      }
-
-      if (startRange && startRange.length === 2) {
-        const [from, to] = startRange;
-        if (from && task.start_date && dayjs(task.start_date).isBefore(dayjs(from), 'day')) {
-          return false;
-        }
-        if (to && task.start_date && dayjs(task.start_date).isAfter(dayjs(to), 'day')) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
-
-  const sortedTasks = useMemo(() => {
-    const { field, order } = sortConfig;
-
-    const getValue = (task) => {
-      switch (field) {
-        case 'name':
-          return (task.name || '').toLowerCase();
-        case 'task_type':
-          return task.task_type || '';
-        case 'category': {
-          const category = categoryMap.get(task.category_id);
-          return category?.name?.toLowerCase?.() || '';
-        }
-        case 'yearly_budget':
-          return Number(task.yearly_budget ?? -Infinity);
-        case 'recurrence_interval_days':
-          return Number(task.recurrence_interval_days ?? 0);
-        case 'start_date':
-          return task.start_date ? dayjs(task.start_date).valueOf() : -Infinity;
-        case 'end_date':
-          return task.end_date ? dayjs(task.end_date).valueOf() : Number.MAX_SAFE_INTEGER;
-        case 'status':
-          return task.is_active === false ? 0 : 1;
-        case 'created_at':
-        default:
-          return task.created_at ? dayjs(task.created_at).valueOf() : -Infinity;
-      }
-    };
-
-    return [...filteredTasks].sort((a, b) => {
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (valueA === valueB) {
-        return 0;
-      }
-
-      if (order === 'ascend') {
-        return valueA > valueB ? 1 : -1;
-      }
-      return valueA > valueB ? -1 : 1;
-    });
-  }, [categoryMap, filteredTasks, sortConfig]);
+  const sortedTasks = useMemo(
+    () => sortCareTasks(filteredTasks, sortConfig, categoryMap),
+    [categoryMap, filteredTasks, sortConfig]
+  );
 
   const handleSort = useCallback((field) => {
     setSortConfig((prev) => {
@@ -236,25 +135,6 @@ const CareTasksPage = () => {
       return { field, order: 'ascend' };
     });
   }, []);
-
-  const renderSortTitle = useCallback((label, field) => {
-    const isActive = sortConfig.field === field;
-    const isAsc = isActive && sortConfig.order === 'ascend';
-    const isDesc = isActive && sortConfig.order === 'descend';
-
-    return (
-      <span
-        onClick={() => handleSort(field)}
-        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-      >
-        {label}
-        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
-          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
-          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
-        </span>
-      </span>
-    );
-  }, [handleSort, sortConfig]);
 
   useEffect(() => {
     setTaskPagination((prev) => ({ ...prev, current: 1 }));
@@ -308,17 +188,41 @@ const CareTasksPage = () => {
 
   const columns = useMemo(() => ([
     {
-      title: renderSortTitle('Name', 'name'),
+      title: (
+        <SortableColumnTitle
+          label="Name"
+          field="name"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'name',
       render: (value) => value || 'Untitled task',
     },
     {
-      title: renderSortTitle('Type', 'task_type'),
+      title: (
+        <SortableColumnTitle
+          label="Type"
+          field="task_type"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'task_type',
       render: (value) => (value === 'PURCHASE' ? 'Purchase' : 'General'),
     },
     {
-      title: renderSortTitle('Category', 'category'),
+      title: (
+        <SortableColumnTitle
+          label="Category"
+          field="category"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       key: 'category',
       render: (_, task) => {
         const category = categoryMap.get(task.category_id);
@@ -333,7 +237,15 @@ const CareTasksPage = () => {
       }
     },
     {
-      title: renderSortTitle('Yearly budget', 'yearly_budget'),
+      title: (
+        <SortableColumnTitle
+          label="Yearly budget"
+          field="yearly_budget"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       key: 'yearly_budget',
       align: 'right',
       render: (_, task) => {
@@ -344,22 +256,54 @@ const CareTasksPage = () => {
       },
     },
     {
-      title: renderSortTitle('Recurrence', 'recurrence_interval_days'),
+      title: (
+        <SortableColumnTitle
+          label="Recurrence"
+          field="recurrence_interval_days"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'recurrence_interval_days',
       render: (value) => describeRecurrence(value),
     },
     {
-      title: renderSortTitle('Start', 'start_date'),
+      title: (
+        <SortableColumnTitle
+          label="Start"
+          field="start_date"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'start_date',
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: renderSortTitle('End', 'end_date'),
+      title: (
+        <SortableColumnTitle
+          label="End"
+          field="end_date"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'end_date',
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: renderSortTitle('Status', 'status'),
+      title: (
+        <SortableColumnTitle
+          label="Status"
+          field="status"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       key: 'status',
       render: (_, task) => statusTag(task),
     },
@@ -399,7 +343,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleDeactivate, handleReactivate, renderSortTitle]);
+  ]), [categoryMap, currencyFormatter, handleDeactivate, handleReactivate, handleSort, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();

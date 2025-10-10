@@ -8,7 +8,6 @@ import {
   Select,
   DatePicker,
   Table,
-  Tag,
   Spin,
   Alert,
   Empty,
@@ -18,8 +17,6 @@ import {
   ReloadOutlined,
   FileSearchOutlined,
   PlusOutlined,
-  CaretUpOutlined,
-  CaretDownOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -38,12 +35,21 @@ import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionMod
 import ExecutionDetailsDrawer from '../components/CareTasks/ExecutionDetailsDrawer';
 import RefundExecutionModal from '../components/CareTasks/RefundExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
+import uploadEvidenceImage from '../utils/objectStorage';
+import {
+  computeCoverableExecutions,
+  formatExecutionDate
+} from '../utils/taskExecutions';
+import {
+  filterExecutions,
+  sortExecutions as sortTaskExecutions
+} from '../utils/taskScheduling';
+import SortableColumnTitle from '../components/common/SortableColumnTitle';
+import ExecutionStatusTag from '../components/common/ExecutionStatusTag';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-const OBJECT_STORAGE_BASE_URL = import.meta.env.VITE_OBJECT_STORAGE_BASE_URL;
 
 const executionStatusFilters = [
   { label: 'All', value: 'all' },
@@ -54,35 +60,6 @@ const executionStatusFilters = [
 ];
 
 const DEFAULT_SORT = { field: 'scheduled_date', order: 'ascend' };
-
-const formatDate = (value) => {
-  if (!value) {
-    return '—';
-  }
-  return dayjs(value).format('DD MMM YYYY');
-};
-
-const uploadEvidence = async (file) => {
-  const formData = new FormData();
-  formData.append('image', file);
-
-  const response = await fetch(`${OBJECT_STORAGE_BASE_URL}/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload evidence image');
-  }
-
-  const data = await response.json();
-  const location = data?.file?.location;
-  if (!location) {
-    throw new Error('Evidence upload did not return a file URL');
-  }
-
-  return location;
-};
 
 const TaskSchedulingPage = () => {
   const navigate = useNavigate();
@@ -204,73 +181,16 @@ const TaskSchedulingPage = () => {
     closeRefundModal();
   }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
 
-  const filteredExecutions = useMemo(() => {
-    const lowered = searchTerm.trim().toLowerCase();
+  const filteredExecutions = useMemo(() => filterExecutions(executions, {
+    searchTerm,
+    startDateRange,
+    careTasksById
+  }), [executions, searchTerm, startDateRange, careTasksById]);
 
-    const [from, to] = startDateRange || [];
-    const fromBoundary = from ? dayjs(from) : null;
-    const toBoundary = to ? dayjs(to) : null;
-
-    return executions.filter((execution) => {
-      const parentTask = careTasksById[execution.care_task_id];
-      const taskName = parentTask?.name?.toLowerCase() || '';
-      const notes = execution.notes?.toLowerCase() || '';
-
-      if (lowered && !taskName.includes(lowered) && !notes.includes(lowered)) {
-        return false;
-      }
-
-      if (fromBoundary || toBoundary) {
-        const scheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
-        if (fromBoundary && scheduled && scheduled.isBefore(fromBoundary, 'day')) {
-          return false;
-        }
-        if (toBoundary && scheduled && scheduled.isAfter(toBoundary, 'day')) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [executions, careTasksById, searchTerm, startDateRange]);
-
-  const sortedExecutions = useMemo(() => {
-    const data = [...filteredExecutions];
-    const { field, order } = sortConfig;
-
-    const getValue = (execution) => {
-      switch (field) {
-        case 'task_name':
-          return careTasksById[execution.care_task_id]?.name?.toLowerCase() || '';
-        case 'status':
-          return execution.status || '';
-        case 'scheduled_date':
-          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
-        case 'execution_date':
-          return execution.execution_date ? dayjs(execution.execution_date).valueOf() : Number.MAX_SAFE_INTEGER;
-        case 'created_at':
-          return execution.created_at ? dayjs(execution.created_at).valueOf() : -Infinity;
-        case 'updated_at':
-          return execution.updated_at ? dayjs(execution.updated_at).valueOf() : -Infinity;
-        default:
-          return execution.scheduled_date ? dayjs(execution.scheduled_date).valueOf() : -Infinity;
-      }
-    };
-
-    return data.sort((a, b) => {
-      const valueA = getValue(a);
-      const valueB = getValue(b);
-
-      if (valueA === valueB) {
-        return 0;
-      }
-
-      if (order === 'ascend') {
-        return valueA > valueB ? 1 : -1;
-      }
-      return valueA > valueB ? -1 : 1;
-    });
-  }, [filteredExecutions, sortConfig, careTasksById]);
+  const sortedExecutions = useMemo(
+    () => sortTaskExecutions(filteredExecutions, sortConfig, careTasksById),
+    [filteredExecutions, sortConfig, careTasksById]
+  );
 
   const handleSort = useCallback((field) => {
     setSortConfig((prev) => {
@@ -283,25 +203,6 @@ const TaskSchedulingPage = () => {
       return { field, order: 'ascend' };
     });
   }, []);
-
-  const renderSortTitle = useCallback((label, field) => {
-    const isActive = sortConfig.field === field;
-    const isAsc = isActive && sortConfig.order === 'ascend';
-    const isDesc = isActive && sortConfig.order === 'descend';
-
-    return (
-      <span
-        onClick={() => handleSort(field)}
-        style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-      >
-        {label}
-        <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 0 }}>
-          <CaretUpOutlined style={{ fontSize: 12, color: isAsc ? '#1677ff' : '#bfbfbf' }} />
-          <CaretDownOutlined style={{ fontSize: 12, color: isDesc ? '#1677ff' : '#bfbfbf' }} />
-        </span>
-      </span>
-    );
-  }, [handleSort, sortConfig]);
 
   useEffect(() => {
     setExecutionPagination((prev) => ({ ...prev, current: 1 }));
@@ -318,45 +219,15 @@ const TaskSchedulingPage = () => {
     setExecutionFormState({ open: false, mode: 'create', task: null, execution: null, initialValues: null });
   }, []);
 
-  const computeCoverableExecutions = useCallback((execution, parentTask) => {
-    if (!execution || !parentTask || parentTask.task_type !== 'PURCHASE') {
-      return 0;
-    }
-
-    const baseScheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
-    const baseScheduledTime = baseScheduled ? baseScheduled.valueOf() : null;
-
-    return executions
-      .filter((candidate) => (
-        candidate.care_task_id === execution.care_task_id &&
-        candidate.id !== execution.id &&
-        candidate.status === 'TODO'
-      ))
-      .filter((candidate) => {
-        if (!baseScheduled) {
-          return true;
-        }
-        if (!candidate.scheduled_date) {
-          return false;
-        }
-        const candidateDate = dayjs(candidate.scheduled_date);
-        if (!candidateDate.isValid()) {
-          return false;
-        }
-        return candidateDate.valueOf() >= baseScheduledTime;
-      })
-      .length;
-  }, [executions]);
-
   const openCompleteModal = useCallback((execution, providedTask) => {
     const parentTask = providedTask || careTasksById[execution.care_task_id];
     if (!parentTask) {
       showErrorMessage('Unable to locate parent task for this execution');
       return;
     }
-    const coverableCount = computeCoverableExecutions(execution, parentTask);
+    const coverableCount = computeCoverableExecutions(execution, executions, careTasksById);
     setCompleteModalState({ open: true, task: parentTask, execution, coverableCount });
-  }, [careTasksById, computeCoverableExecutions]);
+  }, [careTasksById, executions]);
 
   const openCreateExecutionForm = useCallback((task) => {
     setExecutionFormState({
@@ -373,6 +244,7 @@ const TaskSchedulingPage = () => {
   }, []);
 
   const openEditExecutionForm = useCallback((execution) => {
+    const refund = execution.refund || null;
     setExecutionFormState({
       open: true,
       mode: 'edit',
@@ -385,7 +257,11 @@ const TaskSchedulingPage = () => {
         quantity_purchased: execution.quantity_purchased ?? 1,
         quantity_unit: execution.quantity_unit || '',
         actual_cost: execution.actual_cost ?? undefined,
-        notes: execution.notes ?? ''
+        notes: execution.notes ?? '',
+        refund_amount: refund?.refund_amount ?? undefined,
+        refund_date: refund?.refund_date ? dayjs(refund.refund_date) : null,
+        refund_reason: refund?.refund_reason ?? undefined,
+        refund_evidence_url: refund?.refund_evidence_url ?? undefined
       }
     });
   }, [careTasksById]);
@@ -433,7 +309,7 @@ const TaskSchedulingPage = () => {
     try {
       let evidenceUrl = null;
       if (file) {
-        evidenceUrl = await uploadEvidence(file);
+        evidenceUrl = await uploadEvidenceImage(file);
       }
 
       const payload = {};
@@ -470,24 +346,56 @@ const TaskSchedulingPage = () => {
 
   const columns = useMemo(() => ([
     {
-      title: renderSortTitle('Task', 'task_name'),
+      title: (
+        <SortableColumnTitle
+          label="Task"
+          field="task_name"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'care_task_id',
       render: (taskId) => careTasksById[taskId]?.name || 'Care task',
     },
     {
-      title: renderSortTitle('Status', 'status'),
+      title: (
+        <SortableColumnTitle
+          label="Status"
+          field="status"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'status',
-      render: (status) => <Tag color={status === 'DONE' ? 'green' : status === 'CANCELLED' ? 'red' : 'blue'}>{status}</Tag>,
+      render: (status) => <ExecutionStatusTag status={status} />,
     },
     {
-      title: renderSortTitle('Scheduled date', 'scheduled_date'),
+      title: (
+        <SortableColumnTitle
+          label="Scheduled date"
+          field="scheduled_date"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'scheduled_date',
-      render: (date) => formatDate(date),
+      render: (date) => formatExecutionDate(date),
     },
     {
-      title: renderSortTitle('Completed', 'execution_date'),
+      title: (
+        <SortableColumnTitle
+          label="Completed"
+          field="execution_date"
+          activeField={sortConfig.field}
+          order={sortConfig.order}
+          onToggle={handleSort}
+        />
+      ),
       dataIndex: 'execution_date',
-      render: (date) => formatDate(date),
+      render: (date) => formatExecutionDate(date),
     },
     {
       title: 'Actions',
@@ -557,7 +465,8 @@ const TaskSchedulingPage = () => {
     completeExecution.isLoading,
     updateExecution.isLoading,
     refundExecutionMutation.isLoading,
-    renderSortTitle,
+    sortConfig,
+    handleSort,
     openDetailsDrawer,
     openEditExecutionForm,
     openCompleteModal,

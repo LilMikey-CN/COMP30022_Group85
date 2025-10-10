@@ -2,8 +2,8 @@ import React, { useEffect, useCallback, useState, useMemo } from 'react';
 import { Modal, Form, InputNumber, DatePicker, Input, Upload, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import uploadEvidenceImage from '../../utils/objectStorage';
 
-const OBJECT_STORAGE_BASE_URL = import.meta.env.VITE_OBJECT_STORAGE_BASE_URL;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/webp'];
 
@@ -98,32 +98,10 @@ const RefundExecutionModal = ({
       return Upload.LIST_IGNORE;
     }
 
-    if (!OBJECT_STORAGE_BASE_URL) {
-      message.error('File storage is not configured');
-      return Upload.LIST_IGNORE;
-    }
-
     const uploadEvidence = async () => {
       setUploading(true);
       try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch(`${OBJECT_STORAGE_BASE_URL}/upload`, {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error('Upload failed');
-        }
-
-        const data = await response.json();
-        const location = data?.file?.location;
-        if (!location) {
-          throw new Error('Upload response missing file location');
-        }
-
+        const location = await uploadEvidenceImage(file);
         setFileList([
           {
             uid: file.uid,
@@ -136,7 +114,7 @@ const RefundExecutionModal = ({
         message.success('Evidence uploaded');
       } catch (error) {
         console.error('Evidence upload failed:', error);
-        message.error('Failed to upload evidence image');
+        message.error(error?.message || 'Failed to upload evidence image');
       } finally {
         setUploading(false);
       }

@@ -1,8 +1,13 @@
 import React, { useEffect, useCallback } from 'react';
 import { Modal, Form, DatePicker, InputNumber, Select, Input } from 'antd';
 import dayjs from 'dayjs';
-
-const { Option } = Select;
+import {
+  resolveExecutionFieldConfig,
+  buildExecutionPayload,
+  FIELD_TYPES,
+  FIELD_KEYS,
+  mapFieldInitialValue
+} from '../../utils/executionFieldConfig';
 
 const ManualExecutionModal = ({
   open,
@@ -15,6 +20,8 @@ const ManualExecutionModal = ({
   okText,
 }) => {
   const [form] = Form.useForm();
+  const status = initialValues?.status || 'TODO';
+  const fieldConfig = resolveExecutionFieldConfig({ mode, status });
 
   const resetAndClose = useCallback(() => {
     form.resetFields();
@@ -27,30 +34,22 @@ const ManualExecutionModal = ({
     }
 
     const defaults = {
-      scheduled_date: dayjs(),
-      status: 'TODO',
-      quantity_purchased: 1,
-      quantity_unit: undefined,
-      actual_cost: undefined,
-      notes: undefined,
-      execution_date: undefined
+      [FIELD_KEYS.SCHEDULED_DATE]: dayjs(),
+      [FIELD_KEYS.STATUS]: 'TODO',
+      [FIELD_KEYS.QUANTITY_PURCHASED]: 1
     };
 
     const values = { ...defaults };
 
     if (initialValues) {
-      if (initialValues.scheduled_date) {
-        values.scheduled_date = dayjs(initialValues.scheduled_date);
-      }
-      if (initialValues.execution_date) {
-        values.execution_date = dayjs(initialValues.execution_date);
-      }
-      if (initialValues.status) values.status = initialValues.status;
-      if (initialValues.quantity_purchased !== undefined) values.quantity_purchased = initialValues.quantity_purchased;
-      if (initialValues.quantity_unit !== undefined) values.quantity_unit = initialValues.quantity_unit;
-      if (initialValues.actual_cost !== undefined) values.actual_cost = initialValues.actual_cost;
-      if (initialValues.notes !== undefined) values.notes = initialValues.notes;
+      Object.entries(initialValues).forEach(([key, value]) => {
+        values[key] = value;
+      });
     }
+
+    Object.entries(values).forEach(([key, value]) => {
+      values[key] = mapFieldInitialValue(key, value);
+    });
 
     form.setFieldsValue(values);
   }, [open, initialValues, form]);
@@ -58,17 +57,7 @@ const ManualExecutionModal = ({
   const handleOk = useCallback(async () => {
     try {
       const values = await form.validateFields();
-      const payload = {
-        scheduled_date: values.scheduled_date ? dayjs(values.scheduled_date).format('YYYY-MM-DD') : undefined,
-        execution_date: values.execution_date ? dayjs(values.execution_date).format('YYYY-MM-DD') : undefined,
-        status: values.status || 'TODO',
-        quantity_purchased: values.quantity_purchased ? Number(values.quantity_purchased) : 1,
-        quantity_unit: values.quantity_unit?.trim() || undefined,
-        actual_cost: values.actual_cost !== undefined && values.actual_cost !== null
-          ? Number(values.actual_cost)
-          : undefined,
-        notes: values.notes?.trim() || undefined,
-      };
+      const payload = buildExecutionPayload({ mode, status, values });
 
       await onSubmit(payload);
       resetAndClose();
@@ -77,7 +66,7 @@ const ManualExecutionModal = ({
         // handled upstream
       }
     }
-  }, [form, onSubmit, resetAndClose]);
+  }, [form, mode, status, onSubmit, resetAndClose]);
 
   const modalTitle = title || (mode === 'edit' ? 'Edit execution' : 'Create manual execution');
   const modalOkText = okText || (mode === 'edit' ? 'Save changes' : 'Create');
@@ -94,73 +83,86 @@ const ManualExecutionModal = ({
       okButtonProps={{ disabled: submitting }}
       cancelButtonProps={{ disabled: submitting }}
     >
-      <Form
-        layout="vertical"
-        form={form}
-        initialValues={{
-          scheduled_date: dayjs(),
-          status: 'TODO',
-          quantity_purchased: 1,
-        }}
-      >
-        <Form.Item
-          name="scheduled_date"
-          label="Scheduled date"
-          rules={[{ required: true, message: 'Please select a scheduled date' }]}
-        >
-          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
-        </Form.Item>
+      <Form layout="vertical" form={form}>
+        {Object.entries(fieldConfig).map(([key, config]) => {
+          if (!config.show) {
+            return null;
+          }
 
-        <Form.Item
-          name="execution_date"
-          label="Execution date"
-        >
-          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" allowClear />
-        </Form.Item>
+          const commonProps = {
+            name: key,
+            label: config.label,
+            rules: config.rules || [],
+          };
 
-        <Form.Item
-          name="status"
-          label="Status"
-          rules={[{ required: true, message: 'Please choose a status' }]}
-        >
-          <Select>
-            <Option value="TODO">To do</Option>
-            <Option value="DONE">Done</Option>
-            <Option value="CANCELLED">Cancelled</Option>
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="quantity_purchased"
-          label="Quantity"
-          rules={[{ type: 'number', min: 1, message: 'Quantity must be at least 1' }]}
-        >
-          <InputNumber style={{ width: '100%' }} min={1} step={1} />
-        </Form.Item>
-
-        <Form.Item
-          name="quantity_unit"
-          label="Quantity unit"
-          rules={[{ max: 50, message: 'Unit cannot exceed 50 characters' }]}
-        >
-          <Input placeholder="e.g. bottle, pack" />
-        </Form.Item>
-
-        <Form.Item
-          name="actual_cost"
-          label="Actual cost"
-          rules={[{ type: 'number', min: 0, message: 'Cost cannot be negative' }]}
-        >
-          <InputNumber style={{ width: '100%' }} min={0} step={0.5} addonBefore="$" />
-        </Form.Item>
-
-        <Form.Item
-          name="notes"
-          label="Notes"
-          rules={[{ max: 500, message: 'Notes cannot exceed 500 characters' }]}
-        >
-          <Input.TextArea rows={3} showCount maxLength={500} placeholder="Add optional notes" />
-        </Form.Item>
+          switch (config.type) {
+            case FIELD_TYPES.DATE:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <DatePicker
+                    style={{ width: '100%' }}
+                    format="YYYY-MM-DD"
+                    allowClear={config.allowClear}
+                    disabled={config.disabled}
+                  />
+                </Form.Item>
+              );
+            case FIELD_TYPES.SELECT:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <Select disabled={config.disabled}>
+                    {(config.options || []).map((option) => (
+                      <Select.Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              );
+            case FIELD_TYPES.NUMBER:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={config.minimum}
+                    step={config.step}
+                    disabled={config.disabled}
+                  />
+                </Form.Item>
+              );
+            case FIELD_TYPES.CURRENCY:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={config.minimum ?? 0}
+                    step={config.step ?? 0.5}
+                    addonBefore="$"
+                    disabled={config.disabled}
+                  />
+                </Form.Item>
+              );
+            case FIELD_TYPES.TEXTAREA:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <Input.TextArea
+                    rows={3}
+                    showCount
+                    maxLength={config.rules?.find((rule) => rule.max)?.max ?? 500}
+                    placeholder={config.placeholder}
+                    disabled={config.disabled}
+                  />
+                </Form.Item>
+              );
+            case FIELD_TYPES.TEXT:
+            default:
+              return (
+                <Form.Item key={key} {...commonProps}>
+                  <Input placeholder={config.placeholder} disabled={config.disabled} />
+                </Form.Item>
+              );
+          }
+        })}
       </Form>
     </Modal>
   );
