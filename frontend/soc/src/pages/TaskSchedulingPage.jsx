@@ -147,6 +147,12 @@ const TaskSchedulingPage = () => {
 
   const executions = useMemo(() => executionsResponse?.executions || [], [executionsResponse]);
 
+  const isInitialLoading = useMemo(() => {
+    const waitingForTasks = isCareTasksFetching && !careTasksResponse;
+    const waitingForExecutions = taskIds.length > 0 && (isExecutionsLoading || isExecutionsFetching) && !executionsResponse;
+    return waitingForTasks || waitingForExecutions;
+  }, [careTasksResponse, executionsResponse, isCareTasksFetching, isExecutionsLoading, isExecutionsFetching, taskIds.length]);
+
   useEffect(() => {
     if (!detailsExecution) {
       return;
@@ -566,13 +572,21 @@ const TaskSchedulingPage = () => {
     }
   };
 
+  if (isInitialLoading) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <Space direction="vertical" style={{ width: '100%' }} size={24}>
         <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
           <div>
-            <Title level={2} style={{ marginBottom: 0 }}>Task scheduling</Title>
-            <Typography.Text type="secondary">
+            <Title level={2} style={{ marginBottom: 0, color: '#5a7a9a' }}>Task scheduling</Title>
+            <Typography.Text type="secondary" style={{ fontSize: 16 }}>
               Review upcoming and completed task executions. Update status, upload evidence, and generate additional runs.
             </Typography.Text>
           </div>

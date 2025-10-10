@@ -192,12 +192,12 @@ const ClientProfile = () => {
 
   // Show error state only for genuine server errors, not "profile not found" cases
   if (error &&
-      !error.message.includes('404') &&
-      !error.message.includes('User not authenticated') &&
-      !error.message.includes('fetch') &&
-      !error.message.includes('Profile not found') &&
-      !error.message.includes('not found') &&
-      !error.message.toLowerCase().includes('404')) {
+    !error.message.includes('404') &&
+    !error.message.includes('User not authenticated') &&
+    !error.message.includes('fetch') &&
+    !error.message.includes('Profile not found') &&
+    !error.message.includes('not found') &&
+    !error.message.toLowerCase().includes('404')) {
     return (
       <div style={{ padding: '24px' }}>
         <Alert
@@ -225,7 +225,7 @@ const ClientProfile = () => {
         <Text type="secondary" style={{ fontSize: '16px' }}>
           {!profileExists
             ? 'Create and manage your client profile - Click any edit button to get started'
-            : 'Keep track of basic patient details and medical info'
+            : 'Keep track of basic details of person with special needs and medical info'
           }
         </Text>
       </div>
@@ -234,131 +234,131 @@ const ClientProfile = () => {
       {(profileExists || !error) && (
         <div>
           {/* First Row - Personal Details and Contact Details */}
-        <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
-          <Col xs={24} md={12}>
-            <InfoCard
-              title="Personal Details"
-              onEdit={() => openModal('personalDetails')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <InfoField label="Full name" value={profileData.personalDetails.fullName || 'Not provided'} />
-              <InfoField label="DoB" value={profileData.personalDetails.dateOfBirth || 'Not provided'} />
-              <InfoField label="Sex" value={profileData.personalDetails.sex || 'Not provided'} />
-              <InfoField label="Age" value={profileData.personalDetails.age || 'Not provided'} />
-            </InfoCard>
-          </Col>
-          <Col xs={24} md={12}>
-            <InfoCard
-              title="Contact Details"
-              onEdit={() => openModal('contactDetails')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <InfoField label="Mobile number" value={profileData.contactDetails.mobileNumber || 'Not provided'} />
-              <InfoField label="Email address" value={profileData.contactDetails.emailAddress || 'Not provided'} />
-              <InfoField label="Postal Address" value={profileData.contactDetails.postalAddress || 'Not provided'} />
-            </InfoCard>
-          </Col>
-        </Row>
+          <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
+            <Col xs={24} md={12}>
+              <InfoCard
+                title="Personal Details"
+                onEdit={() => openModal('personalDetails')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <InfoField label="Full name" value={profileData.personalDetails.fullName || 'Not provided'} />
+                <InfoField label="DoB" value={profileData.personalDetails.dateOfBirth || 'Not provided'} />
+                <InfoField label="Sex" value={profileData.personalDetails.sex || 'Not provided'} />
+                <InfoField label="Age" value={profileData.personalDetails.age || 'Not provided'} />
+              </InfoCard>
+            </Col>
+            <Col xs={24} md={12}>
+              <InfoCard
+                title="Contact Details"
+                onEdit={() => openModal('contactDetails')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <InfoField label="Mobile number" value={profileData.contactDetails.mobileNumber || 'Not provided'} />
+                <InfoField label="Email address" value={profileData.contactDetails.emailAddress || 'Not provided'} />
+                <InfoField label="Postal Address" value={profileData.contactDetails.postalAddress || 'Not provided'} />
+              </InfoCard>
+            </Col>
+          </Row>
 
-        {/* Second Row - Emergency Contacts */}
-        <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
-          <Col xs={24}>
-            <InfoCard
-              title="Emergency contacts"
-              onEdit={() => openModal('emergencyContacts')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <Table
-                columns={emergencyContactsColumns}
-                dataSource={profileData.emergencyContacts.map((contact, index) => ({
-                  ...contact,
-                  key: index,
-                }))}
-                pagination={false}
-                size="small"
-                style={{ border: 'none' }}
-                locale={{ emptyText: 'No emergency contacts added' }}
-              />
-            </InfoCard>
-          </Col>
-        </Row>
+          {/* Second Row - Emergency Contacts */}
+          <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
+            <Col xs={24}>
+              <InfoCard
+                title="Emergency contacts"
+                onEdit={() => openModal('emergencyContacts')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <Table
+                  columns={emergencyContactsColumns}
+                  dataSource={profileData.emergencyContacts.map((contact, index) => ({
+                    ...contact,
+                    key: index,
+                  }))}
+                  pagination={false}
+                  size="small"
+                  style={{ border: 'none' }}
+                  locale={{ emptyText: 'No emergency contacts added' }}
+                />
+              </InfoCard>
+            </Col>
+          </Row>
 
-        {/* Third Row - Notes */}
-        <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
-          <Col xs={24}>
-            <InfoCard
-              title="Notes"
-              onEdit={() => openModal('notes')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {profileData.notes || 'No notes added'}
-              </Text>
-            </InfoCard>
-          </Col>
-        </Row>
+          {/* Third Row - Notes */}
+          <Row gutter={[20, 20]} style={{ marginBottom: '20px' }}>
+            <Col xs={24}>
+              <InfoCard
+                title="Notes"
+                onEdit={() => openModal('notes')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {profileData.notes || 'No notes added'}
+                </Text>
+              </InfoCard>
+            </Col>
+          </Row>
 
-        {/* Fourth Row - Health & Care Information and Latest Vitals */}
-        <Row gutter={[20, 20]}>
-          <Col xs={24} md={12}>
-            <InfoCard
-              title="Health & Care Information"
-              onEdit={() => openModal('healthCareInfo')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <InfoField label="Medical Conditions" value={profileData.healthCareInformation.medicalConditions || 'Not provided'} />
-              <InfoField label="Allergies" value={profileData.healthCareInformation.allergies || 'Not provided'} />
-              <InfoField label="Medications" value={profileData.healthCareInformation.medications || 'Not provided'} />
-              <InfoField label="Accessibility needs" value={profileData.healthCareInformation.accessibilityNeeds || 'Not provided'} />
-            </InfoCard>
-          </Col>
-          <Col xs={24} md={12}>
-            <InfoCard
-              title={`Latest vitals${profileData.latestVitals.date ? ' • ' + profileData.latestVitals.date : ''}`}
-              onEdit={() => openModal('vitals')}
-              isLoading={updateClientProfile.isPending || createClientProfile.isPending}
-            >
-              <Row gutter={[16, 16]}>
-                <Col xs={12} sm={6}>
-                  <VitalCard
-                    icon="❤️"
-                    label="Heart Rate"
-                    value={profileData.latestVitals.heartRate || '-'}
-                    unit="bpm"
-                    color="#ff4d4f"
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <VitalCard
-                    icon="📈"
-                    label="Blood Pressure"
-                    value={profileData.latestVitals.bloodPressure || '-'}
-                    unit="mmHg"
-                    color="#1890ff"
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <VitalCard
-                    icon="🫁"
-                    label="Oxygen Sat"
-                    value={profileData.latestVitals.oxygenSaturation || '-'}
-                    unit="%"
-                    color="#52c41a"
-                  />
-                </Col>
-                <Col xs={12} sm={6}>
-                  <VitalCard
-                    icon="🌡️"
-                    label="Temperature"
-                    value={profileData.latestVitals.temperature || '-'}
-                    unit="°C"
-                    color="#fa8c16"
-                  />
-                </Col>
-              </Row>
-            </InfoCard>
-          </Col>
-        </Row>
+          {/* Fourth Row - Health & Care Information and Latest Vitals */}
+          <Row gutter={[20, 20]}>
+            <Col xs={24} md={12}>
+              <InfoCard
+                title="Health & Care Information"
+                onEdit={() => openModal('healthCareInfo')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <InfoField label="Medical Conditions" value={profileData.healthCareInformation.medicalConditions || 'Not provided'} />
+                <InfoField label="Allergies" value={profileData.healthCareInformation.allergies || 'Not provided'} />
+                <InfoField label="Medications" value={profileData.healthCareInformation.medications || 'Not provided'} />
+                <InfoField label="Accessibility needs" value={profileData.healthCareInformation.accessibilityNeeds || 'Not provided'} />
+              </InfoCard>
+            </Col>
+            <Col xs={24} md={12}>
+              <InfoCard
+                title={`Latest vitals${profileData.latestVitals.date ? ' • ' + profileData.latestVitals.date : ''}`}
+                onEdit={() => openModal('vitals')}
+                isLoading={updateClientProfile.isPending || createClientProfile.isPending}
+              >
+                <Row gutter={[16, 16]}>
+                  <Col xs={12} sm={6}>
+                    <VitalCard
+                      icon="❤️"
+                      label="Heart Rate"
+                      value={profileData.latestVitals.heartRate || '-'}
+                      unit="bpm"
+                      color="#ff4d4f"
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <VitalCard
+                      icon="📈"
+                      label="Blood Pressure"
+                      value={profileData.latestVitals.bloodPressure || '-'}
+                      unit="mmHg"
+                      color="#1890ff"
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <VitalCard
+                      icon="🫁"
+                      label="Oxygen Sat"
+                      value={profileData.latestVitals.oxygenSaturation || '-'}
+                      unit="%"
+                      color="#52c41a"
+                    />
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <VitalCard
+                      icon="🌡️"
+                      label="Temperature"
+                      value={profileData.latestVitals.temperature || '-'}
+                      unit="°C"
+                      color="#fa8c16"
+                    />
+                  </Col>
+                </Row>
+              </InfoCard>
+            </Col>
+          </Row>
         </div>
       )}
 
