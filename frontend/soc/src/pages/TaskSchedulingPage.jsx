@@ -57,6 +57,8 @@ const executionStatusFilters = [
   { label: 'Done', value: 'DONE' },
   { label: 'Covered', value: 'COVERED' },
   { label: 'Cancelled', value: 'CANCELLED' },
+  { label: 'Refunded', value: 'REFUNDED' },
+  { label: 'Partially refunded', value: 'PARTIALLY_REFUNDED' },
 ];
 
 const DEFAULT_SORT = { field: 'scheduled_date', order: 'ascend' };

@@ -117,6 +117,8 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
     return fields;
   }
 
+  fields[FIELD_KEYS.STATUS].disabled = true;
+
   if (status === 'DONE') {
     Object.keys(fields).forEach((key) => {
       if (key !== FIELD_KEYS.ACTUAL_COST && key !== FIELD_KEYS.NOTES) {
@@ -138,7 +140,6 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
   } else {
     fields[FIELD_KEYS.SCHEDULED_DATE].disabled = false;
     fields[FIELD_KEYS.EXECUTION_DATE].disabled = false;
-    fields[FIELD_KEYS.STATUS].disabled = false;
   }
 
   return fields;
