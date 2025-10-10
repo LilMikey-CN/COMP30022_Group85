@@ -34,14 +34,13 @@ const CategoryModal = ({
   const handleSubmit = async (values) => {
     try {
       if (mode === 'create') {
-        const result = await createCategoryMutation.mutateAsync({
+        await createCategoryMutation.mutateAsync({
           name: values.name,
           description: values.description,
           color_code: typeof values.color === 'string' ? values.color : values.color?.toHexString?.() || '#1890ff'
         });
-        message.success(result.message);
       } else if (mode === 'edit' && category) {
-        const result = await updateCategoryMutation.mutateAsync({
+        await updateCategoryMutation.mutateAsync({
           id: category.id,
           payload: {
             name: values.name,
@@ -51,7 +50,6 @@ const CategoryModal = ({
               : values.color?.toHexString?.() || category.color || '#1890ff'
           }
         });
-        message.success(result.message);
       }
 
       form.resetFields();
