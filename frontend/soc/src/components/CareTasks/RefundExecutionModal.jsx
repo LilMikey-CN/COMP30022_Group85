@@ -153,6 +153,17 @@ const RefundExecutionModal = ({
       cancelButtonProps={{ disabled: submitting || uploading }}
     >
       <Form layout="vertical" form={form}>
+        <Form.Item label="Actual cost">
+          <InputNumber
+            value={execution?.actual_cost ?? 0}
+            style={{ width: '100%' }}
+            addonBefore="$"
+            precision={2}
+            disabled
+            readOnly
+          />
+        </Form.Item>
+
         <Form.Item
           name="refund_amount"
           label="Refund amount"
