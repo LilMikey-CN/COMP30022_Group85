@@ -11,7 +11,7 @@ import {
   SafetyOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import heroImage from '../../assets/hero-care-family.jpg';
+import heroImage from '../../assets/soft_abstract_bg.png';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -71,7 +71,7 @@ const LandingPage = () => {
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4)), url(${heroImage})`,
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1)), url(${heroImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -241,14 +241,14 @@ const LandingPage = () => {
                   transition: 'all 0.3s ease',
                   height: '100%'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-                }}>
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-8px)';
+                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+                  }}>
                   <div style={{ marginRight: '20px', flexShrink: 0 }}>
                     {benefit.icon}
                   </div>
