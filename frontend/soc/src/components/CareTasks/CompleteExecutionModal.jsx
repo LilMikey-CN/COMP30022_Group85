@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Form, InputNumber, Input, Upload, Typography } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { showErrorMessage } from '../../utils/messageConfig';
@@ -19,6 +19,15 @@ const CompleteExecutionModal = ({
   const [uploadList, setUploadList] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileError, setFileError] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const requiresCost = task?.task_type === 'PURCHASE';
   const rawQuantityValue = Form.useWatch('quantity', form);
@@ -48,6 +57,7 @@ const CompleteExecutionModal = ({
 
   useEffect(() => {
     if (!open) {
+      setIsProcessing(false);
       return;
     }
 
@@ -59,9 +69,14 @@ const CompleteExecutionModal = ({
     setUploadList([]);
     setSelectedFile(null);
     setFileError(null);
+    setIsProcessing(false);
   }, [open, execution, form]);
 
   const beforeUpload = (file) => {
+    if (submitting || isProcessing) {
+      return Upload.LIST_IGNORE;
+    }
+
     const isValidType = ALLOWED_IMAGE_TYPES.includes(file.type);
     if (!isValidType) {
       showErrorMessage('Only image files (JPG, PNG, GIF, WEBP) are allowed');
@@ -86,6 +101,10 @@ const CompleteExecutionModal = ({
   };
 
   const handleUploadChange = ({ fileList: newFileList }) => {
+    if (submitting || isProcessing) {
+      return;
+    }
+
     if (newFileList.length === 0) {
       setUploadList([]);
       setSelectedFile(null);
@@ -102,6 +121,7 @@ const CompleteExecutionModal = ({
     try {
       const values = await form.validateFields();
       setFileError(null);
+      setIsProcessing(true);
       await onSubmit({
         actualCost: values.actual_cost,
         notes: values.notes,
@@ -115,11 +135,15 @@ const CompleteExecutionModal = ({
       if (!err?.errorFields) {
         console.error(err);
       }
+    } finally {
+      if (isMountedRef.current) {
+        setIsProcessing(false);
+      }
     }
   };
 
   const handleCancel = () => {
-    if (submitting) return;
+    if (submitting || isProcessing) return;
     form.resetFields();
     setUploadList([]);
     setSelectedFile(null);
@@ -134,10 +158,10 @@ const CompleteExecutionModal = ({
       onCancel={handleCancel}
       onOk={handleOk}
       okText="Mark as done"
-      confirmLoading={submitting}
+      confirmLoading={submitting || isProcessing}
       destroyOnClose
-      okButtonProps={{ disabled: submitting }}
-      cancelButtonProps={{ disabled: submitting }}
+      okButtonProps={{ disabled: submitting || isProcessing }}
+      cancelButtonProps={{ disabled: submitting || isProcessing }}
     >
       <Form
         layout="vertical"
@@ -159,7 +183,7 @@ const CompleteExecutionModal = ({
                 style={{ width: '100%' }}
                 min={1}
                 step={1}
-                disabled={submitting}
+                disabled={submitting || isProcessing}
               />
             </Form.Item>
             <div style={{ marginTop: -8, marginBottom: 16 }}>
@@ -179,6 +203,7 @@ const CompleteExecutionModal = ({
               min={0}
               step={0.5}
               stringMode
+              disabled={submitting || isProcessing}
             />
           </Form.Item>
         )}
@@ -190,6 +215,7 @@ const CompleteExecutionModal = ({
               min={0}
               step={0.5}
               stringMode
+              disabled={submitting || isProcessing}
             />
           </Form.Item>
         )}
@@ -199,7 +225,13 @@ const CompleteExecutionModal = ({
           label="Notes"
           rules={[{ max: 500, message: 'Notes cannot exceed 500 characters' }]}
         >
-          <Input.TextArea rows={3} showCount maxLength={500} placeholder="Optional notes about this execution" />
+          <Input.TextArea
+            rows={3}
+            showCount
+            maxLength={500}
+            placeholder="Optional notes about this execution"
+            disabled={submitting || isProcessing}
+          />
         </Form.Item>
 
         <Form.Item
@@ -211,13 +243,18 @@ const CompleteExecutionModal = ({
             multiple={false}
             beforeUpload={beforeUpload}
             onRemove={() => {
+              if (submitting || isProcessing) {
+                return false;
+              }
               setUploadList([]);
               setSelectedFile(null);
+              return true;
             }}
             onChange={handleUploadChange}
             fileList={uploadList}
             accept="image/*"
-            showUploadList={{ showRemoveIcon: !submitting }}
+            disabled={submitting || isProcessing}
+            showUploadList={{ showRemoveIcon: !(submitting || isProcessing) }}
           >
             <p className="ant-upload-drag-icon"><InboxOutlined /></p>
             <p className="ant-upload-text">Click or drag file to upload evidence image</p>

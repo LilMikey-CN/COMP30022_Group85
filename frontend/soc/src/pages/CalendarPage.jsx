@@ -20,97 +20,22 @@ import { useCareTasks } from '../hooks/useCareTasks';
 import { useTaskExecutions, useCompleteTaskExecution } from '../hooks/useTaskExecutions';
 import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
+import uploadEvidenceImage from '../utils/objectStorage';
+import {
+  COMPLETED_EXECUTION_STATUSES,
+  computeCoverableExecutions,
+  determineExecutionDayStatus,
+  groupExecutionsByDate,
+  sortExecutionsByTaskThenDate
+} from '../utils/taskExecutions';
 import styles from './CalendarPage.module.css';
 
 const { Title, Text } = Typography;
-
-const COMPLETED_STATUSES = new Set([
-  'DONE',
-  'COVERED',
-  'REFUNDED',
-  'PARTIALLY_REFUNDED'
-]);
 
 const dotColors = {
   upcoming: '#1677ff',
   overdue: '#ff4d4f',
   completed: '#8c8c8c'
-};
-
-const uploadEvidence = async (file) => {
-  if (!file) {
-    return null;
-  }
-
-  const baseUrl = import.meta.env.VITE_OBJECT_STORAGE_BASE_URL;
-  if (!baseUrl) {
-    throw new Error('Evidence upload endpoint is not configured');
-  }
-
-  const formData = new FormData();
-  formData.append('image', file);
-
-  const response = await fetch(`${baseUrl}/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to upload evidence image');
-  }
-
-  const data = await response.json();
-  const location = data?.file?.location;
-  if (!location) {
-    throw new Error('Evidence upload did not return a file URL');
-  }
-
-  return location;
-};
-
-const determineDayStatus = (items, today) => {
-  if (!items || items.length === 0) {
-    return null;
-  }
-
-  let hasOverdue = false;
-  let hasUpcoming = false;
-  let hasCompleted = false;
-
-  items.forEach((item) => {
-    if (!item || item.status === 'CANCELLED') {
-      return;
-    }
-
-    const scheduled = item.scheduled_date ? dayjs(item.scheduled_date) : null;
-    if (!scheduled || !scheduled.isValid()) {
-      return;
-    }
-
-    if (COMPLETED_STATUSES.has(item.status)) {
-      hasCompleted = true;
-      return;
-    }
-
-    if (item.status === 'TODO') {
-      if (scheduled.isBefore(today, 'day')) {
-        hasOverdue = true;
-      } else {
-        hasUpcoming = true;
-      }
-    }
-  });
-
-  if (hasOverdue) {
-    return 'overdue';
-  }
-  if (hasUpcoming) {
-    return 'upcoming';
-  }
-  if (hasCompleted) {
-    return 'completed';
-  }
-  return null;
 };
 
 const CalendarPage = () => {
@@ -161,30 +86,16 @@ const CalendarPage = () => {
     [executionsResponse]
   );
 
-  const executionsByDate = useMemo(() => {
-    const map = new Map();
-    executions.forEach((execution) => {
-      if (!execution?.scheduled_date) {
-        return;
-      }
-      const scheduled = dayjs(execution.scheduled_date);
-      if (!scheduled.isValid()) {
-        return;
-      }
-      const key = scheduled.format('YYYY-MM-DD');
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key).push(execution);
-    });
-    return map;
-  }, [executions]);
+  const executionsByDate = useMemo(
+    () => groupExecutionsByDate(executions),
+    [executions]
+  );
 
   const statusByDate = useMemo(() => {
     const today = dayjs().startOf('day');
     const result = new Map();
     executionsByDate.forEach((items, key) => {
-      const status = determineDayStatus(items, today);
+      const status = determineExecutionDayStatus(items, today);
       if (status) {
         result.set(key, status);
       }
@@ -195,49 +106,13 @@ const CalendarPage = () => {
   const selectedExecutions = useMemo(() => {
     const key = selectedDate.format('YYYY-MM-DD');
     const items = executionsByDate.get(key) || [];
-    return [...items].sort((a, b) => {
-      const aTask = careTasksById[a.care_task_id]?.name?.toLowerCase() || '';
-      const bTask = careTasksById[b.care_task_id]?.name?.toLowerCase() || '';
-      if (aTask !== bTask) {
-        return aTask.localeCompare(bTask);
-      }
-      return dayjs(a.scheduled_date).valueOf() - dayjs(b.scheduled_date).valueOf();
-    });
+    return sortExecutionsByTaskThenDate(items, careTasksById);
   }, [careTasksById, executionsByDate, selectedDate]);
 
-  const computeCoverableExecutions = useCallback((execution) => {
-    if (!execution) {
-      return 0;
-    }
-    const parentTask = careTasksById[execution.care_task_id];
-    if (!parentTask || parentTask.task_type !== 'PURCHASE') {
-      return 0;
-    }
-
-    const baseScheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
-    const baseScheduledTime = baseScheduled ? baseScheduled.valueOf() : null;
-
-    return executions
-      .filter((candidate) => (
-        candidate.care_task_id === execution.care_task_id &&
-        candidate.id !== execution.id &&
-        candidate.status === 'TODO'
-      ))
-      .filter((candidate) => {
-        if (!baseScheduled) {
-          return true;
-        }
-        if (!candidate.scheduled_date) {
-          return false;
-        }
-        const candidateDate = dayjs(candidate.scheduled_date);
-        if (!candidateDate.isValid()) {
-          return false;
-        }
-        return candidateDate.valueOf() >= baseScheduledTime;
-      })
-      .length;
-  }, [careTasksById, executions]);
+  const computeCoverableCount = useCallback(
+    (execution) => computeCoverableExecutions(execution, executions, careTasksById),
+    [careTasksById, executions]
+  );
 
   const navigateToScheduling = useCallback(() => {
     navigate('/task-scheduling');
@@ -253,14 +128,14 @@ const CalendarPage = () => {
       return;
     }
 
-    const coverableCount = computeCoverableExecutions(execution);
+    const coverableCount = computeCoverableCount(execution);
     setModalState({
       open: true,
       execution,
       task: parentTask,
       coverableCount
     });
-  }, [careTasksById, computeCoverableExecutions]);
+  }, [careTasksById, computeCoverableCount]);
 
   const closeModal = useCallback(() => {
     setModalState({
@@ -281,7 +156,7 @@ const CalendarPage = () => {
     try {
       let evidenceUrl = null;
       if (file) {
-        evidenceUrl = await uploadEvidence(file);
+        evidenceUrl = await uploadEvidenceImage(file);
       }
 
       const payload = {};
@@ -420,7 +295,7 @@ const CalendarPage = () => {
       return <Tag color="blue">Scheduled</Tag>;
     }
 
-    if (COMPLETED_STATUSES.has(execution.status)) {
+    if (COMPLETED_EXECUTION_STATUSES.has(execution.status)) {
       return <Tag color="default">Completed</Tag>;
     }
 

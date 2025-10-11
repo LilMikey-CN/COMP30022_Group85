@@ -122,25 +122,24 @@ export const buildBudgetAnalytics = ({
     const refundAmount = clampNumber(execution?.refund?.refund_amount ?? 0);
     const net = Math.max(0, actualCost - refundAmount);
     const hasSpend = net > 0;
+    const referenceDate = execution.execution_date
+      ? dayjs(execution.execution_date)
+      : execution.scheduled_date
+        ? dayjs(execution.scheduled_date)
+        : null;
+    const isCurrentYear = referenceDate && referenceDate.year() === now.year();
 
-    if (hasSpend) {
+    if (hasSpend && isCurrentYear) {
       stats.netSpend += net;
       stats.spendSamples.push(net);
-      const referenceDate = execution.execution_date
-        ? dayjs(execution.execution_date)
-        : execution.scheduled_date
-          ? dayjs(execution.scheduled_date)
-          : null;
-      if (referenceDate && referenceDate.year() === now.year()) {
-        const monthNumber = referenceDate.month() + 1; // month() is 0-indexed
-        const currentMonthTotal = stats.monthlySpend.get(monthNumber) || 0;
-        stats.monthlySpend.set(monthNumber, currentMonthTotal + net);
+      const monthNumber = referenceDate.month() + 1; // month() is 0-indexed
+      const currentMonthTotal = stats.monthlySpend.get(monthNumber) || 0;
+      stats.monthlySpend.set(monthNumber, currentMonthTotal + net);
 
-        const bucketIndex = monthIndexMap[monthNumber];
-        if (bucketIndex !== undefined) {
-          monthlyBuckets[bucketIndex].totalSpent += net;
-          monthlyBuckets[bucketIndex].taskIds.add(taskId);
-        }
+      const bucketIndex = monthIndexMap[monthNumber];
+      if (bucketIndex !== undefined) {
+        monthlyBuckets[bucketIndex].totalSpent += net;
+        monthlyBuckets[bucketIndex].taskIds.add(taskId);
       }
     }
 

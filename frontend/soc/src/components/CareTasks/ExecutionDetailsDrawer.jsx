@@ -20,17 +20,9 @@ import {
 import dayjs from 'dayjs';
 import { useRefundTaskExecution } from '../../hooks/useTaskExecutions';
 import RefundExecutionModal from './RefundExecutionModal';
+import ExecutionStatusTag from '../common/ExecutionStatusTag';
 
 const { Title } = Typography;
-
-const statusColorMap = {
-  TODO: 'default',
-  DONE: 'green',
-  COVERED: 'blue',
-  REFUNDED: 'purple',
-  PARTIALLY_REFUNDED: 'gold',
-  CANCELLED: 'red'
-};
 
 const formatDate = (value) => {
   if (!value) {
@@ -61,13 +53,9 @@ const ExecutionDetailsDrawer = ({
     }
   }, [execution]);
 
-  const statusTag = useMemo(() => {
-    if (!execution) {
-      return null;
-    }
-    const color = statusColorMap[execution.status] || 'default';
-    return <Tag color={color}>{execution.status}</Tag>;
-  }, [execution]);
+  const statusTag = useMemo(() => (execution ? (
+    <ExecutionStatusTag status={execution.status} />
+  ) : null), [execution]);
 
   const taskTag = useMemo(() => {
     if (!task) {
