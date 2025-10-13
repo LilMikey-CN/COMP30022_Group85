@@ -17,7 +17,9 @@ export const LAYOUT = {
   sidebarWidth: 240,
   contentPadding: 24,
   cardMinWidth: 350,
-  maxContentWidth: 1200
+  maxContentWidth: 1200,
+  formCardMaxWidth: 460,
+  formCardMinWidth: 400
 };
 
 // API endpoints (for future use)

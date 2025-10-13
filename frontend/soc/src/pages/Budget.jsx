@@ -96,7 +96,7 @@ const BudgetContent = () => {
               style={{ backgroundColor: '#5e72e4', borderColor: '#5e72e4' }}
               loading={createCategoryMutation.isPending}
             >
-              Add category
+              Create category
             </Button>
           </div>
         )}

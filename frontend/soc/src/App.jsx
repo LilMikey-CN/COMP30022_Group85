@@ -15,6 +15,7 @@ import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
+import ChangePassword from './pages/ChangePassword';
 import useAuthStore from './store/authStore';
 import './styles/global.css';
 
@@ -127,6 +128,7 @@ const App = () => {
           </ProtectedRoute>
         }>
           <Route index element={<Settings />} />
+          <Route path="change-password" element={<ChangePassword />} />
         </Route>
       </Routes>
     </Router>
