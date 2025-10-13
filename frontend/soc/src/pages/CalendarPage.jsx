@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Typography,
   Button,
@@ -15,7 +15,7 @@ import {
 } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCareTasks } from '../hooks/useCareTasks';
 import { useTaskExecutions, useCompleteTaskExecution } from '../hooks/useTaskExecutions';
 import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionModal';
@@ -40,6 +40,7 @@ const dotColors = {
 
 const CalendarPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedDate, setSelectedDate] = useState(dayjs().startOf('day'));
   const [calendarValue, setCalendarValue] = useState(dayjs());
   const [modalState, setModalState] = useState({
@@ -279,6 +280,22 @@ const CalendarPage = () => {
   const loading = careTasksLoading || careTasksFetching || executionsLoading || executionsFetching;
 
   const today = dayjs().startOf('day');
+
+  const focusDate = location.state?.focusDate;
+
+  useEffect(() => {
+    if (!focusDate) {
+      return;
+    }
+    const parsed = dayjs(focusDate);
+    if (!parsed.isValid()) {
+      return;
+    }
+
+    const targetDay = parsed.startOf('day');
+    setSelectedDate(targetDay);
+    setCalendarValue(targetDay);
+  }, [focusDate]);
 
   const renderStatusTag = (execution) => {
     if (!execution) {
