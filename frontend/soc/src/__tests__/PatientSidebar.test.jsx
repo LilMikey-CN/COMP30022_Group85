@@ -37,7 +37,7 @@ vi.mock('react-router-dom', async () => {
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
-      queries: { retry: false }, // so tests fail fast instead of retrying
+      queries: { retry: false },
     },
   })
 
@@ -66,7 +66,7 @@ describe('PatientSidebar Component', () => {
 
   test('renders all sidebar pages', () => {
     renderWithProviders(<PatientSidebar />)
-    const menuItems = ['Home', 'Calendar', 'List', 'Budget', 'Client Profile', 'Settings']
+    const menuItems = ['Home', 'Calendar', 'Care Tasks', 'Task Scheduling', 'Budget', 'Client Profile', 'Settings']
     menuItems.forEach(item => {
       expect(screen.getByText(item)).toBeInTheDocument()
     })
@@ -79,9 +79,9 @@ describe('PatientSidebar Component', () => {
   })
 
   test('active menu item gets correct styling', () => {
-    renderWithProviders('/list')
+    renderWithProviders('/budget')
 
-    const listItem = screen.getByText('List')
+    const listItem = screen.getByText('Budget')
     expect(listItem).toHaveStyle({ color: '#1890ff', fontWeight: '500' })
 
     const homeItem = screen.getByText('Home')
