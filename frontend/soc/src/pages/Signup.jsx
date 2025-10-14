@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message } from 'antd';
 import { HeartFilled, MailOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate /* , useLocation */ } from 'react-router-dom';
+import { useNavigate /* , useLocation */, Link as RouterLink } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
 const { Content } = Layout;
-const { Title, Text, Link } = Typography;
+const { Title, Text, Link: TypographyLink } = Typography;
 
 const Signup = () => {
   const [loading, setLoading] = useState(false);
@@ -359,8 +359,13 @@ const Signup = () => {
               >
                 <Checkbox style={{ color: '#6b7280' }}>
                   I agree to the{' '}
-                  <Link style={termsLinkStyle}>Terms of Service</Link> and{' '}
-                  <Link style={termsLinkStyle}>Privacy Policy</Link>
+                  <RouterLink to="/terms-of-service" style={termsLinkStyle}>
+                    Terms of Service
+                  </RouterLink>{' '}
+                  and{' '}
+                  <RouterLink to="/privacy-policy" style={termsLinkStyle}>
+                    Privacy Policy
+                  </RouterLink>
                 </Checkbox>
               </Form.Item>
 
@@ -417,9 +422,9 @@ const Signup = () => {
           <div style={helpStyle}>
             <Text style={helpTextStyle}>
               Questions about getting started?{' '}
-              <Link style={helpLinkStyle}>
+              <TypographyLink style={helpLinkStyle}>
                 We're here to help
-              </Link>
+              </TypographyLink>
             </Text>
           </div>
         </div>
