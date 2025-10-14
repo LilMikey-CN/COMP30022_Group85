@@ -147,7 +147,12 @@ const CareTaskItem = ({ task, loading, onEdit, onTransfer }) => {
     >
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Text style={{ fontSize: 14, fontWeight: 500, color: '#2c3e50' }}>{task.name}</Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: 500, color: '#2c3e50' }}>{task.name}</Text>
+            {task.hasSurplus && (
+              <Tag color="green" style={{ borderRadius: 12 }}>Surplus</Tag>
+            )}
+          </div>
           {task.description ? (
             <Text style={{ fontSize: 12, color: '#7f8c8d' }}>{task.description}</Text>
           ) : null}
@@ -171,9 +176,6 @@ const CareTaskItem = ({ task, loading, onEdit, onTransfer }) => {
             )}
           </div>
           <Space size={8}>
-            {task.hasSurplus && (
-              <Tag color="gold" style={{ borderRadius: 12 }}>Surplus</Tag>
-            )}
             <Button
               size="small"
               onClick={onEdit}
