@@ -1,13 +1,12 @@
 import Dashboard from '../pages/Dashboard';
 import PatientLayout from '../components/Layout/PatientLayout';
 import PatientHome from '../pages/PatientHome';
-import CareItemsListPage from '../pages/CareItemsListPage';
+import CareTasksPage from '../pages/CareTasksPage';
+import TaskSchedulingPage from '../pages/TaskSchedulingPage';
 import Budget from '../pages/Budget';
 import ClientProfile from '../pages/ClientProfile';
 import Settings from '../pages/Settings';
-import {
-  PatientCalendar
-} from '../pages/PatientPlaceholders';
+import CalendarPage from '../pages/CalendarPage';
 
 // Route configuration
 export const routes = [
@@ -34,13 +33,18 @@ export const routes = [
       },
       {
         path: 'calendar',
-        element: PatientCalendar,
+        element: CalendarPage,
         name: 'Patient Calendar'
       },
       {
-        path: 'list',
-        element: CareItemsListPage,
-        name: 'Care Items List'
+        path: 'care-tasks',
+        element: CareTasksPage,
+        name: 'Care Tasks'
+      },
+      {
+        path: 'task-scheduling',
+        element: TaskSchedulingPage,
+        name: 'Task Scheduling'
       },
       {
         path: 'budget',

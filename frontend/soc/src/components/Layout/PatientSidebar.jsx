@@ -12,7 +12,8 @@ import {
   DollarOutlined,
   UserOutlined,
   ArrowLeftOutlined,
-  SettingFilled
+  SettingFilled,
+  ClockCircleOutlined
 } from '@ant-design/icons';
 
 const { Sider } = Layout;
@@ -67,10 +68,16 @@ const PatientSidebar = () => {
       label: 'Calendar'
     },
     {
-      key: 'list',
-      path: '/list',
+      key: 'care-tasks',
+      path: '/care-tasks',
       icon: <UnorderedListOutlined />,
-      label: 'List'
+      label: 'Care Tasks'
+    },
+    {
+      key: 'task-scheduling',
+      path: '/task-scheduling',
+      icon: <ClockCircleOutlined />,
+      label: 'Task Scheduling'
     },
     {
       key: 'budget',
@@ -133,7 +140,11 @@ const PatientSidebar = () => {
         alignItems: 'center',
         gap: '8px'
       }}>
-        <SettingOutlined style={{ fontSize: '20px', color: '#595959' }} />
+        <img
+          src="/logo-small.jpeg"
+          alt="Scheduling of Care"
+          style={{ width: 24, height: 24, borderRadius: '50%' }}
+        />
         <Text strong style={{ fontSize: '16px', color: '#595959' }}>
           Scheduling of Care
         </Text>

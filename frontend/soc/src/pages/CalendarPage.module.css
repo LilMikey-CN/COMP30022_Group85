@@ -1,0 +1,39 @@
+.ctaButton {
+  background-color: #d6ccff;
+  border-color: #d6ccff;
+  color: #473d8c;
+  box-shadow: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.ctaButton:hover,
+.ctaButton:focus,
+.ctaButton:active {
+  background-color: #ebe5ff;
+  border-color: #ebe5ff;
+  color: #473d8c;
+}
+
+.ctaButton:focus-visible {
+  outline: none;
+}
+
+.executionList {
+  background: #f5f8fb;
+  padding: 16px;
+}
+
+.executionListItem {
+  padding: 16px 20px;
+  margin: 8px 0;
+  border-radius: 12px;
+  border: 1px solid #f0f0f0;
+  background: #ffffff;
+  width: calc(100% - 32px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.executionListItem + .executionListItem {
+  margin-top: 0;
+}

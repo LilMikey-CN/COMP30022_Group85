@@ -1,17 +1,16 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Button, ColorPicker, message } from 'antd';
-import { useCreateCategory, useUpdateCategory } from '../../hooks/useBudgetQuery';
+import { useCreateCategory, useUpdateCategory } from '../../hooks/useCategories';
 
 const CategoryModal = ({
   open,
   onCancel,
   mode, // 'create' or 'edit'
-  category = null,
-  patientId
+  category = null
 }) => {
   const [form] = Form.useForm();
-  const createCategoryMutation = useCreateCategory(patientId);
-  const updateCategoryMutation = useUpdateCategory(patientId);
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
 
   const isLoading = createCategoryMutation.isPending || updateCategoryMutation.isPending;
 
@@ -35,22 +34,22 @@ const CategoryModal = ({
   const handleSubmit = async (values) => {
     try {
       if (mode === 'create') {
-        const result = await createCategoryMutation.mutateAsync({
+        await createCategoryMutation.mutateAsync({
           name: values.name,
           description: values.description,
-          color: typeof values.color === 'string' ? values.color : values.color?.toHexString?.() || '#1890ff'
+          color_code: typeof values.color === 'string' ? values.color : values.color?.toHexString?.() || '#1890ff'
         });
-        message.success(result.message);
       } else if (mode === 'edit' && category) {
-        const result = await updateCategoryMutation.mutateAsync({
-          categoryId: category.id,
-          updateData: {
+        await updateCategoryMutation.mutateAsync({
+          id: category.id,
+          payload: {
             name: values.name,
             description: values.description,
-            color: typeof values.color === 'string' ? values.color : values.color?.toHexString?.() || category.color
+            color_code: typeof values.color === 'string'
+              ? values.color
+              : values.color?.toHexString?.() || category.color || '#1890ff'
           }
         });
-        message.success(result.message);
       }
 
       form.resetFields();
