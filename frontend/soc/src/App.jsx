@@ -16,6 +16,7 @@ import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
 import ChangePassword from './pages/ChangePassword';
+import ForgotPassword from './pages/ForgotPassword';
 import useAuthStore from './store/authStore';
 import './styles/global.css';
 
@@ -48,6 +49,7 @@ const App = () => {
         {/* Authentication routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Root route - redirect to user's patient home */}
         <Route

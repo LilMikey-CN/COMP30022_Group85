@@ -44,8 +44,7 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    // TODO: Handle forgot password
-    console.log('Forgot password clicked');
+    navigate('/forgot-password');
   };
 
   const handleSignUpRedirect = () => {
