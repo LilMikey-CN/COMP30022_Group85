@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Button, Dropdown, Typography, Space, Tag } from 'antd';
+import { Card, Button, Dropdown, Typography, Space, Tag, Tooltip } from 'antd';
 import { MoreOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { formatCurrency } from '../../utils/budgetAnalytics';
 
@@ -150,7 +150,15 @@ const CareTaskItem = ({ task, loading, onEdit, onTransfer }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Text style={{ fontSize: 14, fontWeight: 500, color: '#2c3e50' }}>{task.name}</Text>
             {task.hasSurplus && (
-              <Tag color="green" style={{ borderRadius: 12 }}>Surplus</Tag>
+              <Tooltip
+                title={
+                  <span>
+                    All executions are complete. {formatCurrency(task.remaining)} remains to transfer.
+                  </span>
+                }
+              >
+                <Tag color="green" style={{ borderRadius: 12, cursor: 'pointer' }}>Surplus</Tag>
+              </Tooltip>
             )}
           </div>
           {task.description ? (
