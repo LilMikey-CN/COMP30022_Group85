@@ -11,12 +11,12 @@ import {
   Table,
   Empty,
   Spin,
-  Popconfirm,
   Tooltip,
 } from 'antd';
 import {
   CheckOutlined,
   CloseCircleOutlined,
+  CopyOutlined,
   EditOutlined,
   PlusOutlined,
   SyncOutlined,
@@ -100,9 +100,9 @@ const TaskDetailsDrawer = ({
   onClose,
   onEdit,
   onManualExecution,
-  onDeactivate,
   onReactivate,
   onGenerateExecution,
+  onReplicate,
   selectedExecution,
   onCompleteExecution,
 }) => {
@@ -331,9 +331,33 @@ const TaskDetailsDrawer = ({
         <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
           Manual execution
         </Button>
-        <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
-          Generate next
-        </Button>
+        {task?.is_active === false && (
+          <Button type="primary" onClick={() => onReactivate?.(task)} disabled={!task}>
+            Reactivate
+          </Button>
+        )}
+        {(() => {
+          const isHistoryTask = task?.start_date
+            ? dayjs(task.start_date).isValid() && dayjs(task.start_date).year() < dayjs().year()
+            : false;
+          if (isHistoryTask) {
+            return (
+              <Button
+                type="primary"
+                icon={<CopyOutlined />}
+                onClick={() => onReplicate?.(task)}
+                disabled={!task}
+              >
+                Replicate for current year
+              </Button>
+            );
+          }
+          return (
+            <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
+              Generate next
+            </Button>
+          );
+        })()}
       </Space>
     </Space>
   );
@@ -431,30 +455,6 @@ const TaskDetailsDrawer = ({
                 ]}
               />
 
-              <Divider />
-
-              <Space>
-                {task?.is_active === false ? (
-                  <Popconfirm
-                    title="Reactivate task"
-                    description="This will allow the task to generate executions again."
-                    onConfirm={() => onReactivate?.(task)}
-                    okText="Reactivate"
-                  >
-                    <Button type="primary">Reactivate task</Button>
-                  </Popconfirm>
-                ) : (
-                  <Popconfirm
-                    title="Deactivate task"
-                    description="Future executions will stop generating until reactivated."
-                    onConfirm={() => onDeactivate?.(task)}
-                    okText="Deactivate"
-                    okButtonProps={{ danger: true }}
-                  >
-                    <Button danger>Deactivate task</Button>
-                  </Popconfirm>
-                )}
-              </Space>
             </>
           ) : (
             <Empty description="Select a task to see details" image={Empty.PRESENTED_IMAGE_SIMPLE} />

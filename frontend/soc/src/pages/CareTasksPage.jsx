@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   FileSearchOutlined,
   CalendarOutlined,
+  CopyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -69,6 +70,8 @@ const CareTasksPage = () => {
   const [editTask, setEditTask] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [manualTask, setManualTask] = useState(null);
+  const [createModalInitialValues, setCreateModalInitialValues] = useState(null);
+  const currentYearRef = useMemo(() => dayjs().year(), []);
   const [sortConfig, setSortConfig] = useState({ field: 'created_at', order: 'descend' });
   const [taskPagination, setTaskPagination] = useState({ current: 1, pageSize: 10 });
 
@@ -188,12 +191,42 @@ const CareTasksPage = () => {
     generateExecution.mutate(task.id);
   }, [generateExecution]);
 
+  const handleReplicateTask = useCallback((task) => {
+    if (!task) {
+      return;
+    }
+    const category = categoryMap.get(task.category_id);
+    setCreateModalInitialValues({
+      name: task.name || '',
+      description: task.description || '',
+      task_type: task.task_type || 'GENERAL',
+      recurrence_interval_days: task.recurrence_interval_days ?? 0,
+      category_id: task.category_id || null,
+      category_name: category?.name || task.category_id || '',
+      yearly_budget: task.yearly_budget ?? null,
+      start_date: dayjs().format('YYYY-MM-DD'),
+      end_date: null,
+    });
+    setIsCreateModalOpen(true);
+  }, [categoryMap]);
+
   const currencyFormatter = useMemo(() => new Intl.NumberFormat('en-AU', {
     style: 'currency',
     currency: 'AUD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }), []);
+
+  const isHistoryTask = useCallback((task) => {
+    if (!task?.start_date) {
+      return false;
+    }
+    const startDate = dayjs(task.start_date);
+    if (!startDate.isValid()) {
+      return false;
+    }
+    return startDate.year() < currentYearRef;
+  }, [currentYearRef]);
 
   const columns = useMemo(() => ([
     {
@@ -336,6 +369,17 @@ const CareTasksPage = () => {
               Edit
             </Button>
           </Tooltip>
+          {isHistoryTask(task) && (
+            <Tooltip title="Copy this task into the current year with today's start date">
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => handleReplicateTask(task)}
+              >
+                Replicate
+              </Button>
+            </Tooltip>
+          )}
           {task.is_active === false && (
             <Tooltip title="Reactivate task">
               <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
@@ -346,7 +390,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleReactivate, handleSort, sortConfig]);
+  ]), [categoryMap, currencyFormatter, handleReactivate, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -375,7 +419,10 @@ const CareTasksPage = () => {
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => {
+                setCreateModalInitialValues(null);
+                setIsCreateModalOpen(true);
+              }}
             >
               New care task
             </Button>
@@ -466,12 +513,16 @@ const CareTasksPage = () => {
 
       <AddCareTaskModal
         open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setCreateModalInitialValues(null);
+        }}
         onSubmit={handleCreateTask}
         submitting={createCareTask.isLoading || createCategory.isLoading}
         categories={categories}
         categoriesLoading={isCategoriesFetching || createCategory.isLoading}
         onCreateCategory={handleCreateCategory}
+        initialValues={createModalInitialValues}
       />
 
       <EditCareTaskModal
@@ -500,6 +551,7 @@ const CareTasksPage = () => {
         onManualExecution={(task) => setManualTask(task)}
         onReactivate={handleReactivate}
         onGenerateExecution={handleGenerateExecution}
+        onReplicate={handleReplicateTask}
       />
     </div>
   );
