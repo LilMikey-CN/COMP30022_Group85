@@ -2,6 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { Modal, Form, message } from 'antd';
 import dayjs from 'dayjs';
 import CareTaskForm from './CareTaskForm';
+import { RECURRENCE_PRESETS } from './recurrencePresets';
 
 const AddCareTaskModal = ({
   open,
@@ -17,18 +18,33 @@ const AddCareTaskModal = ({
   isStartDateEditable = true,
   initialCategoryId = null,
   initialCategoryName = '',
+  initialValues = null,
 }) => {
   const [form] = Form.useForm();
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({
-        task_type: defaultTaskType,
-        category_id: initialCategoryId || null,
-        category_input: initialCategoryName || ''
-      });
+      form.resetFields();
+      const interval = initialValues?.recurrence_interval_days ?? 0;
+      const matchedPreset = RECURRENCE_PRESETS.find((preset) => preset.interval === Number(interval));
+      const recurrencePresetValue = matchedPreset ? matchedPreset.value : 'custom';
+      const baseValues = {
+        task_type: initialValues?.task_type ?? defaultTaskType,
+        name: initialValues?.name ?? undefined,
+        description: initialValues?.description ?? undefined,
+        recurrence_interval_days: initialValues?.recurrence_interval_days ?? 0,
+        recurrencePreset: recurrencePresetValue,
+        start_date: initialValues?.start_date ? dayjs(initialValues.start_date) : dayjs(),
+        end_date: initialValues?.end_date ? dayjs(initialValues.end_date) : null,
+        category_id: initialValues?.category_id ?? initialCategoryId ?? null,
+        category_input: initialValues?.category_name ?? initialCategoryName ?? '',
+        yearly_budget: initialValues?.yearly_budget ?? null,
+        task_type_original: initialValues?.task_type ?? defaultTaskType,
+      };
+
+      form.setFieldsValue(baseValues);
     }
-  }, [defaultTaskType, form, initialCategoryId, initialCategoryName, open]);
+  }, [defaultTaskType, form, initialCategoryId, initialCategoryName, initialValues, open]);
 
   const resetAndClose = useCallback(() => {
     form.resetFields();
@@ -115,6 +131,7 @@ const AddCareTaskModal = ({
         isTaskTypeEditable={isTaskTypeEditable}
         isFrequencyEditable={isFrequencyEditable}
         isStartDateEditable={isStartDateEditable}
+        initialTask={initialValues}
       />
     </Modal>
   );
