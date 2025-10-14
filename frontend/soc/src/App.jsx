@@ -15,6 +15,10 @@ import Budget from './pages/Budget';
 import ClientProfile from './pages/ClientProfile';
 import Settings from './pages/Settings';
 import CalendarPage from './pages/CalendarPage';
+import ChangePassword from './pages/ChangePassword';
+import ForgotPassword from './pages/ForgotPassword';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import useAuthStore from './store/authStore';
 import './styles/global.css';
 
@@ -47,6 +51,9 @@ const App = () => {
         {/* Authentication routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         {/* Root route - redirect to user's patient home */}
         <Route
@@ -127,6 +134,7 @@ const App = () => {
           </ProtectedRoute>
         }>
           <Route index element={<Settings />} />
+          <Route path="change-password" element={<ChangePassword />} />
         </Route>
       </Routes>
     </Router>
