@@ -24,7 +24,6 @@ import {
   useCareTasks,
   useCreateCareTask,
   useUpdateCareTask,
-  useDeactivateCareTask,
   useReactivateCareTask,
   useGenerateTaskExecution,
   useCreateManualExecution,
@@ -64,6 +63,7 @@ const CareTasksPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [startRange, setStartRange] = useState(null);
+  const [yearFilter, setYearFilter] = useState('current');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -107,7 +107,6 @@ const CareTasksPage = () => {
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
-  const deactivateCareTask = useDeactivateCareTask();
   const reactivateCareTask = useReactivateCareTask();
   const generateExecution = useGenerateTaskExecution();
   const createManualExecution = useCreateManualExecution();
@@ -117,7 +116,21 @@ const CareTasksPage = () => {
     statusFilter,
     typeFilter,
     startRange
-  }), [careTasks, searchTerm, statusFilter, typeFilter, startRange]);
+  }).filter((task) => {
+    if (yearFilter === 'all') {
+      return true;
+    }
+    const startDate = task?.start_date ? dayjs(task.start_date) : null;
+    if (!startDate?.isValid()) {
+      return yearFilter !== 'current';
+    }
+    const taskYear = startDate.year();
+    const currentYear = dayjs().year();
+    if (yearFilter === 'current') {
+      return taskYear === currentYear;
+    }
+    return taskYear < currentYear;
+  }), [careTasks, searchTerm, statusFilter, typeFilter, startRange, yearFilter]);
 
   const sortedTasks = useMemo(
     () => sortCareTasks(filteredTasks, sortConfig, categoryMap),
@@ -138,7 +151,7 @@ const CareTasksPage = () => {
 
   useEffect(() => {
     setTaskPagination((prev) => ({ ...prev, current: 1 }));
-  }, [searchTerm, statusFilter, typeFilter, startRange, sortConfig, careTasks.length]);
+  }, [searchTerm, statusFilter, typeFilter, startRange, yearFilter, sortConfig, careTasks.length]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(sortedTasks.length / taskPagination.pageSize));
@@ -156,10 +169,6 @@ const CareTasksPage = () => {
     await updateCareTask.mutateAsync({ id, payload });
     await refetchCareTasks();
   }, [updateCareTask, refetchCareTasks]);
-
-  const handleDeactivate = useCallback((task) => {
-    deactivateCareTask.mutate(task.id);
-  }, [deactivateCareTask]);
 
   const handleReactivate = useCallback((task) => {
     reactivateCareTask.mutate(task.id);
@@ -327,13 +336,7 @@ const CareTasksPage = () => {
               Edit
             </Button>
           </Tooltip>
-          {task.is_active !== false ? (
-            <Tooltip title="Deactivate task">
-              <Button size="small" danger onClick={() => handleDeactivate(task)}>
-                Deactivate
-              </Button>
-            </Tooltip>
-          ) : (
+          {task.is_active === false && (
             <Tooltip title="Reactivate task">
               <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
                 Reactivate
@@ -343,7 +346,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleDeactivate, handleReactivate, handleSort, sortConfig]);
+  ]), [categoryMap, currencyFormatter, handleReactivate, handleSort, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -399,6 +402,11 @@ const CareTasksPage = () => {
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
+                <Select value={yearFilter} onChange={setYearFilter} style={{ width: 180 }}>
+                  <Option value="all">All tasks</Option>
+                  <Option value="current">Current year</Option>
+                  <Option value="history">History</Option>
+                </Select>
                 <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }}>
                   <Option value="all">All statuses</Option>
                   <Option value="active">Active</Option>
@@ -490,7 +498,6 @@ const CareTasksPage = () => {
         onClose={() => setSelectedTaskId(null)}
         onEdit={(task) => setEditTask(task)}
         onManualExecution={(task) => setManualTask(task)}
-        onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
         onGenerateExecution={handleGenerateExecution}
       />
