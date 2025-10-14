@@ -10,7 +10,8 @@ const CategoryBudgetCard = ({
   loading,
   onEditCategory,
   onAddCareTask,
-  onEditCareTask
+  onEditCareTask,
+  onTransferBudget
 }) => {
   const menuItems = [
     {
@@ -92,6 +93,7 @@ const CategoryBudgetCard = ({
             task={task}
             loading={loading}
             onEdit={() => onEditCareTask(task)}
+            onTransfer={() => onTransferBudget(task, category)}
           />
         ))}
 
@@ -126,7 +128,7 @@ const SummaryItem = ({ label, value, valueStyle = {} }) => (
   </div>
 );
 
-const CareTaskItem = ({ task, loading, onEdit }) => {
+const CareTaskItem = ({ task, loading, onEdit, onTransfer }) => {
   const utilizationColor = task.utilization >= 100
     ? '#ff4d4f'
     : task.utilization >= 80
@@ -151,29 +153,49 @@ const CareTaskItem = ({ task, loading, onEdit }) => {
           ) : null}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <Metric label="Budget" value={formatCurrency(task.yearlyBudget)} />
-          <Metric label="Remaining" value={formatCurrency(task.remaining)} valueStyle={{ color: '#2dce89' }} />
-          <Metric label="Spent" value={formatCurrency(task.actualSpent)} valueStyle={{ color: '#f5365c' }} />
-          <Metric
-            label="Utilisation"
-            value={`${task.utilization}%`}
-            valueStyle={{ color: utilizationColor }}
-          />
-          {task.estimatedUpcomingCost > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Metric label="Budget" value={formatCurrency(task.yearlyBudget)} />
+            <Metric label="Remaining" value={formatCurrency(task.remaining)} valueStyle={{ color: '#2dce89' }} />
+            <Metric label="Spent" value={formatCurrency(task.actualSpent)} valueStyle={{ color: '#f5365c' }} />
             <Metric
-              label="Upcoming"
-              value={formatCurrency(task.estimatedUpcomingCost)}
-              valueStyle={{ color: '#722ed1' }}
+              label="Utilisation"
+              value={`${task.utilization}%`}
+              valueStyle={{ color: utilizationColor }}
             />
-          )}
-          <Button
-            size="small"
-            onClick={onEdit}
-            disabled={loading}
-            style={{ background: '#e3f2fd', color: '#2196f3', border: 'none', fontSize: 11 }}
-          >
-            Edit
-          </Button>
+            {task.estimatedUpcomingCost > 0 && (
+              <Metric
+                label="Upcoming"
+                value={formatCurrency(task.estimatedUpcomingCost)}
+                valueStyle={{ color: '#722ed1' }}
+              />
+            )}
+          </div>
+          <Space size={8}>
+            {task.hasSurplus && (
+              <Tag color="gold" style={{ borderRadius: 12 }}>Surplus</Tag>
+            )}
+            <Button
+              size="small"
+              onClick={onEdit}
+              disabled={loading}
+              style={{ background: '#e3f2fd', color: '#2196f3', border: 'none', fontSize: 11 }}
+            >
+              Edit
+            </Button>
+            <Button
+              size="small"
+              onClick={onTransfer}
+              disabled={loading || !task.canTransfer}
+              style={{
+                background: task.canTransfer ? '#fff7e6' : '#f0f0f0',
+                color: task.canTransfer ? '#fa8c16' : '#8c8c8c',
+                border: 'none',
+                fontSize: 11
+              }}
+            >
+              Transfer budget
+            </Button>
+          </Space>
         </div>
       </div>
     </div>

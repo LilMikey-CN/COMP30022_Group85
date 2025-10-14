@@ -9,7 +9,8 @@ import {
   CARE_TASKS_QUERY_KEY,
   useCareTasks,
   useCreateCareTask,
-  useUpdateCareTask
+  useUpdateCareTask,
+  useTransferCareTaskBudget
 } from './useCareTasks';
 import { useTaskExecutions } from './useTaskExecutions';
 import { buildBudgetAnalytics } from '../utils/budgetAnalytics';
@@ -27,11 +28,18 @@ const defaultCareTaskModalState = {
   task: null
 };
 
+const defaultTransferModalState = {
+  open: false,
+  sourceTask: null,
+  sourceCategory: null
+};
+
 export const useBudgetManagement = () => {
   const queryClient = useQueryClient();
 
   const [categoryModalState, setCategoryModalState] = useState(defaultCategoryModalState);
   const [careTaskModalState, setCareTaskModalState] = useState(defaultCareTaskModalState);
+  const [transferModalState, setTransferModalState] = useState(defaultTransferModalState);
 
   const {
     data: categoriesResponse,
@@ -93,6 +101,7 @@ export const useBudgetManagement = () => {
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
+  const transferBudgetMutation = useTransferCareTaskBudget();
 
   const careTasksById = useMemo(() => {
     const map = new Map();
@@ -123,6 +132,21 @@ export const useBudgetManagement = () => {
 
   const closeCareTaskModal = useCallback(() => {
     setCareTaskModalState(defaultCareTaskModalState);
+  }, []);
+
+  const openTransferModal = useCallback((task = null, category = null) => {
+    if (!task) {
+      return;
+    }
+    setTransferModalState({
+      open: true,
+      sourceTask: task,
+      sourceCategory: category
+    });
+  }, []);
+
+  const closeTransferModal = useCallback(() => {
+    setTransferModalState(defaultTransferModalState);
   }, []);
 
   const handleAddCategory = useCallback(() => {
@@ -248,6 +272,27 @@ export const useBudgetManagement = () => {
     return result?.data;
   }, [createCategoryMutation]);
 
+  const handleTransferBudget = useCallback(async ({ amount, toTaskId }) => {
+    const sourceTaskId = transferModalState.sourceTask?.id;
+    if (!sourceTaskId) {
+      message.error('Unable to determine source task');
+      return;
+    }
+
+    try {
+      await transferBudgetMutation.mutateAsync({
+        fromTaskId: sourceTaskId,
+        toTaskId,
+        amount
+      });
+      message.success('Budget transferred successfully');
+      closeTransferModal();
+      await Promise.all([refetchCareTasks(), refetchExecutions()]);
+    } catch (err) {
+      message.error(err?.message || 'Failed to transfer budget');
+    }
+  }, [closeTransferModal, refetchCareTasks, refetchExecutions, transferBudgetMutation, transferModalState.sourceTask?.id]);
+
   const isLoading = categoriesLoading || careTasksLoading || (taskIds.length > 0 && executionsLoading);
   const error = categoriesError || careTasksError || executionsError;
 
@@ -259,9 +304,11 @@ export const useBudgetManagement = () => {
     budgetAnalytics,
     categoryModalState,
     careTaskModalState,
+    transferModalState,
     createCategoryMutation,
     createCareTask,
     updateCareTask,
+    transferBudgetMutation,
     handleAddCategory,
     handleEditCategory,
     handleAddCareTask,
@@ -269,8 +316,12 @@ export const useBudgetManagement = () => {
     handleCreateCareTask,
     handleUpdateCareTask,
     handleCreateCategory,
+    handleTransferBudget,
+    openTransferModal,
+    closeTransferModal,
     closeCategoryModal,
     closeCareTaskModal,
+    purchaseTasks,
   };
 };
 

@@ -97,7 +97,9 @@ export const buildBudgetAnalytics = ({
       netSpend: 0,
       upcomingExecutions: [],
       monthlySpend: new Map(),
-      spendSamples: []
+      spendSamples: [],
+      totalExecutions: 0,
+      todoExecutions: 0
     });
   });
 
@@ -118,6 +120,7 @@ export const buildBudgetAnalytics = ({
       return;
     }
     const stats = taskStats.get(taskId);
+    stats.totalExecutions += 1;
     const actualCost = clampNumber(execution.actual_cost ?? 0);
     const refundAmount = clampNumber(execution?.refund?.refund_amount ?? 0);
     const net = Math.max(0, actualCost - refundAmount);
@@ -144,6 +147,7 @@ export const buildBudgetAnalytics = ({
     }
 
     if (execution.status === 'TODO') {
+      stats.todoExecutions += 1;
       const scheduled = execution.scheduled_date ? dayjs(execution.scheduled_date) : null;
       if (scheduled && !scheduled.isBefore(now, 'day') && !scheduled.isAfter(upcomingWindowEnd, 'day')) {
         const task = purchaseTasks.find((item) => item.id === taskId);
@@ -184,7 +188,7 @@ export const buildBudgetAnalytics = ({
   const upcomingByTask = new Map();
 
   purchaseTasks.forEach((task) => {
-    const stats = taskStats.get(task.id) || { netSpend: 0, upcomingExecutions: [] };
+    const stats = taskStats.get(task.id) || { netSpend: 0, upcomingExecutions: [], totalExecutions: 0, todoExecutions: 0 };
     const categoryId = task.category_id || 'uncategorized';
     const categoryDefinition = categoriesById[categoryId];
     if (!categoriesAnalytics.has(categoryId)) {
@@ -206,6 +210,9 @@ export const buildBudgetAnalytics = ({
     const remaining = Math.max(0, yearlyBudget - actualSpent);
     const utilizationFraction = yearlyBudget > 0 ? actualSpent / yearlyBudget : 0;
     const averageSpend = taskAverageSpend.get(task.id) ?? 0;
+    const executionCount = stats.totalExecutions || 0;
+    const todoExecutions = stats.todoExecutions || 0;
+    const hasSurplus = remaining > 0 && executionCount > 0 && todoExecutions === 0;
 
     const hasUpcoming = stats.upcomingExecutions.length > 0;
     if (hasUpcoming) {
@@ -248,7 +255,10 @@ export const buildBudgetAnalytics = ({
       isOverUtilization: utilizationFraction >= THRESHOLDS.warning,
       estimatedUpcomingCost: taskAverageSpend.has(task.id)
         ? stats.upcomingExecutions.length * averageSpend
-        : 0
+        : 0,
+      hasSurplus,
+      canTransfer: remaining > 0,
+      categoryId
     });
 
     if (yearlyBudget > 0 && actualSpent > yearlyBudget) {
