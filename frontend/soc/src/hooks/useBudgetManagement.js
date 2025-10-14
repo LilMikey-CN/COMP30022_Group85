@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import {
   useCategories,
   useCreateCategory
@@ -68,9 +69,24 @@ export const useBudgetManagement = () => {
     [careTasksResponse]
   );
 
+  const currentYear = useMemo(() => dayjs().year(), []);
+
+  const currentYearCareTasks = useMemo(() => {
+    return careTasks.filter((task) => {
+      if (!task?.start_date) {
+        return false;
+      }
+      const startDate = dayjs(task.start_date);
+      if (!startDate.isValid()) {
+        return false;
+      }
+      return startDate.year() === currentYear;
+    });
+  }, [careTasks, currentYear]);
+
   const purchaseTasks = useMemo(
-    () => careTasks.filter((task) => task.task_type === 'PURCHASE'),
-    [careTasks]
+    () => currentYearCareTasks.filter((task) => task.task_type === 'PURCHASE'),
+    [currentYearCareTasks]
   );
 
   const taskIds = useMemo(
@@ -105,9 +121,9 @@ export const useBudgetManagement = () => {
 
   const careTasksById = useMemo(() => {
     const map = new Map();
-    careTasks.forEach((task) => map.set(task.id, task));
+    currentYearCareTasks.forEach((task) => map.set(task.id, task));
     return map;
-  }, [careTasks]);
+  }, [currentYearCareTasks]);
 
   const openCategoryModal = useCallback((mode, category = null) => {
     setCategoryModalState({
