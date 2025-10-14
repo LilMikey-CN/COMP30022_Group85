@@ -5,6 +5,7 @@ import BudgetSummaryCard from '../components/Budget/BudgetSummaryCard';
 import CategoryBudgetCard from '../components/Budget/CategoryBudgetCard';
 import BudgetAnalytics from '../components/Budget/BudgetAnalytics';
 import CategoryModal from '../components/Budget/CategoryModal';
+import BudgetTransferModal from '../components/Budget/BudgetTransferModal';
 import AddCareTaskModal from '../components/CareTasks/AddCareTaskModal';
 import EditCareTaskModal from '../components/CareTasks/EditCareTaskModal';
 import useBudgetManagement from '../hooks/useBudgetManagement';
@@ -18,18 +19,24 @@ const BudgetContent = () => {
     budgetAnalytics,
     categoryModalState,
     careTaskModalState,
+    transferModalState,
     createCategoryMutation,
     createCareTask,
     updateCareTask,
+    transferBudgetMutation,
     handleAddCategory,
     handleEditCategory,
     handleAddCareTask,
     handleEditCareTask,
     handleCreateCareTask,
     handleUpdateCareTask,
+    handleTransferBudget,
     handleCreateCategory,
+    openTransferModal,
+    closeTransferModal,
     closeCategoryModal,
     closeCareTaskModal,
+    purchaseTasks,
   } = useBudgetManagement();
 
   if (isLoading) {
@@ -110,6 +117,7 @@ const BudgetContent = () => {
               onEditCategory={() => handleEditCategory(category)}
               onAddCareTask={() => handleAddCareTask(category)}
               onEditCareTask={handleEditCareTask}
+              onTransferBudget={(task, selectedCategory) => openTransferModal(task, selectedCategory)}
             />
           ))}
           {budgetAnalytics.categoryBreakdown.length === 0 && (
@@ -150,6 +158,16 @@ const BudgetContent = () => {
         categories={categories}
         categoriesLoading={categoriesLoading || createCategoryMutation.isPending}
         onCreateCategory={handleCreateCategory}
+      />
+
+      <BudgetTransferModal
+        open={transferModalState.open}
+        onCancel={closeTransferModal}
+        onSubmit={handleTransferBudget}
+        isSubmitting={transferBudgetMutation.isPending}
+        sourceTask={transferModalState.sourceTask}
+        categories={categories}
+        tasks={purchaseTasks}
       />
     </div>
   );

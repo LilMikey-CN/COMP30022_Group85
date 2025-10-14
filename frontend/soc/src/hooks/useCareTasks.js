@@ -148,3 +148,18 @@ export const useCreateManualExecution = () => {
   });
 };
 
+export const useTransferCareTaskBudget = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ fromTaskId, toTaskId, amount }) =>
+      await careTasksService.transferBudget({ fromTaskId, toTaskId, amount }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY], exact: false });
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to transfer budget';
+      message.error(reason);
+    },
+  });
+};

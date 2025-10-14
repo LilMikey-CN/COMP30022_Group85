@@ -133,6 +133,24 @@ export const careTasksService = {
     const queryString = buildQueryString(params);
     return await authenticatedApiCall(`/api/care-tasks/${id}/executions${queryString}`);
   },
+
+  async transferBudget(payload = {}) {
+    const { fromTaskId, toTaskId, amount } = payload;
+    if (!fromTaskId) {
+      throw new Error('Source care task id is required');
+    }
+    if (!toTaskId) {
+      throw new Error('Destination care task id is required');
+    }
+    if (amount === undefined || amount === null) {
+      throw new Error('Transfer amount is required');
+    }
+
+    return await authenticatedApiCall('/api/care-tasks/transfer-budget', {
+      method: 'POST',
+      body: JSON.stringify({ fromTaskId, toTaskId, amount })
+    });
+  },
 };
 
 export default careTasksService;
