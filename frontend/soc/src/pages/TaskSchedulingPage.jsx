@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   FileSearchOutlined,
   PlusOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -69,6 +70,7 @@ const TaskSchedulingPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [startDateRange, setStartDateRange] = useState(null);
   const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
+  const [yearFilter, setYearFilter] = useState('current');
 
   const [detailsExecution, setDetailsExecution] = useState(null);
   const [executionFormState, setExecutionFormState] = useState({
@@ -187,7 +189,25 @@ const TaskSchedulingPage = () => {
     searchTerm,
     startDateRange,
     careTasksById
-  }), [executions, searchTerm, startDateRange, careTasksById]);
+  }).filter((execution) => {
+    if (yearFilter === 'all') {
+      return true;
+    }
+
+    const scheduledDate = execution?.scheduled_date ? dayjs(execution.scheduled_date) : null;
+    if (!scheduledDate?.isValid()) {
+      return yearFilter !== 'current';
+    }
+
+    const execYear = scheduledDate.year();
+    const currentYear = dayjs().year();
+
+    if (yearFilter === 'current') {
+      return execYear === currentYear;
+    }
+
+    return execYear < currentYear;
+  }), [careTasksById, executions, searchTerm, startDateRange, yearFilter]);
 
   const sortedExecutions = useMemo(
     () => sortTaskExecutions(filteredExecutions, sortConfig, careTasksById),
@@ -208,7 +228,7 @@ const TaskSchedulingPage = () => {
 
   useEffect(() => {
     setExecutionPagination((prev) => ({ ...prev, current: 1 }));
-  }, [searchTerm, statusFilter, startDateRange, sortConfig, executions.length]);
+  }, [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig, executions.length]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(sortedExecutions.length / executionPagination.pageSize));
@@ -529,6 +549,15 @@ const TaskSchedulingPage = () => {
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
+                <Select
+                  value={yearFilter}
+                  onChange={setYearFilter}
+                  style={{ width: 180 }}
+                >
+                  <Option value="current">Current year</Option>
+                  <Option value="history">History</Option>
+                  <Option value="all">All time</Option>
+                </Select>
                 <Select
                   value={statusFilter}
                   onChange={setStatusFilter}
