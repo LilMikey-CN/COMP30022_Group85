@@ -541,6 +541,7 @@ const CareTasksPage = () => {
         onClose={() => setManualTask(null)}
         onSubmit={handleManualSubmit}
         submitting={createManualExecution.isLoading}
+        taskStartDate={manualTask?.start_date || null}
       />
 
       <TaskDetailsDrawer

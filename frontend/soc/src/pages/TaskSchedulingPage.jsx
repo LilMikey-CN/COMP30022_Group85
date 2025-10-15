@@ -622,6 +622,7 @@ const TaskSchedulingPage = () => {
         submitting={createManualExecution.isLoading || updateExecution.isLoading}
         title={executionFormState.mode === 'edit' ? 'Edit execution' : 'Create manual execution'}
         okText={executionFormState.mode === 'edit' ? 'Save changes' : 'Create'}
+        taskStartDate={executionFormState.task?.start_date || null}
       />
 
       <CompleteExecutionModal

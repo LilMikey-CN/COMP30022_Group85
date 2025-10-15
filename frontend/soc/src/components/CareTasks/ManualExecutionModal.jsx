@@ -8,6 +8,7 @@ import {
   FIELD_KEYS,
   mapFieldInitialValue
 } from '../../utils/executionFieldConfig';
+import { appendTaskDateValidation } from '../../utils/executionValidation';
 
 const ManualExecutionModal = ({
   open,
@@ -18,6 +19,7 @@ const ManualExecutionModal = ({
   initialValues = null,
   title,
   okText,
+  taskStartDate = null,
 }) => {
   const [form] = Form.useForm();
   const status = initialValues?.status || 'TODO';
@@ -89,10 +91,18 @@ const ManualExecutionModal = ({
             return null;
           }
 
+          const rules = (() => {
+            const baseRules = config.rules || [];
+            if (key === FIELD_KEYS.SCHEDULED_DATE || key === FIELD_KEYS.EXECUTION_DATE) {
+              return appendTaskDateValidation(baseRules, taskStartDate, config.label);
+            }
+            return baseRules;
+          })();
+
           const commonProps = {
             name: key,
             label: config.label,
-            rules: config.rules || [],
+            rules,
           };
 
           switch (config.type) {
