@@ -23,6 +23,7 @@ const CareTaskForm = ({
   isFrequencyEditable = true,
   isStartDateEditable = true,
   defaultTaskType = 'GENERAL',
+  minimumEndDate = null,
 }) => {
   const [categorySearch, setCategorySearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -31,6 +32,7 @@ const CareTaskForm = ({
   const recurrencePresetValue = Form.useWatch('recurrencePreset', form);
   const startDateValue = Form.useWatch('start_date', form);
   const endDateValue = Form.useWatch('end_date', form);
+  const minimumEndDateDay = useMemo(() => clampDateToCurrentYear(minimumEndDate), [minimumEndDate]);
 
   useEffect(() => {
     setCategorySearch(categoryInputValue || '');
@@ -50,41 +52,76 @@ const CareTaskForm = ({
 
     if (recurrencePresetValue === '0') {
       form.setFieldsValue({ end_date: null });
-    } else {
-      const currentEnd = form.getFieldValue('end_date');
-      if (!currentEnd) {
-        const start = form.getFieldValue('start_date');
-        const { end } = getCurrentYearBounds();
-        const base = start ? dayjs(start) : dayjs();
-        const candidate = base.isAfter(end, 'day') ? end : base;
-        form.setFieldsValue({ end_date: candidate });
-      }
+      return;
     }
-  }, [recurrencePresetValue, form]);
+
+    const start = form.getFieldValue('start_date');
+    const currentEnd = form.getFieldValue('end_date');
+    const { end } = getCurrentYearBounds();
+
+    const startDay = start ? clampDateToCurrentYear(dayjs(start)) : null;
+    let candidate = clampDateToCurrentYear(currentEnd);
+
+    if (!candidate) {
+      candidate = startDay || clampDateToCurrentYear(dayjs());
+    }
+
+    if (candidate && startDay && candidate.isBefore(startDay, 'day')) {
+      candidate = startDay;
+    }
+
+    if (candidate && minimumEndDateDay && candidate.isBefore(minimumEndDateDay, 'day')) {
+      candidate = minimumEndDateDay;
+    }
+
+    if (candidate && candidate.isAfter(end, 'day')) {
+      candidate = end;
+    }
+
+    if (candidate && (!currentEnd || !dayjs(currentEnd).isSame(candidate, 'day'))) {
+      form.setFieldsValue({ end_date: candidate });
+    }
+  }, [form, minimumEndDateDay, recurrencePresetValue]);
 
   useEffect(() => {
     if (!startDateValue || recurrencePresetValue === '0') {
       return;
     }
 
-    const startDay = dayjs(startDateValue);
-    const currentEnd = endDateValue ? dayjs(endDateValue) : null;
+    const startDay = clampDateToCurrentYear(dayjs(startDateValue));
     const { end } = getCurrentYearBounds();
+    const currentEnd = endDateValue ? clampDateToCurrentYear(dayjs(endDateValue)) : null;
 
-    if (currentEnd && currentEnd.isBefore(startDay, 'day')) {
-      form.setFieldsValue({ end_date: startDay });
+    const resolveEndDate = (candidate) => {
+      if (!candidate) {
+        return null;
+      }
+      let next = candidate;
+      if (next.isBefore(startDay, 'day')) {
+        next = startDay;
+      }
+      if (minimumEndDateDay && next.isBefore(minimumEndDateDay, 'day')) {
+        next = minimumEndDateDay;
+      }
+      if (next.isAfter(end, 'day')) {
+        next = end;
+      }
+      return next;
+    };
+
+    if (currentEnd) {
+      const adjusted = resolveEndDate(currentEnd);
+      if (adjusted && !adjusted.isSame(currentEnd, 'day')) {
+        form.setFieldsValue({ end_date: adjusted });
+      }
       return;
     }
 
-    if (currentEnd && currentEnd.isAfter(end, 'day')) {
-      form.setFieldsValue({ end_date: end });
-      return;
+    const fallback = resolveEndDate(startDay);
+    if (fallback) {
+      form.setFieldsValue({ end_date: fallback });
     }
-
-    if (!currentEnd) {
-      form.setFieldsValue({ end_date: startDay.isAfter(end, 'day') ? end : startDay });
-    }
-  }, [endDateValue, form, recurrencePresetValue, startDateValue]);
+  }, [endDateValue, form, minimumEndDateDay, recurrencePresetValue, startDateValue]);
 
   const categoryOptions = useMemo(
     () =>
@@ -192,7 +229,13 @@ const CareTaskForm = ({
         category_id: initialTask?.category_id || null,
         category_input: initialTask?.category_name || initialTask?.category_id || '',
         yearly_budget: initialTask?.yearly_budget ?? null,
-        end_date: clampDateToCurrentYear(initialTask?.end_date ? dayjs(initialTask.end_date) : null)
+        end_date: (() => {
+          const raw = clampDateToCurrentYear(initialTask?.end_date ? dayjs(initialTask.end_date) : null);
+          if (raw && minimumEndDateDay && raw.isBefore(minimumEndDateDay, 'day')) {
+            return minimumEndDateDay;
+          }
+          return raw;
+        })()
       }}
     >
       <Form.Item

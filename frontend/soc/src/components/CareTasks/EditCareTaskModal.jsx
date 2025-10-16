@@ -145,6 +145,7 @@ const EditCareTaskModal = ({
         isFrequencyEditable={false}
         isStartDateEditable={false}
         defaultTaskType="PURCHASE"
+        minimumEndDate={task?.end_date || null}
       />
     </Modal>
   );

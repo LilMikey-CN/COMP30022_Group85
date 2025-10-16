@@ -35,7 +35,7 @@ export const startDateValidationError = (value) => {
   return null;
 };
 
-export const endDateValidationError = (value, startDate) => {
+export const endDateValidationError = (value, startDate, minimumEndDate) => {
   if (!value) {
     return null;
   }
@@ -50,11 +50,14 @@ export const endDateValidationError = (value, startDate) => {
     return `End date cannot be later than ${end.format('DD MMM YYYY')}`;
   }
 
-  if (startDate) {
-    const startDay = dayjs(startDate);
-    if (date.isBefore(startDay, 'day')) {
-      return 'End date cannot be before start date';
-    }
+  const startDay = startDate ? dayjs(startDate) : null;
+  if (startDay && date.isBefore(startDay, 'day')) {
+    return 'End date cannot be before start date';
+  }
+
+  const minimumDay = minimumEndDate ? dayjs(minimumEndDate) : null;
+  if (minimumDay && date.isBefore(minimumDay, 'day')) {
+    return `End date cannot be earlier than ${minimumDay.format('DD MMM YYYY')}`;
   }
 
   return null;
@@ -69,7 +72,7 @@ export const startDateDisabled = (current) => {
   return day.isBefore(start, 'day') || day.isAfter(end, 'day');
 };
 
-export const endDateDisabled = (current, startDate) => {
+export const endDateDisabled = (current, startDate, minimumEndDate) => {
   if (!current) {
     return false;
   }
@@ -80,11 +83,14 @@ export const endDateDisabled = (current, startDate) => {
     return true;
   }
 
-  if (startDate) {
-    const startDay = dayjs(startDate);
-    if (day.isBefore(startDay, 'day')) {
-      return true;
-    }
+  const startDay = startDate ? dayjs(startDate) : null;
+  if (startDay && day.isBefore(startDay, 'day')) {
+    return true;
+  }
+
+  const minimumDay = minimumEndDate ? dayjs(minimumEndDate) : null;
+  if (minimumDay && day.isBefore(minimumDay, 'day')) {
+    return true;
   }
 
   return false;
