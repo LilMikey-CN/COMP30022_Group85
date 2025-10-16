@@ -533,7 +533,8 @@ const CareTasksPage = () => {
               pageSize: taskPagination.pageSize,
               total: sortedTasks.length,
               onChange: (page, pageSize) => setTaskPagination({ current: page, pageSize }),
-              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+              showSizeChanger: false,
             }}
             locale={{
               emptyText: (

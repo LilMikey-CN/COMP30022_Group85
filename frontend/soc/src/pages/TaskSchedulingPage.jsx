@@ -665,8 +665,10 @@ const TaskSchedulingPage = () => {
                     current: executionPagination.current,
                     pageSize: executionPagination.pageSize,
                     total: sortedExecutions.length,
-                    onChange: (page, pageSize) => setExecutionPagination({ current: page, pageSize }),
-                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+                    onChange: (page) =>
+                      setExecutionPagination({ current: page, pageSize: executionPagination.pageSize }),
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                    showSizeChanger: false,
                   }}
                 />
               )}
