@@ -133,9 +133,7 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
 
   if (status === 'DONE') {
     Object.keys(fields).forEach((key) => {
-      if (key !== FIELD_KEYS.ACTUAL_COST && key !== FIELD_KEYS.NOTES) {
-        fields[key].disabled = true;
-      }
+      fields[key].disabled = true;
     });
     fields[FIELD_KEYS.QUANTITY_PURCHASED].show = true;
     fields[FIELD_KEYS.QUANTITY_UNIT].show = true;
