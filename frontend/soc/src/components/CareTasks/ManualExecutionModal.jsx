@@ -99,6 +99,7 @@ const ManualExecutionModal = ({
             return baseRules;
           })();
 
+          const helperText = config.helperText;
           const commonProps = {
             name: key,
             label: config.label,
@@ -108,7 +109,7 @@ const ManualExecutionModal = ({
           switch (config.type) {
             case FIELD_TYPES.DATE:
               return (
-                <Form.Item key={key} {...commonProps}>
+                <Form.Item key={key} {...commonProps} extra={helperText}>
                   <DatePicker
                     style={{ width: '100%' }}
                     format="YYYY-MM-DD"

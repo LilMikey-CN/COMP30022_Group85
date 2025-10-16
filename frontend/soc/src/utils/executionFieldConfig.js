@@ -114,10 +114,16 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
   const isEdit = mode === 'edit';
 
   if (!isEdit) {
+    fields[FIELD_KEYS.EXECUTION_DATE].disabled = status !== 'DONE';
+    fields[FIELD_KEYS.EXECUTION_DATE].helperText = status === 'DONE'
+      ? null
+      : 'Set automatically when marked as done';
     return fields;
   }
 
   fields[FIELD_KEYS.STATUS].disabled = true;
+  fields[FIELD_KEYS.EXECUTION_DATE].disabled = true;
+  fields[FIELD_KEYS.EXECUTION_DATE].helperText = 'Set automatically when marked as done';
 
   if (status === 'DONE') {
     Object.keys(fields).forEach((key) => {
@@ -176,7 +182,6 @@ export const buildExecutionPayload = ({ mode, status, values }) => {
 
   const payload = {
     scheduled_date: formatDate(values.scheduled_date),
-    execution_date: formatDate(values.execution_date),
     status: values.status || 'TODO',
     quantity_purchased: values.quantity_purchased ? Number(values.quantity_purchased) : 1,
     quantity_unit: values.quantity_unit?.trim() || undefined,
@@ -190,6 +195,10 @@ export const buildExecutionPayload = ({ mode, status, values }) => {
     payload.refund = {
       refund_amount: Number(values.refund_amount)
     };
+  }
+
+  if (payload.status === 'DONE') {
+    payload.execution_date = formatDate(values.execution_date ?? dayjs());
   }
 
   return payload;
