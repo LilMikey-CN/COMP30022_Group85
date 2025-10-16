@@ -2,6 +2,14 @@ import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Form, Input, Select, DatePicker, InputNumber, Divider, Alert, AutoComplete } from 'antd';
 import dayjs from 'dayjs';
 import { RECURRENCE_PRESETS } from './recurrencePresets';
+import {
+  clampDateToCurrentYear,
+  endDateDisabled,
+  endDateValidationError,
+  getCurrentYearBounds,
+  startDateDisabled,
+  startDateValidationError,
+} from '../../utils/careTaskDateUtils';
 
 const { Option } = Select;
 
@@ -21,6 +29,8 @@ const CareTaskForm = ({
   const categoryInputValue = Form.useWatch('category_input', form);
   const taskTypeValue = Form.useWatch('task_type', form);
   const recurrencePresetValue = Form.useWatch('recurrencePreset', form);
+  const startDateValue = Form.useWatch('start_date', form);
+  const endDateValue = Form.useWatch('end_date', form);
 
   useEffect(() => {
     setCategorySearch(categoryInputValue || '');
@@ -40,8 +50,41 @@ const CareTaskForm = ({
 
     if (recurrencePresetValue === '0') {
       form.setFieldsValue({ end_date: null });
+    } else {
+      const currentEnd = form.getFieldValue('end_date');
+      if (!currentEnd) {
+        const start = form.getFieldValue('start_date');
+        const { end } = getCurrentYearBounds();
+        const base = start ? dayjs(start) : dayjs();
+        const candidate = base.isAfter(end, 'day') ? end : base;
+        form.setFieldsValue({ end_date: candidate });
+      }
     }
   }, [recurrencePresetValue, form]);
+
+  useEffect(() => {
+    if (!startDateValue || recurrencePresetValue === '0') {
+      return;
+    }
+
+    const startDay = dayjs(startDateValue);
+    const currentEnd = endDateValue ? dayjs(endDateValue) : null;
+    const { end } = getCurrentYearBounds();
+
+    if (currentEnd && currentEnd.isBefore(startDay, 'day')) {
+      form.setFieldsValue({ end_date: startDay });
+      return;
+    }
+
+    if (currentEnd && currentEnd.isAfter(end, 'day')) {
+      form.setFieldsValue({ end_date: end });
+      return;
+    }
+
+    if (!currentEnd) {
+      form.setFieldsValue({ end_date: startDay.isAfter(end, 'day') ? end : startDay });
+    }
+  }, [endDateValue, form, recurrencePresetValue, startDateValue]);
 
   const categoryOptions = useMemo(
     () =>
@@ -145,10 +188,11 @@ const CareTaskForm = ({
         task_type: initialTask?.task_type || defaultTaskType,
         recurrencePreset: '0',
         recurrence_interval_days: 0,
-        start_date: dayjs(),
+        start_date: clampDateToCurrentYear(initialTask?.start_date ? dayjs(initialTask.start_date) : dayjs()),
         category_id: initialTask?.category_id || null,
         category_input: initialTask?.category_name || initialTask?.category_id || '',
-        yearly_budget: initialTask?.yearly_budget ?? null
+        yearly_budget: initialTask?.yearly_budget ?? null,
+        end_date: clampDateToCurrentYear(initialTask?.end_date ? dayjs(initialTask.end_date) : null)
       }}
     >
       <Form.Item
@@ -290,12 +334,21 @@ const CareTaskForm = ({
       <Form.Item
         name="start_date"
         label="Start date"
-        rules={[{ required: true, message: 'Please select a start date' }]}
+        rules={[
+          { required: true, message: 'Please select a start date' },
+          {
+            validator: (_, value) => {
+              const error = startDateValidationError(value);
+              return error ? Promise.reject(new Error(error)) : Promise.resolve();
+            },
+          },
+        ]}
       >
         <DatePicker
           style={{ width: '100%' }}
           format="YYYY-MM-DD"
           disabled={!isStartDateEditable}
+          disabledDate={startDateDisabled}
         />
       </Form.Item>
 
@@ -304,18 +357,22 @@ const CareTaskForm = ({
           name="end_date"
           label="End date"
           rules={[
+            { required: true, message: 'Please select an end date' },
             {
               validator: (_, value) => {
                 const start = form.getFieldValue('start_date');
-                if (value && start && dayjs(value).isBefore(dayjs(start), 'day')) {
-                  return Promise.reject(new Error('End date cannot be before start date'));
-                }
-                return Promise.resolve();
+                const error = endDateValidationError(value, start);
+                return error ? Promise.reject(new Error(error)) : Promise.resolve();
               },
             },
           ]}
         >
-          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" allowClear />
+          <DatePicker
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+            allowClear={false}
+            disabledDate={(current) => endDateDisabled(current, startDateValue)}
+          />
         </Form.Item>
       )}
 
