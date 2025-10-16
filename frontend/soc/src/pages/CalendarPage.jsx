@@ -56,7 +56,7 @@ const CalendarPage = () => {
     isFetching: careTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
   const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
@@ -82,10 +82,13 @@ const CalendarPage = () => {
     params: { limit: 500, offset: 0 }
   });
 
-  const executions = useMemo(
-    () => executionsResponse?.executions || [],
-    [executionsResponse]
-  );
+  const executions = useMemo(() => {
+    const allExecutions = executionsResponse?.executions || [];
+    return allExecutions.filter((execution) => {
+      const parentTask = careTasksById[execution.care_task_id];
+      return parentTask && parentTask.is_active !== false;
+    });
+  }, [careTasksById, executionsResponse]);
 
   const executionsByDate = useMemo(
     () => groupExecutionsByDate(executions),

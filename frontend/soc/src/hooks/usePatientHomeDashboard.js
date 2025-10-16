@@ -11,7 +11,7 @@ import {
   buildBudgetSummary,
 } from '../utils/patientHome';
 
-const CARE_TASKS_QUERY_PARAMS = { is_active: 'all', limit: 500, offset: 0 };
+const CARE_TASKS_QUERY_PARAMS = { is_active: 'true', limit: 500, offset: 0 };
 const EXECUTION_QUERY_PARAMS = { limit: 500, offset: 0 };
 
 const buildCareTaskMap = (careTasks = []) => {
@@ -58,8 +58,11 @@ export const usePatientHomeDashboard = () => {
   });
 
   const executions = useMemo(
-    () => executionsResponse?.executions || [],
-    [executionsResponse],
+    () => (executionsResponse?.executions || []).filter((execution) => {
+      const task = careTasksById[execution.care_task_id];
+      return task && task.is_active !== false;
+    }),
+    [careTasksById, executionsResponse],
   );
 
   const {

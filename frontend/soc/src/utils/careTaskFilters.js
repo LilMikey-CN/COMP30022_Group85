@@ -1,6 +1,5 @@
 export const CARE_TASK_DEFAULT_FILTERS = Object.freeze({
   searchTerm: '',
-  statusFilter: 'all',
   typeFilter: 'all',
   startRange: null,
   yearFilter: 'current',
@@ -22,7 +21,6 @@ export const buildCareTaskDefaultPagination = () => ({ ...CARE_TASK_DEFAULT_PAGI
 
 export const isCareTaskFilterStateDefault = ({
   searchTerm,
-  statusFilter,
   typeFilter,
   startRange,
   yearFilter,
@@ -34,7 +32,6 @@ export const isCareTaskFilterStateDefault = ({
 
   return (
     searchTerm === CARE_TASK_DEFAULT_FILTERS.searchTerm &&
-    statusFilter === CARE_TASK_DEFAULT_FILTERS.statusFilter &&
     typeFilter === CARE_TASK_DEFAULT_FILTERS.typeFilter &&
     startRange === CARE_TASK_DEFAULT_FILTERS.startRange &&
     yearFilter === CARE_TASK_DEFAULT_FILTERS.yearFilter &&

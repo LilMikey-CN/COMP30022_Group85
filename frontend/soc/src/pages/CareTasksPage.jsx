@@ -26,7 +26,7 @@ import {
   useCareTasks,
   useCreateCareTask,
   useUpdateCareTask,
-  useReactivateCareTask,
+  useDeactivateCareTask,
   useGenerateTaskExecution,
   useCreateManualExecution,
 } from '../hooks/useCareTasks';
@@ -59,21 +59,10 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const statusTag = (task) => {
-  if (task.is_active === false) {
-    return <Tag color="default">Inactive</Tag>;
-  }
-  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
-    return <Tag color="gold">Ended</Tag>;
-  }
-  return <Tag color="green">Active</Tag>;
-};
-
 const CareTasksPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState(CARE_TASK_DEFAULT_FILTERS.searchTerm);
-  const [statusFilter, setStatusFilter] = useState(CARE_TASK_DEFAULT_FILTERS.statusFilter);
   const [typeFilter, setTypeFilter] = useState(CARE_TASK_DEFAULT_FILTERS.typeFilter);
   const [startRange, setStartRange] = useState(CARE_TASK_DEFAULT_FILTERS.startRange);
   const [yearFilter, setYearFilter] = useState(CARE_TASK_DEFAULT_FILTERS.yearFilter);
@@ -99,7 +88,7 @@ const CareTasksPage = () => {
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
   const {
     data: categoriesResponse,
     isFetching: isCategoriesFetching,
@@ -122,13 +111,12 @@ const CareTasksPage = () => {
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
-  const reactivateCareTask = useReactivateCareTask();
+  const deactivateCareTask = useDeactivateCareTask();
   const generateExecution = useGenerateTaskExecution();
   const createManualExecution = useCreateManualExecution();
 
   const filteredTasks = useMemo(() => filterCareTasks(careTasks, {
     searchTerm,
-    statusFilter,
     typeFilter,
     startRange
   }).filter((task) => {
@@ -145,7 +133,7 @@ const CareTasksPage = () => {
       return taskYear === currentYear;
     }
     return taskYear < currentYear;
-  }), [careTasks, searchTerm, statusFilter, typeFilter, startRange, yearFilter]);
+  }), [careTasks, searchTerm, typeFilter, startRange, yearFilter]);
 
   const sortedTasks = useMemo(
     () => sortCareTasks(filteredTasks, sortConfig, categoryMap),
@@ -166,7 +154,7 @@ const CareTasksPage = () => {
 
   useEffect(() => {
     setTaskPagination((prev) => ({ ...prev, current: 1 }));
-  }, [searchTerm, statusFilter, typeFilter, startRange, yearFilter, sortConfig, careTasks.length]);
+  }, [searchTerm, typeFilter, startRange, yearFilter, sortConfig, careTasks.length]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(sortedTasks.length / taskPagination.pageSize));
@@ -185,10 +173,6 @@ const CareTasksPage = () => {
     await refetchCareTasks();
   }, [updateCareTask, refetchCareTasks]);
 
-  const handleReactivate = useCallback((task) => {
-    reactivateCareTask.mutate(task.id);
-  }, [reactivateCareTask]);
-
   const handleManualSubmit = useCallback(async (payload) => {
     if (!manualTask) return;
     try {
@@ -202,6 +186,19 @@ const CareTasksPage = () => {
   const handleGenerateExecution = useCallback((task) => {
     generateExecution.mutate(task.id);
   }, [generateExecution]);
+
+  const handleDeactivateTask = useCallback(async (task) => {
+    if (!task?.id) {
+      return;
+    }
+    try {
+      await deactivateCareTask.mutateAsync(task.id);
+      setSelectedTaskId(null);
+      await refetchCareTasks();
+    } catch (error) {
+      showErrorMessage(error.message || 'Failed to deactivate care task');
+    }
+  }, [deactivateCareTask, refetchCareTasks]);
 
   const handleReplicateTask = useCallback((task) => {
     if (!task) {
@@ -242,7 +239,6 @@ const CareTasksPage = () => {
 
   const handleResetFilters = useCallback(() => {
     setSearchTerm(CARE_TASK_DEFAULT_FILTERS.searchTerm);
-    setStatusFilter(CARE_TASK_DEFAULT_FILTERS.statusFilter);
     setTypeFilter(CARE_TASK_DEFAULT_FILTERS.typeFilter);
     setStartRange(CARE_TASK_DEFAULT_FILTERS.startRange);
     setYearFilter(CARE_TASK_DEFAULT_FILTERS.yearFilter);
@@ -256,7 +252,6 @@ const CareTasksPage = () => {
   const canResetFilters = useMemo(
     () => !isCareTaskFilterStateDefault({
       searchTerm,
-      statusFilter,
       typeFilter,
       startRange,
       yearFilter,
@@ -264,7 +259,6 @@ const CareTasksPage = () => {
     }),
     [
       searchTerm,
-      statusFilter,
       typeFilter,
       startRange,
       yearFilter,
@@ -393,19 +387,6 @@ const CareTasksPage = () => {
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: (
-        <SortableColumnTitle
-          label="Status"
-          field="status"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      key: 'status',
-      render: (_, task) => statusTag(task),
-    },
-    {
       title: 'Actions',
       key: 'actions',
       render: (_, task) => (
@@ -436,17 +417,10 @@ const CareTasksPage = () => {
               </Button>
             </Tooltip>
           )}
-          {task.is_active === false && (
-            <Tooltip title="Reactivate task">
-              <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
-                Reactivate
-              </Button>
-            </Tooltip>
-          )}
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleNavigateToExecutions, handleReactivate, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
+  ]), [categoryMap, currencyFormatter, handleNavigateToExecutions, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -520,11 +494,6 @@ const CareTasksPage = () => {
                   <Option value="all">All tasks</Option>
                   <Option value="current">Current year</Option>
                   <Option value="history">History</Option>
-                </Select>
-                <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }}>
-                  <Option value="all">All statuses</Option>
-                  <Option value="active">Active</Option>
-                  <Option value="inactive">Inactive</Option>
                 </Select>
                 <Select value={typeFilter} onChange={setTypeFilter} style={{ width: 150 }}>
                   <Option value="all">All types</Option>
@@ -617,8 +586,9 @@ const CareTasksPage = () => {
         onClose={() => setSelectedTaskId(null)}
         onEdit={(task) => setEditTask(task)}
         onManualExecution={(task) => setManualTask(task)}
-        onReactivate={handleReactivate}
         onGenerateExecution={handleGenerateExecution}
+        onDeactivate={handleDeactivateTask}
+        deactivating={deactivateCareTask.isLoading}
         onReplicate={handleReplicateTask}
       />
     </div>

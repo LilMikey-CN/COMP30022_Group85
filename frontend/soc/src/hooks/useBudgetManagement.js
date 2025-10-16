@@ -53,7 +53,7 @@ export const useBudgetManagement = () => {
     isLoading: careTasksLoading,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
 
   const careTasks = useMemo(
     () => careTasksResponse?.care_tasks ?? [],
@@ -70,6 +70,11 @@ export const useBudgetManagement = () => {
     [purchaseTasks]
   );
 
+  const purchaseTaskIdSet = useMemo(
+    () => new Set(taskIds),
+    [taskIds]
+  );
+
   const {
     data: executionsResponse,
     isLoading: executionsLoading,
@@ -81,8 +86,10 @@ export const useBudgetManagement = () => {
   });
 
   const executions = useMemo(
-    () => executionsResponse?.executions ?? [],
-    [executionsResponse]
+    () => (executionsResponse?.executions ?? []).filter(
+      (execution) => purchaseTaskIdSet.has(execution.care_task_id)
+    ),
+    [executionsResponse, purchaseTaskIdSet]
   );
 
   const budgetAnalytics = useMemo(() => buildBudgetAnalytics({

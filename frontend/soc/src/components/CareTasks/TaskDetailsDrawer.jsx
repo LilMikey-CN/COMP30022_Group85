@@ -12,6 +12,7 @@ import {
   Empty,
   Spin,
   Tooltip,
+  Popconfirm,
 } from 'antd';
 import {
   CheckOutlined,
@@ -20,6 +21,7 @@ import {
   EditOutlined,
   PlusOutlined,
   SyncOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useCareTaskDetails } from '../../hooks/useCareTasks';
@@ -100,9 +102,10 @@ const TaskDetailsDrawer = ({
   onClose,
   onEdit,
   onManualExecution,
-  onReactivate,
   onGenerateExecution,
   onReplicate,
+  onDeactivate,
+  deactivating = false,
   selectedExecution,
   onCompleteExecution,
 }) => {
@@ -331,11 +334,6 @@ const TaskDetailsDrawer = ({
         <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
           Manual execution
         </Button>
-        {task?.is_active === false && (
-          <Button type="primary" onClick={() => onReactivate?.(task)} disabled={!task}>
-            Reactivate
-          </Button>
-        )}
         {(() => {
           const isHistoryTask = task?.start_date
             ? dayjs(task.start_date).isValid() && dayjs(task.start_date).year() < dayjs().year()
@@ -398,31 +396,52 @@ const TaskDetailsDrawer = ({
                     key: 'overview',
                     label: 'Overview',
                     children: (
-                      <Descriptions
-                        column={1}
-                        size="small"
-                        labelStyle={{ fontWeight: 600 }}
-                        contentStyle={{ marginBottom: 8 }}
-                      >
-                        <Descriptions.Item label="Description">
-                          {task.description || '—'}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Category">
-                          {categoryDisplay}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Start date">
-                          {formatDate(task.start_date)}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="End date">
-                          {formatDate(task.end_date)}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Created">
-                          {formatDate(task.created_at)}
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Updated">
-                          {formatDate(task.updated_at)}
-                        </Descriptions.Item>
-                      </Descriptions>
+                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                        <Descriptions
+                          column={1}
+                          size="small"
+                          labelStyle={{ fontWeight: 600 }}
+                          contentStyle={{ marginBottom: 8 }}
+                        >
+                          <Descriptions.Item label="Description">
+                            {task.description || '—'}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Category">
+                            {categoryDisplay}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Start date">
+                            {formatDate(task.start_date)}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="End date">
+                            {formatDate(task.end_date)}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Created">
+                            {formatDate(task.created_at)}
+                          </Descriptions.Item>
+                          <Descriptions.Item label="Updated">
+                            {formatDate(task.updated_at)}
+                          </Descriptions.Item>
+                        </Descriptions>
+
+                        <Popconfirm
+                          placement="right"
+                          title="Delete care task"
+                          description="Deleting this task removes it and its schedule from views. Are you sure?"
+                          okText="Yes, delete"
+                          cancelText="Cancel"
+                          onConfirm={() => onDeactivate?.(task)}
+                          disabled={deactivating}
+                        >
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                            loading={deactivating}
+                            disabled={deactivating}
+                          >
+                            Delete care task
+                          </Button>
+                        </Popconfirm>
+                      </Space>
                     ),
                   },
                   {
