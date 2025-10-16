@@ -1,9 +1,14 @@
 export const normaliseTaskName = (value = '') =>
   value.trim().toLowerCase();
 
-export const buildCareTaskNameSet = (tasks = []) => {
+export const buildCareTaskNameSet = (tasks = [], referenceDate = new Date()) => {
   const set = new Set();
+  const currentYear = new Date(referenceDate).getFullYear();
   tasks.forEach((task) => {
+    const startDate = task?.start_date ? new Date(task.start_date) : null;
+    if (!startDate || Number.isNaN(startDate.getTime()) || startDate.getFullYear() !== currentYear) {
+      return;
+    }
     const normalised = normaliseTaskName(task?.name || '');
     if (normalised) {
       set.add(normalised);

@@ -109,7 +109,7 @@ const CareTasksPage = () => {
   );
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
-  const existingTaskNames = useMemo(() => buildCareTaskNameSet(careTasks), [careTasks]);
+  const existingTaskNames = useMemo(() => buildCareTaskNameSet(careTasks, dayjs()), [careTasks]);
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
