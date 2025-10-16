@@ -19,6 +19,13 @@ const {
   formatExecution
 } = require('./shared');
 
+const formatDateForNote = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString().substring(0, 10);
+};
+
 const registerExecutionRoutes = (router) => {
   router.post('/:id/executions', async (req, res) => {
     try {
@@ -384,8 +391,13 @@ const registerExecutionRoutes = (router) => {
 
       targetStatus = updateData.status || executionData.status;
 
-      if (targetStatus === 'DONE' && updateData.execution_date !== undefined && updateData.execution_date !== null) {
-        updateData.executed_by_uid = req.user.uid;
+      if (targetStatus === 'DONE' && updateData.execution_date !== undefined) {
+        if (updateData.execution_date) {
+          updateData.executed_by_uid = req.user.uid;
+        } else {
+          updateData.execution_date = null;
+          updateData.executed_by_uid = null;
+        }
       }
 
       await executionRef.update(updateData);
@@ -403,6 +415,7 @@ const registerExecutionRoutes = (router) => {
           : executionData.actual_cost ?? null;
         const now = new Date();
 
+        const coverageNoteDate = formatDateForNote(sharedExecutionDate);
         for (const doc of coverCandidates) {
           const coverUpdate = {
             status: 'COVERED',
@@ -410,7 +423,10 @@ const registerExecutionRoutes = (router) => {
             quantity: 1,
             updated_at: now,
             actual_cost: perExecutionCostForCover,
-            evidence_url: sharedEvidenceUrl ?? null
+            evidence_url: sharedEvidenceUrl ?? null,
+            notes: coverageNoteDate
+              ? `covered by the purchase on ${coverageNoteDate}`
+              : 'covered by the purchase'
           };
 
           if (sharedExecutionDate) {
