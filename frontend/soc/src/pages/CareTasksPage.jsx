@@ -18,6 +18,7 @@ import {
   FileSearchOutlined,
   CalendarOutlined,
   CopyOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -42,6 +43,17 @@ import {
   filterCareTasks,
   sortCareTasks
 } from '../utils/careTasks';
+import {
+  TASK_SCHEDULING_ROUTE,
+  createTaskSchedulingNavigationState
+} from '../utils/taskSchedulingNavigation';
+import {
+  CARE_TASK_DEFAULT_FILTERS,
+  CARE_TASK_DEFAULT_PAGINATION,
+  buildCareTaskDefaultPagination,
+  buildCareTaskDefaultSort,
+  isCareTaskFilterStateDefault
+} from '../utils/careTaskFilters';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -60,11 +72,11 @@ const statusTag = (task) => {
 const CareTasksPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [startRange, setStartRange] = useState(null);
-  const [yearFilter, setYearFilter] = useState('current');
+  const [searchTerm, setSearchTerm] = useState(CARE_TASK_DEFAULT_FILTERS.searchTerm);
+  const [statusFilter, setStatusFilter] = useState(CARE_TASK_DEFAULT_FILTERS.statusFilter);
+  const [typeFilter, setTypeFilter] = useState(CARE_TASK_DEFAULT_FILTERS.typeFilter);
+  const [startRange, setStartRange] = useState(CARE_TASK_DEFAULT_FILTERS.startRange);
+  const [yearFilter, setYearFilter] = useState(CARE_TASK_DEFAULT_FILTERS.yearFilter);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -72,8 +84,8 @@ const CareTasksPage = () => {
   const [manualTask, setManualTask] = useState(null);
   const [createModalInitialValues, setCreateModalInitialValues] = useState(null);
   const currentYearRef = useMemo(() => dayjs().year(), []);
-  const [sortConfig, setSortConfig] = useState({ field: 'created_at', order: 'descend' });
-  const [taskPagination, setTaskPagination] = useState({ current: 1, pageSize: 10 });
+  const [sortConfig, setSortConfig] = useState(() => buildCareTaskDefaultSort());
+  const [taskPagination, setTaskPagination] = useState(() => buildCareTaskDefaultPagination());
 
   useEffect(() => {
     if (location.state?.focusTaskId) {
@@ -228,6 +240,46 @@ const CareTasksPage = () => {
     return startDate.year() < currentYearRef;
   }, [currentYearRef]);
 
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm(CARE_TASK_DEFAULT_FILTERS.searchTerm);
+    setStatusFilter(CARE_TASK_DEFAULT_FILTERS.statusFilter);
+    setTypeFilter(CARE_TASK_DEFAULT_FILTERS.typeFilter);
+    setStartRange(CARE_TASK_DEFAULT_FILTERS.startRange);
+    setYearFilter(CARE_TASK_DEFAULT_FILTERS.yearFilter);
+    setSortConfig(buildCareTaskDefaultSort());
+    setTaskPagination((prev) => ({
+      ...prev,
+      current: CARE_TASK_DEFAULT_PAGINATION.current,
+    }));
+  }, []);
+
+  const canResetFilters = useMemo(
+    () => !isCareTaskFilterStateDefault({
+      searchTerm,
+      statusFilter,
+      typeFilter,
+      startRange,
+      yearFilter,
+      sortConfig,
+    }),
+    [
+      searchTerm,
+      statusFilter,
+      typeFilter,
+      startRange,
+      yearFilter,
+      sortConfig,
+    ]
+  );
+
+  const handleNavigateToExecutions = useCallback((task) => {
+    if (!task) {
+      return;
+    }
+    const navState = createTaskSchedulingNavigationState(task.name);
+    navigate(TASK_SCHEDULING_ROUTE, { state: navState });
+  }, [navigate]);
+
   const columns = useMemo(() => ([
     {
       title: (
@@ -240,7 +292,11 @@ const CareTasksPage = () => {
         />
       ),
       dataIndex: 'name',
-      render: (value) => value || 'Untitled task',
+      render: (value, task) => (
+        <Typography.Link onClick={() => handleNavigateToExecutions(task)}>
+          {value || 'Untitled task'}
+        </Typography.Link>
+      ),
     },
     {
       title: (
@@ -390,7 +446,7 @@ const CareTasksPage = () => {
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleReactivate, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
+  ]), [categoryMap, currencyFormatter, handleNavigateToExecutions, handleReactivate, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -449,6 +505,17 @@ const CareTasksPage = () => {
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
+                <Tooltip title="Clear search, filters, and sort">
+                  <span style={{ display: 'inline-block' }}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      onClick={handleResetFilters}
+                      disabled={!canResetFilters}
+                    >
+                      Reset filters
+                    </Button>
+                  </span>
+                </Tooltip>
                 <Select value={yearFilter} onChange={setYearFilter} style={{ width: 180 }}>
                   <Option value="all">All tasks</Option>
                   <Option value="current">Current year</Option>
