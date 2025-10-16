@@ -18,7 +18,8 @@ const {
   getTaskExecutionsCollection,
   formatCareTask,
   ensureCategoryExists,
-  generateTaskExecution
+  generateTaskExecution,
+  toDate
 } = require('./shared');
 
 const registerTaskRoutes = (router) => {
@@ -475,6 +476,58 @@ const registerTaskRoutes = (router) => {
       console.error('Error generating task execution:', error);
       const status = error.status || 500;
       res.status(status).json({ error: status === 500 ? 'Failed to generate task execution' : error.message });
+    }
+  });
+
+  router.post('/:id/generate-executions/rest', async (req, res) => {
+    try {
+      const { data: taskData } = await getOwnedCareTask(req.user.uid, req.params.id);
+
+      if (!taskData.is_active) {
+        return res.status(400).json({ error: 'Cannot generate executions for inactive task' });
+      }
+
+      const recurrenceInterval = Number(taskData.recurrence_interval_days ?? 0);
+      if (recurrenceInterval === 0) {
+        return res.status(400).json({ error: 'Cannot generate executions for one-off task' });
+      }
+
+      const currentYearEnd = endOfYear(new Date().getFullYear());
+      const endDate = taskData.end_date ? startOfDay(toDate(taskData.end_date)) : null;
+      const maxScheduledDate = endDate
+        ? new Date(Math.min(endDate.getTime(), currentYearEnd.getTime()))
+        : currentYearEnd;
+
+      const generatedIds = [];
+
+      while (true) {
+        // eslint-disable-next-line no-await-in-loop
+        const executionId = await generateTaskExecution(req.user.uid, req.params.id, taskData, {
+          maxScheduledDate
+        });
+        if (!executionId) {
+          break;
+        }
+        generatedIds.push(executionId);
+      }
+
+      if (generatedIds.length === 0) {
+        return res.json({
+          generated_count: 0,
+          execution_ids: [],
+          message: 'Schedule already up to date for the current year'
+        });
+      }
+
+      res.json({
+        generated_count: generatedIds.length,
+        execution_ids: generatedIds,
+        message: `Generated ${generatedIds.length} execution${generatedIds.length === 1 ? '' : 's'} up to ${maxScheduledDate.toISOString().substring(0, 10)}`
+      });
+    } catch (error) {
+      console.error('Error generating remaining executions:', error);
+      const status = error.status || 500;
+      res.status(status).json({ error: status === 500 ? 'Failed to generate remaining task executions' : error.message });
     }
   });
 };

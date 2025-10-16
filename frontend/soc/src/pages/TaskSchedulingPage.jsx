@@ -18,9 +18,10 @@ import {
   FileSearchOutlined,
   PlusOutlined,
   CalendarOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   useCareTasks,
   useCreateManualExecution,
@@ -47,6 +48,14 @@ import {
 } from '../utils/taskScheduling';
 import SortableColumnTitle from '../components/common/SortableColumnTitle';
 import ExecutionStatusTag from '../components/common/ExecutionStatusTag';
+import { extractTaskSchedulingPrefill } from '../utils/taskSchedulingNavigation';
+import {
+  TASK_EXECUTION_DEFAULT_FILTERS,
+  TASK_EXECUTION_DEFAULT_PAGINATION,
+  buildTaskExecutionDefaultPagination,
+  buildTaskExecutionDefaultSort,
+  isTaskExecutionFilterStateDefault
+} from '../utils/taskExecutionFilters';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -62,15 +71,14 @@ const executionStatusFilters = [
   { label: 'Partially refunded', value: 'PARTIALLY_REFUNDED' },
 ];
 
-const DEFAULT_SORT = { field: 'scheduled_date', order: 'ascend' };
-
 const TaskSchedulingPage = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [startDateRange, setStartDateRange] = useState(null);
-  const [sortConfig, setSortConfig] = useState(DEFAULT_SORT);
-  const [yearFilter, setYearFilter] = useState('current');
+  const location = useLocation();
+  const [searchTerm, setSearchTerm] = useState(TASK_EXECUTION_DEFAULT_FILTERS.searchTerm);
+  const [statusFilter, setStatusFilter] = useState(TASK_EXECUTION_DEFAULT_FILTERS.statusFilter);
+  const [startDateRange, setStartDateRange] = useState(TASK_EXECUTION_DEFAULT_FILTERS.startDateRange);
+  const [sortConfig, setSortConfig] = useState(() => buildTaskExecutionDefaultSort());
+  const [yearFilter, setYearFilter] = useState(TASK_EXECUTION_DEFAULT_FILTERS.yearFilter);
 
   const [detailsExecution, setDetailsExecution] = useState(null);
   const [executionFormState, setExecutionFormState] = useState({
@@ -88,14 +96,14 @@ const TaskSchedulingPage = () => {
   });
   const [refundModalOpen, setRefundModalOpen] = useState(false);
   const [refundExecutionTarget, setRefundExecutionTarget] = useState(null);
-  const [executionPagination, setExecutionPagination] = useState({ current: 1, pageSize: 10 });
+  const [executionPagination, setExecutionPagination] = useState(() => buildTaskExecutionDefaultPagination());
 
   const {
     data: careTasksResponse,
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
   const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
@@ -126,7 +134,50 @@ const TaskSchedulingPage = () => {
   const createManualExecution = useCreateManualExecution();
   const refundExecutionMutation = useRefundTaskExecution();
 
-  const executions = useMemo(() => executionsResponse?.executions || [], [executionsResponse]);
+  const executions = useMemo(() => {
+    const allExecutions = executionsResponse?.executions || [];
+    return allExecutions.filter((execution) => {
+      const task = careTasksById[execution.care_task_id];
+      return task && task.is_active !== false;
+    });
+  }, [careTasksById, executionsResponse]);
+
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm(TASK_EXECUTION_DEFAULT_FILTERS.searchTerm);
+    setStatusFilter(TASK_EXECUTION_DEFAULT_FILTERS.statusFilter);
+    setStartDateRange(TASK_EXECUTION_DEFAULT_FILTERS.startDateRange);
+    setYearFilter(TASK_EXECUTION_DEFAULT_FILTERS.yearFilter);
+    setSortConfig(buildTaskExecutionDefaultSort());
+    setExecutionPagination((prev) => ({
+      ...prev,
+      current: TASK_EXECUTION_DEFAULT_PAGINATION.current,
+    }));
+  }, []);
+
+  const canResetFilters = useMemo(() => !isTaskExecutionFilterStateDefault({
+    searchTerm,
+    statusFilter,
+    startDateRange,
+    yearFilter,
+    sortConfig,
+  }), [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig]);
+
+  useEffect(() => {
+    const prefill = extractTaskSchedulingPrefill(location.state);
+    if (!prefill) {
+      return;
+    }
+
+    if (typeof prefill.searchTerm === 'string') {
+      setSearchTerm(prefill.searchTerm);
+    }
+
+    if (prefill.sortConfig) {
+      setSortConfig({ ...prefill.sortConfig });
+    }
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location, navigate]);
 
   const isInitialLoading = useMemo(() => {
     const waitingForTasks = isCareTasksFetching && !careTasksResponse;
@@ -549,6 +600,17 @@ const TaskSchedulingPage = () => {
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
+                <Tooltip title="Clear search, filters, and sort">
+                  <span style={{ display: 'inline-block' }}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      onClick={handleResetFilters}
+                      disabled={!canResetFilters}
+                    >
+                      Reset filters
+                    </Button>
+                  </span>
+                </Tooltip>
                 <Select
                   value={yearFilter}
                   onChange={setYearFilter}
@@ -603,8 +665,10 @@ const TaskSchedulingPage = () => {
                     current: executionPagination.current,
                     pageSize: executionPagination.pageSize,
                     total: sortedExecutions.length,
-                    onChange: (page, pageSize) => setExecutionPagination({ current: page, pageSize }),
-                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+                    onChange: (page) =>
+                      setExecutionPagination({ current: page, pageSize: executionPagination.pageSize }),
+                    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+                    showSizeChanger: false,
                   }}
                 />
               )}

@@ -3,6 +3,10 @@ import { Modal, Form, message } from 'antd';
 import dayjs from 'dayjs';
 import CareTaskForm from './CareTaskForm';
 import { RECURRENCE_PRESETS } from './recurrencePresets';
+import {
+  clampDateToCurrentYear,
+  getCurrentYearBounds,
+} from '../../utils/careTaskDateUtils';
 
 const resolveRecurrencePreset = (interval) => {
   const preset = RECURRENCE_PRESETS.find((item) => Number(item.interval) === Number(interval));
@@ -21,6 +25,7 @@ const EditCareTaskModal = ({
   categories = [],
   categoriesLoading = false,
   onCreateCategory,
+  existingNames = null,
 }) => {
   const [form] = Form.useForm();
 
@@ -29,14 +34,19 @@ const EditCareTaskModal = ({
       const recurrencePreset = resolveRecurrencePreset(task.recurrence_interval_days);
       const categoryMatch = categories.find((category) => category.id === task.category_id);
       const categoryName = categoryMatch?.name || task.category_name || task.category_id || '';
+      const clampedStart = clampDateToCurrentYear(task.start_date ? dayjs(task.start_date) : dayjs());
+      const { end: yearEnd } = getCurrentYearBounds();
+      const isOneOff = Number(task.recurrence_interval_days ?? 0) === 0;
+      const baseEndSource = task.end_date ? dayjs(task.end_date) : clampedStart;
+      const clampedEnd = isOneOff ? null : clampDateToCurrentYear(baseEndSource) ?? clampDateToCurrentYear(yearEnd);
       form.setFieldsValue({
         name: task.name,
         description: task.description || '',
         task_type: task.task_type,
         recurrencePreset,
         recurrence_interval_days: Number(task.recurrence_interval_days ?? 0),
-        start_date: task.start_date ? dayjs(task.start_date) : undefined,
-        end_date: task.end_date ? dayjs(task.end_date) : null,
+        start_date: clampedStart,
+        end_date: clampedEnd,
         category_input: categoryName,
         category_id: task.category_id || null,
         yearly_budget: task.yearly_budget ?? null,
@@ -136,6 +146,9 @@ const EditCareTaskModal = ({
         isFrequencyEditable={false}
         isStartDateEditable={false}
         defaultTaskType="PURCHASE"
+        minimumEndDate={task?.end_date || null}
+        existingNames={existingNames}
+        currentTaskName={task?.name || ''}
       />
     </Modal>
   );

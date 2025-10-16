@@ -3,6 +3,10 @@ import { Modal, Form, message } from 'antd';
 import dayjs from 'dayjs';
 import CareTaskForm from './CareTaskForm';
 import { RECURRENCE_PRESETS } from './recurrencePresets';
+import {
+  clampDateToCurrentYear,
+  getCurrentYearBounds,
+} from '../../utils/careTaskDateUtils';
 
 const AddCareTaskModal = ({
   open,
@@ -19,6 +23,7 @@ const AddCareTaskModal = ({
   initialCategoryId = null,
   initialCategoryName = '',
   initialValues = null,
+  existingNames = null,
 }) => {
   const [form] = Form.useForm();
 
@@ -28,14 +33,22 @@ const AddCareTaskModal = ({
       const interval = initialValues?.recurrence_interval_days ?? 0;
       const matchedPreset = RECURRENCE_PRESETS.find((preset) => preset.interval === Number(interval));
       const recurrencePresetValue = matchedPreset ? matchedPreset.value : 'custom';
+      const clampedStart = clampDateToCurrentYear(
+        initialValues?.start_date ? dayjs(initialValues.start_date) : dayjs()
+      );
+      const { end: yearEnd } = getCurrentYearBounds();
+      const baseEndSource = initialValues?.end_date ? dayjs(initialValues.end_date) : clampedStart;
+      const clampedEnd = recurrencePresetValue === '0'
+        ? null
+        : clampDateToCurrentYear(baseEndSource) || clampDateToCurrentYear(yearEnd);
       const baseValues = {
         task_type: initialValues?.task_type ?? defaultTaskType,
         name: initialValues?.name ?? undefined,
         description: initialValues?.description ?? undefined,
         recurrence_interval_days: initialValues?.recurrence_interval_days ?? 0,
         recurrencePreset: recurrencePresetValue,
-        start_date: initialValues?.start_date ? dayjs(initialValues.start_date) : dayjs(),
-        end_date: initialValues?.end_date ? dayjs(initialValues.end_date) : null,
+        start_date: clampedStart,
+        end_date: clampedEnd,
         category_id: initialValues?.category_id ?? initialCategoryId ?? null,
         category_input: initialValues?.category_name ?? initialCategoryName ?? '',
         yearly_budget: initialValues?.yearly_budget ?? null,
@@ -132,6 +145,7 @@ const AddCareTaskModal = ({
         isFrequencyEditable={isFrequencyEditable}
         isStartDateEditable={isStartDateEditable}
         initialTask={initialValues}
+        existingNames={existingNames}
       />
     </Modal>
   );

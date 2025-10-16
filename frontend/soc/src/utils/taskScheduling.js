@@ -15,6 +15,9 @@ export const filterExecutions = (
 
   return executions.filter((execution) => {
     const parentTask = careTasksById[execution.care_task_id];
+    if (!parentTask || parentTask.is_active === false) {
+      return false;
+    }
     const taskName = parentTask?.name?.toLowerCase() || '';
     const notes = execution.notes?.toLowerCase() || '';
 
