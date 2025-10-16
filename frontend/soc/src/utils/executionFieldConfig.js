@@ -113,17 +113,14 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
   const fields = cloneBaseConfig();
   const isEdit = mode === 'edit';
 
+  fields[FIELD_KEYS.EXECUTION_DATE].disabled = true;
+  fields[FIELD_KEYS.EXECUTION_DATE].helperText = 'Set automatically when marked as done';
+
   if (!isEdit) {
-    fields[FIELD_KEYS.EXECUTION_DATE].disabled = status !== 'DONE';
-    fields[FIELD_KEYS.EXECUTION_DATE].helperText = status === 'DONE'
-      ? null
-      : 'Set automatically when marked as done';
     return fields;
   }
 
   fields[FIELD_KEYS.STATUS].disabled = true;
-  fields[FIELD_KEYS.EXECUTION_DATE].disabled = true;
-  fields[FIELD_KEYS.EXECUTION_DATE].helperText = 'Set automatically when marked as done';
 
   if (status === 'DONE') {
     Object.keys(fields).forEach((key) => {
@@ -143,9 +140,6 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
     fields[FIELD_KEYS.REFUND_EVIDENCE_URL].show = true;
     fields[FIELD_KEYS.REFUND_AMOUNT].disabled = false;
     fields[FIELD_KEYS.NOTES].disabled = true;
-  } else {
-    fields[FIELD_KEYS.SCHEDULED_DATE].disabled = false;
-    fields[FIELD_KEYS.EXECUTION_DATE].disabled = false;
   }
 
   return fields;
