@@ -39,9 +39,15 @@ vi.mock('../hooks/useBudgetManagement', () => ({
     },
     categoryModalState: { open: false },
     careTaskModalState: { open: false },
+    transferModalState: { open: false },
+
+    // Mutations
     createCategoryMutation: { isPending: false },
     createCareTask: { isPending: false },
     updateCareTask: { isPending: false },
+    transferBudgetMutation: { isPending: false },
+
+    // Handlers
     handleAddCategory: mockHandleAddCategory,
     handleEditCategory: vi.fn(),
     handleAddCareTask: vi.fn(),
@@ -49,8 +55,10 @@ vi.mock('../hooks/useBudgetManagement', () => ({
     handleCreateCareTask: vi.fn(),
     handleUpdateCareTask: vi.fn(),
     handleCreateCategory: vi.fn(),
+    handleTransferBudget: vi.fn(),
     closeCategoryModal: vi.fn(),
     closeCareTaskModal: vi.fn(),
+    closeTransferModal: vi.fn(),
   }),
 }))
 
@@ -81,10 +89,10 @@ describe('Budget Page', () => {
     expect(screen.getByTestId('BudgetAnalytics')).toBeInTheDocument()
   })
 
-  test('clicking "Add category" calls handleAddCategory', () => {
+  test('clicking "Create category" calls handleAddCategory', () => {
     renderWithClient(<Budget />)
 
-    const button = screen.getByRole('button', { name: /add category/i })
+    const button = screen.getByRole('button', { name: /create category/i })
     fireEvent.click(button)
     expect(mockHandleAddCategory).toHaveBeenCalledTimes(1)
   })
