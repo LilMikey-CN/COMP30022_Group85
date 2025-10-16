@@ -27,8 +27,8 @@ import {
   useCreateCareTask,
   useUpdateCareTask,
   useDeactivateCareTask,
-  useGenerateTaskExecution,
   useCreateManualExecution,
+  useGenerateRemainingExecutions,
 } from '../hooks/useCareTasks';
 import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
@@ -112,7 +112,7 @@ const CareTasksPage = () => {
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
   const deactivateCareTask = useDeactivateCareTask();
-  const generateExecution = useGenerateTaskExecution();
+  const generateRemainingExecutions = useGenerateRemainingExecutions();
   const createManualExecution = useCreateManualExecution();
 
   const filteredTasks = useMemo(() => filterCareTasks(careTasks, {
@@ -183,9 +183,9 @@ const CareTasksPage = () => {
     }
   }, [createManualExecution, manualTask]);
 
-  const handleGenerateExecution = useCallback((task) => {
-    generateExecution.mutate(task.id);
-  }, [generateExecution]);
+  const handleGenerateRemainingExecutions = useCallback((task) => {
+    generateRemainingExecutions.mutate(task.id);
+  }, [generateRemainingExecutions]);
 
   const handleDeactivateTask = useCallback(async (task) => {
     if (!task?.id) {
@@ -587,9 +587,10 @@ const CareTasksPage = () => {
         onClose={() => setSelectedTaskId(null)}
         onEdit={(task) => setEditTask(task)}
         onManualExecution={(task) => setManualTask(task)}
-        onGenerateExecution={handleGenerateExecution}
+        onGenerateRemaining={handleGenerateRemainingExecutions}
         onDeactivate={handleDeactivateTask}
         deactivating={deactivateCareTask.isLoading}
+        generatingRemaining={generateRemainingExecutions.isLoading}
         onReplicate={handleReplicateTask}
       />
     </div>

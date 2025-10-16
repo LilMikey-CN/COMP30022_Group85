@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { careTasksService } from '../services/careTasksApi';
+import { TASK_EXECUTIONS_QUERY_KEY } from './useTaskExecutions';
 
 export const CARE_TASKS_QUERY_KEY = 'careTasks';
 
@@ -148,3 +149,23 @@ export const useCreateManualExecution = () => {
   });
 };
 
+export const useGenerateRemainingExecutions = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => await careTasksService.generateRemainingExecutions(id),
+    onSuccess: (response, id) => {
+      queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY], exact: false });
+      queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
+      if (id) {
+        queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY, 'detail', id] });
+        queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', id], exact: false });
+      }
+      message.success(response?.message || 'Generated remaining executions');
+    },
+    onError: (error) => {
+      const reason = error?.message || 'Failed to generate remaining executions';
+      message.error(reason);
+    },
+  });
+};

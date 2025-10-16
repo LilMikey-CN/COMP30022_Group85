@@ -110,6 +110,8 @@ const buildMockFirestore = ({
     const store = ensureExecutionStore(task);
 
     const collection = {
+      __orderBy: null,
+      __limit: null,
       add: jest.fn(async (data) => {
         const counter = executionCounters.get(task) || (store.size + 1);
         const newId = `exec-${counter}`;
@@ -126,16 +128,39 @@ const buildMockFirestore = ({
       }),
       doc: jest.fn((id) => makeExecutionDocRef(task, id)),
       where: jest.fn(function () { return this; }),
-      orderBy: jest.fn(function () { return this; }),
-      limit: jest.fn(function () { return this; }),
+      orderBy: jest.fn(function (field, direction = 'asc') {
+        this.__orderBy = { field, direction };
+        return this;
+      }),
+      limit: jest.fn(function (value) {
+        this.__limit = value;
+        return this;
+      }),
       offset: jest.fn(function () { return this; }),
-      get: jest.fn(async () => ({
-        docs: Array.from(store.entries()).map(([id, data]) => ({
+      get: jest.fn(async function () {
+        let docs = Array.from(store.entries()).map(([id, data]) => ({
           id,
           data: () => data
-        })),
-        empty: store.size === 0
-      }))
+        }));
+
+        if (this.__orderBy?.field === 'scheduled_date') {
+          const direction = this.__orderBy.direction?.toLowerCase() === 'desc' ? -1 : 1;
+          docs = docs.sort((a, b) => {
+            const aValue = a.data()?.scheduled_date ? new Date(a.data().scheduled_date).getTime() : -Infinity;
+            const bValue = b.data()?.scheduled_date ? new Date(b.data().scheduled_date).getTime() : -Infinity;
+            return direction * (aValue - bValue);
+          });
+        }
+
+        if (typeof this.__limit === 'number') {
+          docs = docs.slice(0, this.__limit);
+        }
+
+        return {
+          docs,
+          empty: docs.length === 0
+        };
+      })
     };
 
     return collection;
@@ -603,5 +628,132 @@ describe('Care Tasks API', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toMatch(/Refunds are only supported for purchase tasks/);
+  });
+
+  it('generates remaining executions up to the task end date', async () => {
+    const start = new Date('2024-01-01T00:00:00.000Z');
+    const end = new Date('2024-05-01T00:00:00.000Z');
+    const { executionsCollection } = buildMockFirestore({
+      taskData: {
+        is_active: true,
+        start_date: start,
+        end_date: end,
+        recurrence_interval_days: 30,
+        task_type: 'GENERAL',
+        quantity_per_purchase: 1,
+        quantity_unit: '',
+        created_at: start,
+        updated_at: start
+      },
+      executionData: {
+        care_task_id: 'task-123',
+        user_id: 'test-uid',
+        status: 'TODO',
+        scheduled_date: start,
+        execution_date: null,
+        created_at: start,
+        updated_at: start,
+        quantity: 1
+      }
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/task-123/generate-executions/rest');
+
+    expect(response.status).toBe(200);
+    expect(response.body.generated_count).toBeGreaterThan(0);
+    expect(response.body.execution_ids.length).toBe(response.body.generated_count);
+    expect(executionsCollection.add).toHaveBeenCalledTimes(response.body.generated_count);
+
+    const lastCall = executionsCollection.add.mock.calls[executionsCollection.add.mock.calls.length - 1][0];
+    expect(new Date(lastCall.scheduled_date).getTime()).toBeLessThanOrEqual(end.getTime());
+  });
+
+  it('returns a no-op message when schedule is already complete', async () => {
+    const start = new Date('2024-01-01T00:00:00.000Z');
+    const end = new Date('2024-02-01T00:00:00.000Z');
+    buildMockFirestore({
+      taskData: {
+        is_active: true,
+        start_date: start,
+        end_date: end,
+        recurrence_interval_days: 30,
+        task_type: 'GENERAL',
+        quantity_per_purchase: 1,
+        quantity_unit: '',
+        created_at: start,
+        updated_at: start
+      },
+      executionData: {
+        care_task_id: 'task-123',
+        user_id: 'test-uid',
+        status: 'TODO',
+        scheduled_date: end,
+        execution_date: null,
+        created_at: start,
+        updated_at: start,
+        quantity: 1
+      },
+      extraExecutions: [
+        {
+          taskId: 'task-123',
+          id: 'exec-0',
+          data: {
+            care_task_id: 'task-123',
+            user_id: 'test-uid',
+            status: 'TODO',
+            scheduled_date: start,
+            execution_date: null,
+            created_at: start,
+            updated_at: start,
+            quantity: 1
+          }
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/task-123/generate-executions/rest');
+
+    expect(response.status).toBe(200);
+    expect(response.body.generated_count).toBe(0);
+    expect(response.body.execution_ids).toEqual([]);
+    expect(response.body.message).toMatch(/already up to date/i);
+  });
+
+  it('rejects bulk generation for one-off tasks', async () => {
+    buildMockFirestore({
+      taskData: {
+        is_active: true,
+        start_date: new Date('2024-01-01T00:00:00.000Z'),
+        end_date: null,
+        recurrence_interval_days: 0,
+        task_type: 'GENERAL'
+      }
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/task-123/generate-executions/rest');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/one-off task/i);
+  });
+
+  it('rejects bulk generation for inactive tasks', async () => {
+    buildMockFirestore({
+      taskData: {
+        is_active: false,
+        start_date: new Date('2024-01-01T00:00:00.000Z'),
+        end_date: new Date('2024-02-01T00:00:00.000Z'),
+        recurrence_interval_days: 7,
+        task_type: 'GENERAL'
+      }
+    });
+
+    const response = await request(app)
+      .post('/api/care-tasks/task-123/generate-executions/rest');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/inactive task/i);
   });
 });

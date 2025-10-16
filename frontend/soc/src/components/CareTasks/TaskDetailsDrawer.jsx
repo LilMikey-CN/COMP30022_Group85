@@ -102,10 +102,11 @@ const TaskDetailsDrawer = ({
   onClose,
   onEdit,
   onManualExecution,
-  onGenerateExecution,
+  onGenerateRemaining,
   onReplicate,
   onDeactivate,
   deactivating = false,
+  generatingRemaining = false,
   selectedExecution,
   onCompleteExecution,
 }) => {
@@ -351,8 +352,13 @@ const TaskDetailsDrawer = ({
             );
           }
           return (
-            <Button icon={<SyncOutlined />} onClick={() => onGenerateExecution?.(task)} disabled={!task}>
-              Generate next
+            <Button
+              icon={<SyncOutlined />}
+              onClick={() => onGenerateRemaining?.(task)}
+              disabled={!task || generatingRemaining}
+              loading={generatingRemaining}
+            >
+              Generate rest
             </Button>
           );
         })()}
