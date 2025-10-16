@@ -384,15 +384,16 @@ const registerExecutionRoutes = (router) => {
 
       targetStatus = updateData.status || executionData.status;
 
-      if (targetStatus === 'DONE' && updateData.execution_date === undefined) {
-        updateData.execution_date = new Date();
+      if (targetStatus === 'DONE' && updateData.execution_date !== undefined && updateData.execution_date !== null) {
         updateData.executed_by_uid = req.user.uid;
       }
 
       await executionRef.update(updateData);
 
       if (isPurchaseTask && targetStatus === 'DONE' && coverCandidates.length > 0) {
-        const sharedExecutionDate = toDate(updateData.execution_date ?? executionData.execution_date ?? new Date());
+        const sharedExecutionDate = updateData.execution_date !== undefined
+          ? (updateData.execution_date ? toDate(updateData.execution_date) : null)
+          : (executionData.execution_date ? toDate(executionData.execution_date) : null);
         const sharedEvidenceUrl = updateData.evidence_url !== undefined
           ? updateData.evidence_url
           : executionData.evidence_url ?? null;
