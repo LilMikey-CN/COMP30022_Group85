@@ -123,6 +123,8 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
 
   if (status === 'TODO') {
     hideQuantityFields();
+    fields[FIELD_KEYS.ACTUAL_COST].disabled = true;
+    fields[FIELD_KEYS.NOTES].disabled = true;
   }
 
   if (!isEdit) {
@@ -155,6 +157,9 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
       fields[key].disabled = true;
     });
     hideQuantityFields();
+  } else if (status === 'TODO') {
+    fields[FIELD_KEYS.ACTUAL_COST].disabled = true;
+    fields[FIELD_KEYS.NOTES].disabled = true;
   }
 
   return fields;
