@@ -116,6 +116,15 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
   fields[FIELD_KEYS.EXECUTION_DATE].disabled = true;
   fields[FIELD_KEYS.EXECUTION_DATE].helperText = 'Set automatically when marked as done';
 
+  const hideQuantityFields = () => {
+    fields[FIELD_KEYS.QUANTITY_PURCHASED].show = false;
+    fields[FIELD_KEYS.QUANTITY_UNIT].show = false;
+  };
+
+  if (status === 'TODO') {
+    hideQuantityFields();
+  }
+
   if (!isEdit) {
     return fields;
   }
@@ -128,6 +137,8 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
         fields[key].disabled = true;
       }
     });
+    fields[FIELD_KEYS.QUANTITY_PURCHASED].show = true;
+    fields[FIELD_KEYS.QUANTITY_UNIT].show = true;
   } else if (REFUND_STATUSES.has(status)) {
     Object.keys(fields).forEach((key) => {
       if (key !== FIELD_KEYS.REFUND_AMOUNT) {
@@ -140,6 +151,12 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
     fields[FIELD_KEYS.REFUND_EVIDENCE_URL].show = true;
     fields[FIELD_KEYS.REFUND_AMOUNT].disabled = false;
     fields[FIELD_KEYS.NOTES].disabled = true;
+    hideQuantityFields();
+  } else if (status === 'CANCELLED' || status === 'COVERED') {
+    Object.keys(fields).forEach((key) => {
+      fields[key].disabled = true;
+    });
+    hideQuantityFields();
   }
 
   return fields;

@@ -181,6 +181,8 @@ const CalendarPage = () => {
         payload.evidence_url = evidenceUrl;
       }
 
+      payload.execution_date = dayjs().format('YYYY-MM-DD');
+
       await completeExecution.mutateAsync({
         id: modalState.execution.id,
         payload,
