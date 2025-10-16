@@ -10,6 +10,7 @@ import {
   startDateDisabled,
   startDateValidationError,
 } from '../../utils/careTaskDateUtils';
+import { createUniqueNameRule } from '../../utils/careTaskNameUtils';
 
 const { Option } = Select;
 
@@ -24,6 +25,8 @@ const CareTaskForm = ({
   isStartDateEditable = true,
   defaultTaskType = 'GENERAL',
   minimumEndDate = null,
+  existingNames = null,
+  currentTaskName = '',
 }) => {
   const [categorySearch, setCategorySearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -241,7 +244,10 @@ const CareTaskForm = ({
       <Form.Item
         name="name"
         label="Task name"
-        rules={[{ required: true, message: 'Please enter a task name' }]}
+        rules={[
+          { required: true, message: 'Please enter a task name' },
+          { validator: createUniqueNameRule(existingNames, currentTaskName) },
+        ]}
       >
         <Input placeholder="e.g. Monthly wheelchair maintenance" autoFocus={mode === 'create'} />
       </Form.Item>

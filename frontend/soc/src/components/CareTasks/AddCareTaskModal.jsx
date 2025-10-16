@@ -23,6 +23,7 @@ const AddCareTaskModal = ({
   initialCategoryId = null,
   initialCategoryName = '',
   initialValues = null,
+  existingNames = null,
 }) => {
   const [form] = Form.useForm();
 
@@ -144,6 +145,7 @@ const AddCareTaskModal = ({
         isFrequencyEditable={isFrequencyEditable}
         isStartDateEditable={isStartDateEditable}
         initialTask={initialValues}
+        existingNames={existingNames}
       />
     </Modal>
   );

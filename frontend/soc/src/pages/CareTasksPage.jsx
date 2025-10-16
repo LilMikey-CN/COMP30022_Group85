@@ -54,6 +54,7 @@ import {
   buildCareTaskDefaultSort,
   isCareTaskFilterStateDefault
 } from '../utils/careTaskFilters';
+import { buildCareTaskNameSet } from '../utils/careTaskNameUtils';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -108,6 +109,7 @@ const CareTasksPage = () => {
   );
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
+  const existingTaskNames = useMemo(() => buildCareTaskNameSet(careTasks), [careTasks]);
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
@@ -560,6 +562,7 @@ const CareTasksPage = () => {
         categoriesLoading={isCategoriesFetching || createCategory.isLoading}
         onCreateCategory={handleCreateCategory}
         initialValues={createModalInitialValues}
+        existingNames={existingTaskNames}
       />
 
       <EditCareTaskModal
@@ -571,6 +574,7 @@ const CareTasksPage = () => {
         categories={categories}
         categoriesLoading={isCategoriesFetching || createCategory.isLoading}
         onCreateCategory={handleCreateCategory}
+        existingNames={existingTaskNames}
       />
 
       <ManualExecutionModal

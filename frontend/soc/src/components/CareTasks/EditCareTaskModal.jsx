@@ -25,6 +25,7 @@ const EditCareTaskModal = ({
   categories = [],
   categoriesLoading = false,
   onCreateCategory,
+  existingNames = null,
 }) => {
   const [form] = Form.useForm();
 
@@ -146,6 +147,8 @@ const EditCareTaskModal = ({
         isStartDateEditable={false}
         defaultTaskType="PURCHASE"
         minimumEndDate={task?.end_date || null}
+        existingNames={existingNames}
+        currentTaskName={task?.name || ''}
       />
     </Modal>
   );
