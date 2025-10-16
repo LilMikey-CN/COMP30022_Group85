@@ -22,7 +22,8 @@ const ManualExecutionModal = ({
   taskStartDate = null,
 }) => {
   const [form] = Form.useForm();
-  const status = initialValues?.status || 'TODO';
+  const watchedStatus = Form.useWatch(FIELD_KEYS.STATUS, form);
+  const status = watchedStatus || initialValues?.status || 'TODO';
   const fieldConfig = resolveExecutionFieldConfig({ mode, status });
 
   const resetAndClose = useCallback(() => {
