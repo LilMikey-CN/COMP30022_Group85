@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Card, Form, Input, Button, Typography, Divider, Checkbox, message } from 'antd';
 import { HeartFilled, MailOutlined, LockOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
 const { Content } = Layout;
-const { Title, Text, Link } = Typography;
+const { Title, Text, Link: TypographyLink } = Typography;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -44,8 +44,7 @@ const Login = () => {
   };
 
   const handleForgotPassword = () => {
-    // TODO: Handle forgot password
-    console.log('Forgot password clicked');
+    navigate('/forgot-password');
   };
 
   const handleSignUpRedirect = () => {
@@ -337,12 +336,12 @@ const Login = () => {
                 <Form.Item name="remember" valuePropName="checked" style={{ margin: 0 }}>
                   <Checkbox style={checkboxStyle}>Remember me</Checkbox>
                 </Form.Item>
-                <Link
+                <TypographyLink
                   onClick={handleForgotPassword}
                   style={forgotLinkStyle}
                 >
                   Forgot password?
-                </Link>
+                </TypographyLink>
               </div>
 
               <Form.Item style={{ marginBottom: 0 }}>
@@ -390,8 +389,13 @@ const Login = () => {
             <div style={termsStyle}>
               <Text style={termsTextStyle}>
                 By signing in, you agree to our{' '}
-                <Link style={termsLinkStyle}>Terms of Service</Link> and{' '}
-                <Link style={termsLinkStyle}>Privacy Policy</Link>
+                <RouterLink to="/terms-of-service" style={termsLinkStyle}>
+                  Terms of Service
+                </RouterLink>{' '}
+                and{' '}
+                <RouterLink to="/privacy-policy" style={termsLinkStyle}>
+                  Privacy Policy
+                </RouterLink>
               </Text>
             </div>
           </Card>
@@ -400,9 +404,9 @@ const Login = () => {
           <div style={helpStyle}>
             <Text style={helpTextStyle}>
               Need help getting started?{' '}
-              <Link style={helpLinkStyle}>
+              <TypographyLink style={helpLinkStyle}>
                 Contact our support team
-              </Link>
+              </TypographyLink>
             </Text>
           </div>
         </div>

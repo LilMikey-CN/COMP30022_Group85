@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Typography, Card, Row, Col, Spin, Alert, Button, Avatar } from 'antd';
-import { UserOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { UserOutlined, EditOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useUserProfile, useUpdateUserProfile } from '../hooks/useUserProfile';
 import { handleError, ERROR_TYPES } from '../utils/errorHandler.jsx';
 import AccountSettingsModal from '../components/Settings/AccountSettingsModal';
@@ -9,6 +10,7 @@ import AvatarUploadModal from '../components/Settings/AvatarUploadModal';
 const { Title, Text } = Typography;
 
 const Settings = () => {
+  const navigate = useNavigate();
   // API hooks
   const { data: userData, isLoading, error, refetch } = useUserProfile();
   const updateUserProfile = useUpdateUserProfile();
@@ -63,6 +65,10 @@ const Settings = () => {
       });
       throw error; // Re-throw to let the modal handle the error
     }
+  };
+
+  const handleNavigateChangePassword = () => {
+    navigate('/settings/change-password');
   };
 
   const InfoCard = ({ title, children, style = {}, onEdit, isLoading = false }) => (
@@ -133,12 +139,12 @@ const Settings = () => {
 
   // Show error state only for genuine server errors, not "profile not found" cases
   if (error &&
-      !error.message.includes('404') &&
-      !error.message.includes('User not authenticated') &&
-      !error.message.includes('fetch') &&
-      !error.message.includes('Profile not found') &&
-      !error.message.includes('not found') &&
-      !error.message.toLowerCase().includes('404')) {
+    !error.message.includes('404') &&
+    !error.message.includes('User not authenticated') &&
+    !error.message.includes('fetch') &&
+    !error.message.includes('Profile not found') &&
+    !error.message.includes('not found') &&
+    !error.message.toLowerCase().includes('404')) {
     return (
       <div style={{ padding: '24px' }}>
         <Alert
@@ -215,10 +221,12 @@ const Settings = () => {
                   label="Email"
                   value={userData?.email}
                 />
+                {/*
                 <InfoField
                   label="Email Verified"
                   value={userData?.emailVerified ? 'Yes' : 'No'}
                 />
+                */}
               </Col>
               <Col span={12}>
                 <InfoField
@@ -232,6 +240,58 @@ const Settings = () => {
               </Col>
             </Row>
           </InfoCard>
+        </Col>
+      </Row>
+
+      {/* Privacy Settings */}
+      <Row gutter={[20, 20]}>
+        <Col span={24}>
+          <Card
+            className="settings-info-card"
+            title={
+              <Text style={{ fontSize: '16px', fontWeight: 600, color: '#5a7a9a' }}>
+                Privacy Settings
+              </Text>
+            }
+            style={{
+              backgroundColor: '#fafbfc',
+              border: '1px solid #f0f0f0',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}
+            styles={{
+              header: {
+                backgroundColor: '#fafbfc',
+                borderBottom: '1px solid #e1e8ed'
+              },
+              body: { padding: '20px', backgroundColor: '#fafbfc' }
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Text type="secondary" style={{ fontSize: '14px' }}>
+                Keep your account secure by updating passwords and reviewing sensitive settings.
+              </Text>
+              <Button
+                type="default"
+                block
+                onClick={handleNavigateChangePassword}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '14px 16px',
+                  borderRadius: 8,
+                  borderColor: '#d9d9d9',
+                  color: '#5a7a9a',
+                  fontWeight: 500,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  background: '#ffffff'
+                }}
+              >
+                <span>Change password</span>
+                <RightOutlined />
+              </Button>
+            </div>
+          </Card>
         </Col>
       </Row>
 
