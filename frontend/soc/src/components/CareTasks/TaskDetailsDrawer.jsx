@@ -19,7 +19,6 @@ import {
   CloseCircleOutlined,
   CopyOutlined,
   EditOutlined,
-  PlusOutlined,
   SyncOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
@@ -101,7 +100,7 @@ const TaskDetailsDrawer = ({
   open,
   onClose,
   onEdit,
-  onManualExecution,
+  //onManualExecution,
   onGenerateRemaining,
   onReplicate,
   onDeactivate,
@@ -332,9 +331,12 @@ const TaskDetailsDrawer = ({
         <Button icon={<EditOutlined />} onClick={() => onEdit?.(task)} disabled={!task}>
           Edit
         </Button>
+        {/*
+          Temporaly disabled, needs more thought
         <Button icon={<PlusOutlined />} onClick={() => onManualExecution?.(task)} disabled={!task}>
           Manual execution
         </Button>
+        */}
         {(() => {
           const isHistoryTask = task?.start_date
             ? dayjs(task.start_date).isValid() && dayjs(task.start_date).year() < dayjs().year()
