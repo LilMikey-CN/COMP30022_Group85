@@ -123,6 +123,11 @@ const buildMockFirestore = ({
           get: jest.fn().mockResolvedValue({
             id: newId,
             data: () => storedData
+          }),
+          update: jest.fn(async (updateData) => {
+            const existing = store.get(newId) || {};
+            Object.assign(existing, updateData);
+            store.set(newId, existing);
           })
         };
       }),
@@ -140,7 +145,8 @@ const buildMockFirestore = ({
       get: jest.fn(async function () {
         let docs = Array.from(store.entries()).map(([id, data]) => ({
           id,
-          data: () => data
+          data: () => data,
+          ref: makeExecutionDocRef(task, id)
         }));
 
         if (this.__orderBy?.field === 'scheduled_date') {
@@ -719,6 +725,63 @@ describe('Care Tasks API', () => {
     expect(response.body.generated_count).toBe(0);
     expect(response.body.execution_ids).toEqual([]);
     expect(response.body.message).toMatch(/already up to date/i);
+  });
+
+  it('marks covered executions with a coverage note', async () => {
+    const { executionDocRefs } = buildMockFirestore({
+      taskData: {
+        is_active: true,
+        start_date: new Date('2024-01-01T00:00:00.000Z'),
+        end_date: new Date('2024-12-31T00:00:00.000Z'),
+        recurrence_interval_days: 30,
+        task_type: 'PURCHASE',
+        quantity_per_purchase: 1,
+        quantity_unit: 'box',
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      executionData: {
+        care_task_id: 'task-123',
+        user_id: 'test-uid',
+        status: 'TODO',
+        quantity: 1,
+        scheduled_date: new Date('2024-03-01T00:00:00.000Z'),
+        execution_date: null,
+        created_at: new Date(),
+        updated_at: new Date()
+      },
+      extraExecutions: [
+        {
+          taskId: 'task-123',
+          id: 'exec-2',
+          data: {
+            care_task_id: 'task-123',
+            user_id: 'test-uid',
+            status: 'TODO',
+            quantity: 1,
+            scheduled_date: new Date('2024-03-31T00:00:00.000Z'),
+            execution_date: null,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        }
+      ]
+    });
+
+    const response = await request(app)
+      .patch('/api/care-tasks/task-123/executions/exec-1')
+      .send({
+        status: 'DONE',
+        quantity: 2,
+        execution_date: '2024-04-05'
+      });
+
+    expect(response.status).toBe(200);
+
+    const coveredDocRef = executionDocRefs.get('task-123:exec-2');
+    const coveredData = await coveredDocRef.get().then((doc) => doc.data());
+    expect(coveredData.status).toBe('COVERED');
+    expect(coveredData.notes).toBe('covered by the purchase on 2024-04-05');
   });
 
   it('rejects bulk generation for one-off tasks', async () => {

@@ -403,6 +403,8 @@ const TaskSchedulingPage = () => {
         payload.evidence_url = evidenceUrl;
       }
 
+      payload.execution_date = dayjs().format('YYYY-MM-DD');
+
       await completeExecution.mutateAsync({
         id: completeModalState.execution.id,
         payload,
