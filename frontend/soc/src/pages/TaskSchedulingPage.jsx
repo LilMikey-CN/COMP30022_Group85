@@ -4,21 +4,15 @@ import {
   Card,
   Space,
   Button,
-  Input,
-  Select,
-  DatePicker,
   Table,
   Spin,
   Alert,
   Empty,
+  Badge,
   Tooltip,
 } from 'antd';
 import {
   ReloadOutlined,
-  FileSearchOutlined,
-  PlusOutlined,
-  CalendarOutlined,
-  ClearOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -39,15 +33,16 @@ import RefundExecutionModal from '../components/CareTasks/RefundExecutionModal';
 import { showErrorMessage } from '../utils/messageConfig';
 import uploadEvidenceImage from '../utils/objectStorage';
 import {
-  computeCoverableExecutions,
-  formatExecutionDate
+  computeCoverableExecutions
 } from '../utils/taskExecutions';
 import {
   filterExecutions,
-  sortExecutions as sortTaskExecutions
+  sortExecutions as sortTaskExecutions,
+  annotateExecutionsWithOverdue,
+  countOverdueExecutions,
 } from '../utils/taskScheduling';
-import SortableColumnTitle from '../components/common/SortableColumnTitle';
-import ExecutionStatusTag from '../components/common/ExecutionStatusTag';
+import TaskSchedulingFilters from '../components/TaskScheduling/TaskSchedulingFilters';
+import buildTaskSchedulingColumns from '../components/TaskScheduling/taskSchedulingColumns.jsx';
 import { extractTaskSchedulingPrefill } from '../utils/taskSchedulingNavigation';
 import {
   TASK_EXECUTION_DEFAULT_FILTERS,
@@ -58,9 +53,6 @@ import {
 } from '../utils/taskExecutionFilters';
 
 const { Title } = Typography;
-const { RangePicker } = DatePicker;
-const { Option } = Select;
-
 const executionStatusFilters = [
   { label: 'All', value: 'all' },
   { label: 'To do', value: 'TODO' },
@@ -79,6 +71,7 @@ const TaskSchedulingPage = () => {
   const [startDateRange, setStartDateRange] = useState(TASK_EXECUTION_DEFAULT_FILTERS.startDateRange);
   const [sortConfig, setSortConfig] = useState(() => buildTaskExecutionDefaultSort());
   const [yearFilter, setYearFilter] = useState(TASK_EXECUTION_DEFAULT_FILTERS.yearFilter);
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
 
   const [detailsExecution, setDetailsExecution] = useState(null);
   const [executionFormState, setExecutionFormState] = useState({
@@ -142,12 +135,24 @@ const TaskSchedulingPage = () => {
     });
   }, [careTasksById, executionsResponse]);
 
+  // Centralise overdue detection so calendar/dashboard can share the same helper.
+  const annotatedExecutions = useMemo(
+    () => annotateExecutionsWithOverdue(executions, dayjs()),
+    [executions]
+  );
+
+  const overdueCount = useMemo(
+    () => countOverdueExecutions(annotatedExecutions),
+    [annotatedExecutions]
+  );
+
   const handleResetFilters = useCallback(() => {
     setSearchTerm(TASK_EXECUTION_DEFAULT_FILTERS.searchTerm);
     setStatusFilter(TASK_EXECUTION_DEFAULT_FILTERS.statusFilter);
     setStartDateRange(TASK_EXECUTION_DEFAULT_FILTERS.startDateRange);
     setYearFilter(TASK_EXECUTION_DEFAULT_FILTERS.yearFilter);
     setSortConfig(buildTaskExecutionDefaultSort());
+    setShowOverdueOnly(false);
     setExecutionPagination((prev) => ({
       ...prev,
       current: TASK_EXECUTION_DEFAULT_PAGINATION.current,
@@ -160,7 +165,7 @@ const TaskSchedulingPage = () => {
     startDateRange,
     yearFilter,
     sortConfig,
-  }), [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig]);
+  }) || showOverdueOnly, [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig, showOverdueOnly]);
 
   useEffect(() => {
     const prefill = extractTaskSchedulingPrefill(location.state);
@@ -236,7 +241,7 @@ const TaskSchedulingPage = () => {
     closeRefundModal();
   }, [closeRefundModal, refundExecutionMutation, refundExecutionTarget]);
 
-  const filteredExecutions = useMemo(() => filterExecutions(executions, {
+  const filteredExecutions = useMemo(() => filterExecutions(annotatedExecutions, {
     searchTerm,
     startDateRange,
     careTasksById
@@ -258,7 +263,12 @@ const TaskSchedulingPage = () => {
     }
 
     return execYear < currentYear;
-  }), [careTasksById, executions, searchTerm, startDateRange, yearFilter]);
+  }).filter((execution) => {
+    if (!showOverdueOnly) {
+      return true;
+    }
+    return execution.isOverdue;
+  }), [careTasksById, annotatedExecutions, searchTerm, startDateRange, yearFilter, showOverdueOnly]);
 
   const sortedExecutions = useMemo(
     () => sortTaskExecutions(filteredExecutions, sortConfig, careTasksById),
@@ -279,7 +289,7 @@ const TaskSchedulingPage = () => {
 
   useEffect(() => {
     setExecutionPagination((prev) => ({ ...prev, current: 1 }));
-  }, [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig, executions.length]);
+  }, [searchTerm, statusFilter, startDateRange, yearFilter, sortConfig, executions.length, showOverdueOnly]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(sortedExecutions.length / executionPagination.pageSize));
@@ -419,135 +429,36 @@ const TaskSchedulingPage = () => {
     }
   };
 
-  const columns = useMemo(() => ([
-    {
-      title: (
-        <SortableColumnTitle
-          label="Task"
-          field="task_name"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      dataIndex: 'care_task_id',
-      render: (taskId) => careTasksById[taskId]?.name || 'Care task',
-    },
-    {
-      title: (
-        <SortableColumnTitle
-          label="Status"
-          field="status"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      dataIndex: 'status',
-      render: (status) => <ExecutionStatusTag status={status} />,
-    },
-    {
-      title: (
-        <SortableColumnTitle
-          label="Scheduled date"
-          field="scheduled_date"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      dataIndex: 'scheduled_date',
-      render: (date) => formatExecutionDate(date),
-    },
-    {
-      title: (
-        <SortableColumnTitle
-          label="Completed"
-          field="execution_date"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      dataIndex: 'execution_date',
-      render: (date) => formatExecutionDate(date),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => {
-        const parentTask = careTasksById[record.care_task_id];
-        const canComplete = record.status === 'TODO';
-        const loading = completeExecution.isLoading || updateExecution.isLoading;
-        const isPurchaseTask = parentTask?.task_type === 'PURCHASE';
-        const hasRecordedCost = record.actual_cost !== null && record.actual_cost !== undefined && Number(record.actual_cost) > 0;
-        const canRefund = record.status === 'DONE' && !record.refund && isPurchaseTask && hasRecordedCost;
-        const refundLoading = refundExecutionMutation.isLoading;
-        return (
-          <Space size="small">
-            <Tooltip title="View details">
-              <Button
-                size="small"
-                icon={<FileSearchOutlined />}
-                onClick={() => openDetailsDrawer(record)}
-              />
-            </Tooltip>
-            <Tooltip title="Edit execution">
-              <Button
-                size="small"
-                onClick={() => openEditExecutionForm(record)}
-                disabled={!parentTask || loading}
-              >
-                Edit
-              </Button>
-            </Tooltip>
-            {parentTask && (
-              <Tooltip title="Add execution">
-                <Button
-                  size="small"
-                  icon={<PlusOutlined />}
-                  onClick={() => openCreateExecutionForm(parentTask)}
-                  disabled={!parentTask || parentTask.is_active === false || loading}
-                />
-              </Tooltip>
-            )}
-            {canComplete && (
-              <Button
-                size="small"
-                type="primary"
-                onClick={() => openCompleteModal(record)}
-                disabled={loading}
-              >
-                Mark done
-              </Button>
-            )}
-            {canRefund && (
-              <Button
-                size="small"
-                onClick={() => openRefundModal(record)}
-                disabled={refundLoading}
-                loading={refundLoading}
-              >
-                Refund
-              </Button>
-            )}
-          </Space>
-        );
-      }
-    }
-  ]), [
-    careTasksById,
-    completeExecution.isLoading,
-    updateExecution.isLoading,
-    refundExecutionMutation.isLoading,
-    sortConfig,
-    handleSort,
-    openDetailsDrawer,
-    openEditExecutionForm,
-    openCompleteModal,
-    openCreateExecutionForm,
-    openRefundModal,
-  ]);
+  const columns = useMemo(
+    () => buildTaskSchedulingColumns({
+      careTasksById,
+      sortConfig,
+      onSort: handleSort,
+      onViewDetails: openDetailsDrawer,
+      onEdit: openEditExecutionForm,
+      onComplete: openCompleteModal,
+      onAddExecution: openCreateExecutionForm,
+      onRefund: openRefundModal,
+      mutationStates: {
+        completeLoading: completeExecution.isLoading,
+        updateLoading: updateExecution.isLoading,
+        refundLoading: refundExecutionMutation.isLoading,
+      },
+    }),
+    [
+      careTasksById,
+      sortConfig,
+      handleSort,
+      openDetailsDrawer,
+      openEditExecutionForm,
+      openCompleteModal,
+      openCreateExecutionForm,
+      openRefundModal,
+      completeExecution.isLoading,
+      updateExecution.isLoading,
+      refundExecutionMutation.isLoading,
+    ]
+  );
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -569,8 +480,21 @@ const TaskSchedulingPage = () => {
       <Space direction="vertical" style={{ width: '100%' }} size={24}>
         <Space align="center" style={{ justifyContent: 'space-between', width: '100%' }}>
           <div>
-            <Title level={2} style={{ marginBottom: 0, color: '#5a7a9a' }}>Task scheduling</Title>
-            <Typography.Text type="secondary" style={{ fontSize: 16 }}>
+            <Space align="center" size="small">
+              <Title level={2} style={{ marginBottom: 0, color: '#5a7a9a' }}>Task scheduling</Title>
+              <Tooltip title="Overdue executions awaiting action">
+                <Badge
+                  count={overdueCount}
+                  showZero
+                  overflowCount={999}
+                  color="#cf1322"
+                />
+              </Tooltip>
+            </Space>
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 16, display: 'block', marginTop: 4 }}
+            >
               Review upcoming and completed task executions. Update status, upload evidence, and generate additional runs.
             </Typography.Text>
           </div>
@@ -593,65 +517,23 @@ const TaskSchedulingPage = () => {
 
         <Card>
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Space align="center" wrap style={{ justifyContent: 'space-between', width: '100%' }}>
-              <Input
-                placeholder="Search by task or notes"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                allowClear
-                style={{ minWidth: 260, maxWidth: 360 }}
-              />
-              <Space wrap>
-                <Tooltip title="Clear search, filters, and sort">
-                  <span style={{ display: 'inline-block' }}>
-                    <Button
-                      icon={<ClearOutlined />}
-                      onClick={handleResetFilters}
-                      disabled={!canResetFilters}
-                    >
-                      Reset filters
-                    </Button>
-                  </span>
-                </Tooltip>
-                <Select
-                  value={yearFilter}
-                  onChange={setYearFilter}
-                  style={{ width: 180 }}
-                >
-                  <Option value="current">Current year</Option>
-                  <Option value="history">History</Option>
-                  <Option value="all">All time</Option>
-                </Select>
-                <Select
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                  style={{ width: 150 }}
-                >
-                  {executionStatusFilters.map((option) => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-                <RangePicker
-                  value={startDateRange}
-                  onChange={(range) => setStartDateRange(range)}
-                  allowEmpty={[true, true]}
-                  format="YYYY-MM-DD"
-                />
-                <Select
-                  value={String(executionPagination.pageSize)}
-                  style={{ width: 140 }}
-                  onChange={(value) =>
-                    setExecutionPagination({ current: 1, pageSize: Number(value) })
-                  }
-                >
-                  <Option value="10">10 / page</Option>
-                  <Option value="20">20 / page</Option>
-                  <Option value="50">50 / page</Option>
-                </Select>
-              </Space>
-            </Space>
+            <TaskSchedulingFilters
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              showOverdueOnly={showOverdueOnly}
+              onToggleOverdue={setShowOverdueOnly}
+              yearFilter={yearFilter}
+              onYearFilterChange={setYearFilter}
+              statusFilter={statusFilter}
+              statusOptions={executionStatusFilters}
+              onStatusFilterChange={setStatusFilter}
+              startDateRange={startDateRange}
+              onDateRangeChange={setStartDateRange}
+              pageSize={executionPagination.pageSize}
+              onPageSizeChange={(value) => setExecutionPagination({ current: 1, pageSize: value })}
+              canResetFilters={canResetFilters}
+              onResetFilters={handleResetFilters}
+            />
 
             <Spin spinning={isExecutionsLoading}>
               {sortedExecutions.length === 0 ? (
@@ -663,6 +545,7 @@ const TaskSchedulingPage = () => {
                   rowKey="id"
                   size="middle"
                   scroll={{ x: true }}
+                  rowClassName={(record) => (record.isOverdue ? 'task-execution-row--overdue' : '')}
                   pagination={{
                     current: executionPagination.current,
                     pageSize: executionPagination.pageSize,

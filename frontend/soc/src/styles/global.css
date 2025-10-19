@@ -236,6 +236,15 @@ body {
   border-color: #ff4d4f !important;
 }
 
+/* Task scheduling overdue rows */
+.task-execution-row--overdue > td {
+  background-color: #fff2f0 !important;
+}
+
+.task-execution-row--overdue:hover > td {
+  background-color: #ffe2d9 !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .ant-layout-sider {

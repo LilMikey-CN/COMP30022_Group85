@@ -79,3 +79,28 @@ export const sortExecutions = (executions = [], sortConfig, careTasksById = {}) 
     return valueA > valueB ? -1 : 1;
   });
 };
+
+// Adds an `isOverdue` flag to executions so UI layers can highlight outstanding work.
+export const annotateExecutionsWithOverdue = (executions = [], todayInput) => {
+  const today = todayInput ? dayjs(todayInput).startOf('day') : dayjs().startOf('day');
+
+  return executions.map((execution) => {
+    const scheduled = execution?.scheduled_date ? dayjs(execution.scheduled_date) : null;
+    const isOverdue =
+      execution?.status === 'TODO' &&
+      scheduled?.isValid() &&
+      scheduled.isBefore(today, 'day');
+
+    if (execution?.isOverdue === isOverdue) {
+      return execution;
+    }
+
+    return {
+      ...execution,
+      isOverdue
+    };
+  });
+};
+
+export const countOverdueExecutions = (executions = []) =>
+  executions.reduce((total, execution) => (execution?.isOverdue ? total + 1 : total), 0);
