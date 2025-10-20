@@ -5,6 +5,7 @@ import { TASK_EXECUTIONS_QUERY_KEY } from './useTaskExecutions';
 
 export const CARE_TASKS_QUERY_KEY = 'careTasks';
 
+// Fetch the current user's care tasks with optional query params (pagination, filters).
 export const useCareTasks = (params = {}) => {
   return useQuery({
     queryKey: [CARE_TASKS_QUERY_KEY, params],
@@ -28,6 +29,7 @@ export const useCareTasks = (params = {}) => {
   });
 };
 
+// Fetch a specific care task document and keep it cached for detail views.
 export const useCareTaskDetails = (taskId, options = {}) => {
   return useQuery({
     queryKey: [CARE_TASKS_QUERY_KEY, 'detail', taskId],
@@ -38,6 +40,7 @@ export const useCareTaskDetails = (taskId, options = {}) => {
   });
 };
 
+// Create a new care task and refresh all task lists when the mutation succeeds.
 export const useCreateCareTask = () => {
   const queryClient = useQueryClient();
 
@@ -54,6 +57,7 @@ export const useCreateCareTask = () => {
   });
 };
 
+// Patch an existing care task and invalidate both the list and the task detail caches.
 export const useUpdateCareTask = () => {
   const queryClient = useQueryClient();
 
@@ -73,6 +77,7 @@ export const useUpdateCareTask = () => {
   });
 };
 
+// Mark a care task inactive and refresh the relevant caches.
 export const useDeactivateCareTask = () => {
   const queryClient = useQueryClient();
 
@@ -92,6 +97,7 @@ export const useDeactivateCareTask = () => {
   });
 };
 
+// Reactivate a previously deactivated care task and refresh cached views.
 export const useReactivateCareTask = () => {
   const queryClient = useQueryClient();
 
@@ -111,6 +117,7 @@ export const useReactivateCareTask = () => {
   });
 };
 
+// Request the backend to generate the next execution for a task and refresh the task/exec caches.
 export const useGenerateTaskExecution = () => {
   const queryClient = useQueryClient();
 
@@ -120,6 +127,7 @@ export const useGenerateTaskExecution = () => {
       queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY], exact: false });
       if (id) {
         queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY, 'detail', id] });
+        queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', id], exact: false });
       }
       message.success(response?.message || 'Next execution generated');
     },
@@ -130,6 +138,7 @@ export const useGenerateTaskExecution = () => {
   });
 };
 
+// Create a manual task execution entry and refresh the owning task's caches.
 export const useCreateManualExecution = () => {
   const queryClient = useQueryClient();
 
@@ -139,6 +148,7 @@ export const useCreateManualExecution = () => {
       queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY], exact: false });
       if (variables?.taskId) {
         queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY, 'detail', variables.taskId] });
+        queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', variables.taskId], exact: false });
       }
       message.success('Task execution created');
     },
@@ -149,6 +159,7 @@ export const useCreateManualExecution = () => {
   });
 };
 
+// Generate all remaining executions for a task and refresh the owning task's caches.
 export const useGenerateRemainingExecutions = () => {
   const queryClient = useQueryClient();
 
@@ -156,7 +167,6 @@ export const useGenerateRemainingExecutions = () => {
     mutationFn: async (id) => await careTasksService.generateRemainingExecutions(id),
     onSuccess: (response, id) => {
       queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY], exact: false });
-      queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY], exact: false });
       if (id) {
         queryClient.invalidateQueries({ queryKey: [CARE_TASKS_QUERY_KEY, 'detail', id] });
         queryClient.invalidateQueries({ queryKey: [TASK_EXECUTIONS_QUERY_KEY, 'task', id], exact: false });
@@ -170,6 +180,7 @@ export const useGenerateRemainingExecutions = () => {
   });
 };
 
+// Transfer budget between two tasks and refresh the core task list.
 export const useTransferCareTaskBudget = () => {
   const queryClient = useQueryClient();
 

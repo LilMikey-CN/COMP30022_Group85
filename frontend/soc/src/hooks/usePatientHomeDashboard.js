@@ -10,9 +10,15 @@ import {
   mapExecutionsToListItems,
   buildBudgetSummary,
 } from '../utils/patientHome';
+import { API_LIMITS } from '../utils/constants';
 
-const CARE_TASKS_QUERY_PARAMS = { is_active: 'true', limit: 500, offset: 0 };
-const EXECUTION_QUERY_PARAMS = { limit: 500, offset: 0 };
+const {
+  careTasks: CARE_TASKS_FETCH_LIMIT,
+  executions: TASK_EXECUTIONS_FETCH_LIMIT
+} = API_LIMITS;
+
+const CARE_TASKS_QUERY_PARAMS = { is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 };
+const EXECUTION_QUERY_PARAMS = { limit: TASK_EXECUTIONS_FETCH_LIMIT, offset: 0 };
 
 const buildCareTaskMap = (careTasks = []) => {
   return careTasks.reduce((acc, task) => {

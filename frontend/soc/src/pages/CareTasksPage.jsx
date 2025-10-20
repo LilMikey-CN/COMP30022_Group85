@@ -55,6 +55,9 @@ import {
   isCareTaskFilterStateDefault
 } from '../utils/careTaskFilters';
 import { buildCareTaskNameSet } from '../utils/careTaskNameUtils';
+import { API_LIMITS } from '../utils/constants';
+
+const { careTasks: CARE_TASKS_FETCH_LIMIT } = API_LIMITS;
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -89,7 +92,7 @@ const CareTasksPage = () => {
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 });
   const {
     data: categoriesResponse,
     isFetching: isCategoriesFetching,
