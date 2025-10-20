@@ -144,6 +144,52 @@ const TaskSchedulingPage = () => {
     [executions]
   );
 
+  const buildExecutionSnapshot = useCallback((execution) => {
+    if (!execution) {
+      return null;
+    }
+
+    const {
+      id,
+      status,
+      scheduled_date,
+      execution_date,
+      created_at,
+      updated_at,
+      actual_cost,
+      notes,
+      quantity,
+      quantity_purchased,
+      quantity_unit,
+      evidence_url,
+      refund
+    } = execution;
+
+    const refundSnapshot = refund ? {
+      refund_amount: refund.refund_amount ?? null,
+      refund_date: refund.refund_date ?? null,
+      refund_reason: refund.refund_reason ?? null,
+      refund_evidence_url: refund.refund_evidence_url ?? null,
+      updated_at: refund.updated_at ?? null,
+    } : null;
+
+    return JSON.stringify({
+      id,
+      status,
+      scheduled_date,
+      execution_date,
+      created_at,
+      updated_at,
+      actual_cost,
+      notes,
+      quantity,
+      quantity_purchased,
+      quantity_unit,
+      evidence_url,
+      refund: refundSnapshot,
+    });
+  }, []);
+
   const overdueCount = useMemo(
     () => countOverdueExecutions(annotatedExecutions),
     [annotatedExecutions]
@@ -197,28 +243,40 @@ const TaskSchedulingPage = () => {
     if (!detailsExecution) {
       return;
     }
-    const latest = executions.find(exec => exec.id === detailsExecution.id);
-    if (latest && latest !== detailsExecution) {
-      setDetailsExecution(latest);
-    }
+
+    const latest = executions.find((exec) => exec.id === detailsExecution.id);
     if (!latest) {
       setDetailsExecution(null);
+      return;
     }
-  }, [executions, detailsExecution]);
+
+    const currentSnapshot = buildExecutionSnapshot(detailsExecution);
+    const latestSnapshot = buildExecutionSnapshot(latest);
+
+    if (latestSnapshot !== currentSnapshot) {
+      setDetailsExecution(latest);
+    }
+  }, [executions, detailsExecution, buildExecutionSnapshot]);
 
   useEffect(() => {
     if (!refundExecutionTarget) {
       return;
     }
-    const latest = executions.find(exec => exec.id === refundExecutionTarget.id);
-    if (latest && latest !== refundExecutionTarget) {
-      setRefundExecutionTarget(latest);
+
+    const latest = executions.find((exec) => exec.id === refundExecutionTarget.id);
+    if (latest) {
+      const currentSnapshot = buildExecutionSnapshot(refundExecutionTarget);
+      const latestSnapshot = buildExecutionSnapshot(latest);
+
+      if (latestSnapshot !== currentSnapshot) {
+        setRefundExecutionTarget(latest);
+      }
+      return;
     }
-    if (!latest) {
-      setRefundExecutionTarget(null);
-      setRefundModalOpen(false);
-    }
-  }, [executions, refundExecutionTarget]);
+
+    setRefundExecutionTarget(null);
+    setRefundModalOpen(false);
+  }, [executions, refundExecutionTarget, buildExecutionSnapshot]);
 
   const openRefundModal = useCallback((execution) => {
     setRefundExecutionTarget(execution);
