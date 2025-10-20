@@ -26,6 +26,9 @@ import {
   useUpdateTaskExecution,
   useRefundTaskExecution,
 } from '../hooks/useTaskExecutions';
+import { API_LIMITS } from '../utils/constants';
+
+const { careTasks: CARE_TASKS_FETCH_LIMIT, executions: TASK_EXECUTIONS_FETCH_LIMIT } = API_LIMITS;
 import ManualExecutionModal from '../components/CareTasks/ManualExecutionModal';
 import CompleteExecutionModal from '../components/CareTasks/CompleteExecutionModal';
 import ExecutionDetailsDrawer from '../components/CareTasks/ExecutionDetailsDrawer';
@@ -96,7 +99,7 @@ const TaskSchedulingPage = () => {
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'true', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 });
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
   const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
@@ -106,7 +109,7 @@ const TaskSchedulingPage = () => {
   const taskIds = useMemo(() => careTasks.map((task) => task.id).filter(Boolean), [careTasks]);
 
   const executionQueryParams = useMemo(() => ({
-    limit: 300,
+    limit: TASK_EXECUTIONS_FETCH_LIMIT,
     offset: 0,
     status: statusFilter !== 'all' ? statusFilter : undefined,
   }), [statusFilter]);
@@ -349,6 +352,7 @@ const TaskSchedulingPage = () => {
     });
   }, [careTasksById]);
 
+  // Persist manual execution changes (create/edit) then close the modal.
   const handleManualSubmit = useCallback(async (payload) => {
     if (executionFormState.mode === 'edit' && executionFormState.execution) {
       await updateExecution.mutateAsync({
@@ -364,10 +368,9 @@ const TaskSchedulingPage = () => {
     }
 
     handleExecutionFormClose();
-    await refetchExecutions();
-    await refetchCareTasks();
-  }, [executionFormState, updateExecution, createManualExecution, handleExecutionFormClose, refetchExecutions, refetchCareTasks]);
+  }, [executionFormState, updateExecution, createManualExecution, handleExecutionFormClose]);
 
+  // Soft-cancel an execution directly from table or drawer actions.
   const handleCancelExecution = useCallback((execution) => {
     updateExecution.mutate({
       id: execution.id,
@@ -384,6 +387,7 @@ const TaskSchedulingPage = () => {
     setDetailsExecution(null);
   }, []);
 
+  // Complete an execution, optionally uploading evidence, and close the modal.
   const handleCompleteSubmit = async ({ actualCost, notes, file, quantity }) => {
     if (!completeModalState.execution) {
       return;
@@ -422,8 +426,6 @@ const TaskSchedulingPage = () => {
       });
 
       setCompleteModalState({ open: false, task: null, execution: null, coverableCount: 0 });
-      await refetchExecutions();
-      await refetchCareTasks();
     } catch (error) {
       showErrorMessage(error.message || 'Failed to complete task execution');
     }

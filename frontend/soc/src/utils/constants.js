@@ -61,3 +61,10 @@ export const USER_ROLES = {
   RECEPTIONIST: 'receptionist',
   PATIENT: 'patient'
 };
+
+// API pagination limits used across data-fetching hooks.
+export const API_LIMITS = {
+  careTasks: 500,
+  executions: 500,
+  budgetExecutions: 200
+};
