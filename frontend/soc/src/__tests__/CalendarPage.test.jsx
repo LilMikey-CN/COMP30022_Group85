@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import dayjs from 'dayjs'
 import CalendarPage from '../pages/CalendarPage'
@@ -98,9 +98,6 @@ describe('CalendarPage', () => {
 
   it('calendar cells display dot indicators when statusByDate includes entries', async () => {
     renderCalendar()
-
-    const dots = await screen.findAllByRole('img', { hidden: true })
-      .catch(() => [])
 
     const dotElements = document.querySelectorAll('span[style*="width: 8px"]')
     expect(dotElements.length).toBeGreaterThan(0)

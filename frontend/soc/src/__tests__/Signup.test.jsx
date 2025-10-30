@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, getByRole } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, vi } from 'vitest'
 import Signup from '../pages/Signup'
