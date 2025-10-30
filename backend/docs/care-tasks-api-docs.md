@@ -186,6 +186,15 @@ Creates the next scheduled execution for recurring tasks.
 - Returns `400` if the task is inactive or one-off (`recurrence_interval_days = 0`).
 - Returns `200` with `execution_id: null` when the task end date is reached.
 
+**POST** `/api/care-tasks/{taskId}/generate-executions/rest`
+
+Fills in all remaining executions between the task’s start date and end date (capped at the current calendar year). Intended for scenarios where the end date has been extended.
+
+#### Behaviour
+- Returns `400` if the task is inactive or one-off.
+- Generates sequential executions using the stored recurrence interval until the schedule reaches the earlier of the task end date and 31 December of the current year.
+- Responds with `generated_count`, `execution_ids`, and a human-readable `message`. When no executions are created, the message explains that the schedule is already up to date.
+
 ---
 
 ### 7. Manual Execution Management

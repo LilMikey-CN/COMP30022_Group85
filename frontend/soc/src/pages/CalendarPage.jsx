@@ -29,6 +29,9 @@ import {
   sortExecutionsByTaskThenDate
 } from '../utils/taskExecutions';
 import styles from './CalendarPage.module.css';
+import { API_LIMITS } from '../utils/constants';
+
+const { careTasks: CARE_TASKS_FETCH_LIMIT, executions: TASK_EXECUTIONS_FETCH_LIMIT } = API_LIMITS;
 
 const { Title, Text } = Typography;
 
@@ -56,7 +59,7 @@ const CalendarPage = () => {
     isFetching: careTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 });
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
   const careTasksById = useMemo(() => careTasks.reduce((acc, task) => {
@@ -79,13 +82,16 @@ const CalendarPage = () => {
     refetch: refetchExecutions,
   } = useTaskExecutions({
     taskIds,
-    params: { limit: 500, offset: 0 }
+    params: { limit: TASK_EXECUTIONS_FETCH_LIMIT, offset: 0 }
   });
 
-  const executions = useMemo(
-    () => executionsResponse?.executions || [],
-    [executionsResponse]
-  );
+  const executions = useMemo(() => {
+    const allExecutions = executionsResponse?.executions || [];
+    return allExecutions.filter((execution) => {
+      const parentTask = careTasksById[execution.care_task_id];
+      return parentTask && parentTask.is_active !== false;
+    });
+  }, [careTasksById, executionsResponse]);
 
   const executionsByDate = useMemo(
     () => groupExecutionsByDate(executions),
@@ -177,6 +183,8 @@ const CalendarPage = () => {
       if (evidenceUrl) {
         payload.evidence_url = evidenceUrl;
       }
+
+      payload.execution_date = dayjs().format('YYYY-MM-DD');
 
       await completeExecution.mutateAsync({
         id: modalState.execution.id,

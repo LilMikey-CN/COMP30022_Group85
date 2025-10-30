@@ -18,6 +18,7 @@ import {
   FileSearchOutlined,
   CalendarOutlined,
   CopyOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -25,9 +26,9 @@ import {
   useCareTasks,
   useCreateCareTask,
   useUpdateCareTask,
-  useReactivateCareTask,
-  useGenerateTaskExecution,
+  useDeactivateCareTask,
   useCreateManualExecution,
+  useGenerateRemainingExecutions,
 } from '../hooks/useCareTasks';
 import { useCategories, useCreateCategory } from '../hooks/useCategories';
 import TaskDetailsDrawer from '../components/CareTasks/TaskDetailsDrawer';
@@ -42,29 +43,33 @@ import {
   filterCareTasks,
   sortCareTasks
 } from '../utils/careTasks';
+import {
+  TASK_SCHEDULING_ROUTE,
+  createTaskSchedulingNavigationState
+} from '../utils/taskSchedulingNavigation';
+import {
+  CARE_TASK_DEFAULT_FILTERS,
+  CARE_TASK_DEFAULT_PAGINATION,
+  buildCareTaskDefaultPagination,
+  buildCareTaskDefaultSort,
+  isCareTaskFilterStateDefault
+} from '../utils/careTaskFilters';
+import { buildCareTaskNameSet } from '../utils/careTaskNameUtils';
+import { API_LIMITS } from '../utils/constants';
+
+const { careTasks: CARE_TASKS_FETCH_LIMIT } = API_LIMITS;
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
-const statusTag = (task) => {
-  if (task.is_active === false) {
-    return <Tag color="default">Inactive</Tag>;
-  }
-  if (task.end_date && dayjs(task.end_date).isBefore(dayjs(), 'day')) {
-    return <Tag color="gold">Ended</Tag>;
-  }
-  return <Tag color="green">Active</Tag>;
-};
-
 const CareTasksPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [startRange, setStartRange] = useState(null);
-  const [yearFilter, setYearFilter] = useState('current');
+  const [searchTerm, setSearchTerm] = useState(CARE_TASK_DEFAULT_FILTERS.searchTerm);
+  const [typeFilter, setTypeFilter] = useState(CARE_TASK_DEFAULT_FILTERS.typeFilter);
+  const [startRange, setStartRange] = useState(CARE_TASK_DEFAULT_FILTERS.startRange);
+  const [yearFilter, setYearFilter] = useState(CARE_TASK_DEFAULT_FILTERS.yearFilter);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -72,8 +77,8 @@ const CareTasksPage = () => {
   const [manualTask, setManualTask] = useState(null);
   const [createModalInitialValues, setCreateModalInitialValues] = useState(null);
   const currentYearRef = useMemo(() => dayjs().year(), []);
-  const [sortConfig, setSortConfig] = useState({ field: 'created_at', order: 'descend' });
-  const [taskPagination, setTaskPagination] = useState({ current: 1, pageSize: 10 });
+  const [sortConfig, setSortConfig] = useState(() => buildCareTaskDefaultSort());
+  const [taskPagination, setTaskPagination] = useState(() => buildCareTaskDefaultPagination());
 
   useEffect(() => {
     if (location.state?.focusTaskId) {
@@ -87,7 +92,7 @@ const CareTasksPage = () => {
     isFetching: isCareTasksFetching,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 });
   const {
     data: categoriesResponse,
     isFetching: isCategoriesFetching,
@@ -107,16 +112,16 @@ const CareTasksPage = () => {
   );
 
   const careTasks = useMemo(() => careTasksResponse?.care_tasks || [], [careTasksResponse]);
+  const existingTaskNames = useMemo(() => buildCareTaskNameSet(careTasks, dayjs()), [careTasks]);
 
   const createCareTask = useCreateCareTask();
   const updateCareTask = useUpdateCareTask();
-  const reactivateCareTask = useReactivateCareTask();
-  const generateExecution = useGenerateTaskExecution();
+  const deactivateCareTask = useDeactivateCareTask();
+  const generateRemainingExecutions = useGenerateRemainingExecutions();
   const createManualExecution = useCreateManualExecution();
 
   const filteredTasks = useMemo(() => filterCareTasks(careTasks, {
     searchTerm,
-    statusFilter,
     typeFilter,
     startRange
   }).filter((task) => {
@@ -133,7 +138,7 @@ const CareTasksPage = () => {
       return taskYear === currentYear;
     }
     return taskYear < currentYear;
-  }), [careTasks, searchTerm, statusFilter, typeFilter, startRange, yearFilter]);
+  }), [careTasks, searchTerm, typeFilter, startRange, yearFilter]);
 
   const sortedTasks = useMemo(
     () => sortCareTasks(filteredTasks, sortConfig, categoryMap),
@@ -154,7 +159,7 @@ const CareTasksPage = () => {
 
   useEffect(() => {
     setTaskPagination((prev) => ({ ...prev, current: 1 }));
-  }, [searchTerm, statusFilter, typeFilter, startRange, yearFilter, sortConfig, careTasks.length]);
+  }, [searchTerm, typeFilter, startRange, yearFilter, sortConfig, careTasks.length]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(sortedTasks.length / taskPagination.pageSize));
@@ -173,10 +178,6 @@ const CareTasksPage = () => {
     await refetchCareTasks();
   }, [updateCareTask, refetchCareTasks]);
 
-  const handleReactivate = useCallback((task) => {
-    reactivateCareTask.mutate(task.id);
-  }, [reactivateCareTask]);
-
   const handleManualSubmit = useCallback(async (payload) => {
     if (!manualTask) return;
     try {
@@ -187,9 +188,22 @@ const CareTasksPage = () => {
     }
   }, [createManualExecution, manualTask]);
 
-  const handleGenerateExecution = useCallback((task) => {
-    generateExecution.mutate(task.id);
-  }, [generateExecution]);
+  const handleGenerateRemainingExecutions = useCallback((task) => {
+    generateRemainingExecutions.mutate(task.id);
+  }, [generateRemainingExecutions]);
+
+  const handleDeactivateTask = useCallback(async (task) => {
+    if (!task?.id) {
+      return;
+    }
+    try {
+      await deactivateCareTask.mutateAsync(task.id);
+      setSelectedTaskId(null);
+      await refetchCareTasks();
+    } catch (error) {
+      showErrorMessage(error.message || 'Failed to deactivate care task');
+    }
+  }, [deactivateCareTask, refetchCareTasks]);
 
   const handleReplicateTask = useCallback((task) => {
     if (!task) {
@@ -228,6 +242,43 @@ const CareTasksPage = () => {
     return startDate.year() < currentYearRef;
   }, [currentYearRef]);
 
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm(CARE_TASK_DEFAULT_FILTERS.searchTerm);
+    setTypeFilter(CARE_TASK_DEFAULT_FILTERS.typeFilter);
+    setStartRange(CARE_TASK_DEFAULT_FILTERS.startRange);
+    setYearFilter(CARE_TASK_DEFAULT_FILTERS.yearFilter);
+    setSortConfig(buildCareTaskDefaultSort());
+    setTaskPagination((prev) => ({
+      ...prev,
+      current: CARE_TASK_DEFAULT_PAGINATION.current,
+    }));
+  }, []);
+
+  const canResetFilters = useMemo(
+    () => !isCareTaskFilterStateDefault({
+      searchTerm,
+      typeFilter,
+      startRange,
+      yearFilter,
+      sortConfig,
+    }),
+    [
+      searchTerm,
+      typeFilter,
+      startRange,
+      yearFilter,
+      sortConfig,
+    ]
+  );
+
+  const handleNavigateToExecutions = useCallback((task) => {
+    if (!task) {
+      return;
+    }
+    const navState = createTaskSchedulingNavigationState(task.name);
+    navigate(TASK_SCHEDULING_ROUTE, { state: navState });
+  }, [navigate]);
+
   const columns = useMemo(() => ([
     {
       title: (
@@ -240,7 +291,11 @@ const CareTasksPage = () => {
         />
       ),
       dataIndex: 'name',
-      render: (value) => value || 'Untitled task',
+      render: (value, task) => (
+        <Typography.Link onClick={() => handleNavigateToExecutions(task)}>
+          {value || 'Untitled task'}
+        </Typography.Link>
+      ),
     },
     {
       title: (
@@ -337,19 +392,6 @@ const CareTasksPage = () => {
       render: (value) => (value ? dayjs(value).format('DD MMM YYYY') : '—'),
     },
     {
-      title: (
-        <SortableColumnTitle
-          label="Status"
-          field="status"
-          activeField={sortConfig.field}
-          order={sortConfig.order}
-          onToggle={handleSort}
-        />
-      ),
-      key: 'status',
-      render: (_, task) => statusTag(task),
-    },
-    {
       title: 'Actions',
       key: 'actions',
       render: (_, task) => (
@@ -380,17 +422,10 @@ const CareTasksPage = () => {
               </Button>
             </Tooltip>
           )}
-          {task.is_active === false && (
-            <Tooltip title="Reactivate task">
-              <Button size="small" type="primary" ghost onClick={() => handleReactivate(task)}>
-                Reactivate
-              </Button>
-            </Tooltip>
-          )}
         </Space>
       )
     }
-  ]), [categoryMap, currencyFormatter, handleReactivate, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
+  ]), [categoryMap, currencyFormatter, handleNavigateToExecutions, handleReplicateTask, handleSort, isHistoryTask, sortConfig]);
 
   const handleRefresh = () => {
     refetchCareTasks();
@@ -449,15 +484,21 @@ const CareTasksPage = () => {
                 style={{ minWidth: 260, maxWidth: 360 }}
               />
               <Space wrap>
+                <Tooltip title="Clear search, filters, and sort">
+                  <span style={{ display: 'inline-block' }}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      onClick={handleResetFilters}
+                      disabled={!canResetFilters}
+                    >
+                      Reset filters
+                    </Button>
+                  </span>
+                </Tooltip>
                 <Select value={yearFilter} onChange={setYearFilter} style={{ width: 180 }}>
                   <Option value="all">All tasks</Option>
                   <Option value="current">Current year</Option>
                   <Option value="history">History</Option>
-                </Select>
-                <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 150 }}>
-                  <Option value="all">All statuses</Option>
-                  <Option value="active">Active</Option>
-                  <Option value="inactive">Inactive</Option>
                 </Select>
                 <Select value={typeFilter} onChange={setTypeFilter} style={{ width: 150 }}>
                   <Option value="all">All types</Option>
@@ -497,7 +538,8 @@ const CareTasksPage = () => {
               pageSize: taskPagination.pageSize,
               total: sortedTasks.length,
               onChange: (page, pageSize) => setTaskPagination({ current: page, pageSize }),
-              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total}`,
+              showSizeChanger: false,
             }}
             locale={{
               emptyText: (
@@ -523,6 +565,7 @@ const CareTasksPage = () => {
         categoriesLoading={isCategoriesFetching || createCategory.isLoading}
         onCreateCategory={handleCreateCategory}
         initialValues={createModalInitialValues}
+        existingNames={existingTaskNames}
       />
 
       <EditCareTaskModal
@@ -534,6 +577,7 @@ const CareTasksPage = () => {
         categories={categories}
         categoriesLoading={isCategoriesFetching || createCategory.isLoading}
         onCreateCategory={handleCreateCategory}
+        existingNames={existingTaskNames}
       />
 
       <ManualExecutionModal
@@ -550,8 +594,10 @@ const CareTasksPage = () => {
         onClose={() => setSelectedTaskId(null)}
         onEdit={(task) => setEditTask(task)}
         onManualExecution={(task) => setManualTask(task)}
-        onReactivate={handleReactivate}
-        onGenerateExecution={handleGenerateExecution}
+        onGenerateRemaining={handleGenerateRemainingExecutions}
+        onDeactivate={handleDeactivateTask}
+        deactivating={deactivateCareTask.isLoading}
+        generatingRemaining={generateRemainingExecutions.isLoading}
         onReplicate={handleReplicateTask}
       />
     </div>

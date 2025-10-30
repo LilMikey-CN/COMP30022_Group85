@@ -113,6 +113,20 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
   const fields = cloneBaseConfig();
   const isEdit = mode === 'edit';
 
+  fields[FIELD_KEYS.EXECUTION_DATE].disabled = true;
+  fields[FIELD_KEYS.EXECUTION_DATE].helperText = 'Set automatically when marked as done';
+
+  const hideQuantityFields = () => {
+    fields[FIELD_KEYS.QUANTITY_PURCHASED].show = false;
+    fields[FIELD_KEYS.QUANTITY_UNIT].show = false;
+  };
+
+  if (status === 'TODO') {
+    hideQuantityFields();
+    fields[FIELD_KEYS.ACTUAL_COST].disabled = true;
+    fields[FIELD_KEYS.NOTES].disabled = true;
+  }
+
   if (!isEdit) {
     return fields;
   }
@@ -121,10 +135,10 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
 
   if (status === 'DONE') {
     Object.keys(fields).forEach((key) => {
-      if (key !== FIELD_KEYS.ACTUAL_COST && key !== FIELD_KEYS.NOTES) {
-        fields[key].disabled = true;
-      }
+      fields[key].disabled = true;
     });
+    fields[FIELD_KEYS.QUANTITY_PURCHASED].show = true;
+    fields[FIELD_KEYS.QUANTITY_UNIT].show = true;
   } else if (REFUND_STATUSES.has(status)) {
     Object.keys(fields).forEach((key) => {
       if (key !== FIELD_KEYS.REFUND_AMOUNT) {
@@ -137,9 +151,15 @@ export const resolveExecutionFieldConfig = ({ mode, status }) => {
     fields[FIELD_KEYS.REFUND_EVIDENCE_URL].show = true;
     fields[FIELD_KEYS.REFUND_AMOUNT].disabled = false;
     fields[FIELD_KEYS.NOTES].disabled = true;
-  } else {
-    fields[FIELD_KEYS.SCHEDULED_DATE].disabled = false;
-    fields[FIELD_KEYS.EXECUTION_DATE].disabled = false;
+    hideQuantityFields();
+  } else if (status === 'CANCELLED' || status === 'COVERED') {
+    Object.keys(fields).forEach((key) => {
+      fields[key].disabled = true;
+    });
+    hideQuantityFields();
+  } else if (status === 'TODO') {
+    fields[FIELD_KEYS.ACTUAL_COST].disabled = true;
+    fields[FIELD_KEYS.NOTES].disabled = true;
   }
 
   return fields;
@@ -176,7 +196,6 @@ export const buildExecutionPayload = ({ mode, status, values }) => {
 
   const payload = {
     scheduled_date: formatDate(values.scheduled_date),
-    execution_date: formatDate(values.execution_date),
     status: values.status || 'TODO',
     quantity_purchased: values.quantity_purchased ? Number(values.quantity_purchased) : 1,
     quantity_unit: values.quantity_unit?.trim() || undefined,
@@ -190,6 +209,10 @@ export const buildExecutionPayload = ({ mode, status, values }) => {
     payload.refund = {
       refund_amount: Number(values.refund_amount)
     };
+  }
+
+  if (payload.status === 'DONE') {
+    payload.execution_date = formatDate(values.execution_date ?? dayjs());
   }
 
   return payload;

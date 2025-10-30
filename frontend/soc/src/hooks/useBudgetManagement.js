@@ -15,6 +15,12 @@ import {
 } from './useCareTasks';
 import { useTaskExecutions } from './useTaskExecutions';
 import { buildBudgetAnalytics } from '../utils/budgetAnalytics';
+import { API_LIMITS } from '../utils/constants';
+
+const {
+  careTasks: CARE_TASKS_FETCH_LIMIT,
+  budgetExecutions: BUDGET_EXECUTIONS_FETCH_LIMIT
+} = API_LIMITS;
 
 const defaultCategoryModalState = {
   open: false,
@@ -62,7 +68,7 @@ export const useBudgetManagement = () => {
     isLoading: careTasksLoading,
     error: careTasksError,
     refetch: refetchCareTasks,
-  } = useCareTasks({ is_active: 'all', limit: 500, offset: 0 });
+  } = useCareTasks({ is_active: 'true', limit: CARE_TASKS_FETCH_LIMIT, offset: 0 });
 
   const careTasks = useMemo(
     () => careTasksResponse?.care_tasks ?? [],
@@ -94,6 +100,11 @@ export const useBudgetManagement = () => {
     [purchaseTasks]
   );
 
+  const purchaseTaskIdSet = useMemo(
+    () => new Set(taskIds),
+    [taskIds]
+  );
+
   const {
     data: executionsResponse,
     isLoading: executionsLoading,
@@ -101,12 +112,14 @@ export const useBudgetManagement = () => {
     refetch: refetchExecutions
   } = useTaskExecutions({
     taskIds,
-    params: { limit: 200, offset: 0 }
+    params: { limit: BUDGET_EXECUTIONS_FETCH_LIMIT, offset: 0 }
   });
 
   const executions = useMemo(
-    () => executionsResponse?.executions ?? [],
-    [executionsResponse]
+    () => (executionsResponse?.executions ?? []).filter(
+      (execution) => purchaseTaskIdSet.has(execution.care_task_id)
+    ),
+    [executionsResponse, purchaseTaskIdSet]
   );
 
   const budgetAnalytics = useMemo(() => buildBudgetAnalytics({

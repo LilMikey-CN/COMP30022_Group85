@@ -116,6 +116,16 @@ export const careTasksService = {
     });
   },
 
+  async generateRemainingExecutions(id) {
+    if (!id) {
+      throw new Error('Care task id is required');
+    }
+    return await authenticatedApiCall(`/api/care-tasks/${id}/generate-executions/rest`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
   async createManualExecution(id, payload = {}) {
     if (!id) {
       throw new Error('Care task id is required');

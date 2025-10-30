@@ -112,20 +112,25 @@ export const mapExecutionsToListItems = ({
   today = dayjs(),
   markOverdue = false,
 }) => {
-  return executions.map((execution) => {
-    const scheduled = normaliseExecutionDate(execution.scheduled_date);
-    const parentTask = careTasksById[execution.care_task_id];
-    const taskName = parentTask?.name || execution.title || 'Care task';
+  return executions
+    .map((execution) => {
+      const scheduled = normaliseExecutionDate(execution.scheduled_date);
+      const parentTask = careTasksById[execution.care_task_id];
+      if (!parentTask || parentTask.is_active === false) {
+        return null;
+      }
+      const taskName = parentTask?.name || execution.title || 'Care task';
 
-    return {
-      id: execution.id || `${execution.care_task_id}-${execution.scheduled_date}`,
-      title: taskName,
-      notes: execution.notes || parentTask?.notes || '',
-      dateLabel: scheduled ? scheduled.format('ddd, DD MMM') : 'N/A',
-      relativeLabel: buildRelativeLabel(scheduled, today.startOf('day')),
-      isOverdue: markOverdue,
-    };
-  });
+      return {
+        id: execution.id || `${execution.care_task_id}-${execution.scheduled_date}`,
+        title: taskName,
+        notes: execution.notes || parentTask?.notes || '',
+        dateLabel: scheduled ? scheduled.format('ddd, DD MMM') : 'N/A',
+        relativeLabel: buildRelativeLabel(scheduled, today.startOf('day')),
+        isOverdue: markOverdue,
+      };
+    })
+    .filter(Boolean);
 };
 
 export const buildBudgetSummary = (analytics) => {

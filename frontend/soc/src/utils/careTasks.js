@@ -43,7 +43,6 @@ export const filterCareTasks = (
   tasks = [],
   {
     searchTerm = '',
-    statusFilter = 'all',
     typeFilter = 'all',
     startRange = null
   } = {}
@@ -57,13 +56,6 @@ export const filterCareTasks = (
       if (!name.includes(lowered) && !description.includes(lowered)) {
         return false;
       }
-    }
-
-    if (statusFilter === 'active' && task.is_active === false) {
-      return false;
-    }
-    if (statusFilter === 'inactive' && task.is_active !== false) {
-      return false;
     }
 
     if (typeFilter !== 'all' && task.task_type !== typeFilter) {
@@ -109,8 +101,6 @@ export const sortCareTasks = (tasks = [], sortConfig, categoryMap) => {
         return task.start_date ? dayjs(task.start_date).valueOf() : -Infinity;
       case 'end_date':
         return task.end_date ? dayjs(task.end_date).valueOf() : Number.MAX_SAFE_INTEGER;
-      case 'status':
-        return task.is_active === false ? 0 : 1;
       case 'created_at':
       default:
         return task.created_at ? dayjs(task.created_at).valueOf() : -Infinity;
