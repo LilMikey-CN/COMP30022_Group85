@@ -6,3 +6,5 @@ firebaseAdminConfig.json
 
 # macOS specific
 .DS_Store
+
+AGENTS.md
